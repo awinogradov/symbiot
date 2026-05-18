@@ -1,0 +1,31 @@
+#!/bin/sh
+
+branch=$(git branch --show-current)
+
+# Skip validation for main/master
+if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+  exit 0
+fi
+
+# Validate branch name format — relaxed kebab-case (no issue-ID requirement).
+# symbiot has no issue tracker yet; require lowercase + hyphens only.
+kebab_pattern='^[a-z0-9]+(-[a-z0-9]+)*$'
+
+if ! echo "$branch" | grep -qE "$kebab_pattern"; then
+  echo "✖ Branch name \"$branch\" does not follow naming convention."
+  echo ""
+  echo "  Expected: lowercase kebab-case (letters, digits, hyphens only)."
+  echo "    e.g. feat-bootstrap, fix-anchor-drift, docs-prd"
+  exit 1
+fi
+
+# Check hard limit (100 chars)
+if [ ${#branch} -gt 100 ]; then
+  echo "✖ Branch name exceeds 100 character limit (${#branch} chars)."
+  exit 1
+fi
+
+# Warn if over 60 chars
+if [ ${#branch} -gt 60 ]; then
+  echo "⚠ Branch name is ${#branch} chars (aim for under 60)."
+fi

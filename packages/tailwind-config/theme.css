@@ -1,0 +1,104 @@
+/*
+ * symbiot — Tailwind v4 theme tokens.
+ *
+ * Two-layer token system:
+ *   1. shadcn semantic tokens (`--background`, `--primary`, etc.) drive default
+ *      shadcn primitives.
+ *   2. Annotation tokens (`--anno-delete`, `--anno-insert`, `--anno-replace`,
+ *      `--anno-comment`) drive the four mark/highlight kinds. Both light and
+ *      dark are defined; Phase 7 will verify WCAG AA contrast and finalize hues
+ *      (these are placeholders).
+ */
+
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-anno-delete: var(--anno-delete);
+  --color-anno-insert: var(--anno-insert);
+  --color-anno-replace: var(--anno-replace);
+  --color-anno-comment: var(--anno-comment);
+
+  --radius-sm: calc(var(--radius) * 0.8);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.2);
+  --radius-xl: calc(var(--radius) * 2);
+}
+
+:root {
+  --radius: 0.375rem; /* 6px — shadcn `rounded-md` (PRD §10) */
+
+  /* shadcn semantic tokens (light) — defaults */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  /* Annotation tokens — placeholder hues, AA contrast TBD in Phase 7 */
+  --anno-delete: #dc2626; /* red-600 */
+  --anno-insert: #16a34a; /* green-600 */
+  --anno-replace: #d97706; /* amber-600 */
+  --anno-comment: #2563eb; /* blue-600 */
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+
+  /* Annotation tokens (dark) — placeholder hues, AA contrast TBD in Phase 7 */
+  --anno-delete: #ef4444; /* red-500 */
+  --anno-insert: #22c55e; /* green-500 */
+  --anno-replace: #f59e0b; /* amber-500 */
+  --anno-comment: #3b82f6; /* blue-500 */
+}

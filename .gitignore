@@ -1,0 +1,39 @@
+# dependencies
+node_modules
+
+# build output
+dist
+.output
+
+# turborepo
+.turbo
+
+# cache
+.cache
+*.tsbuildinfo
+.eslintcache
+
+# env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+*.log
+
+# coverage
+coverage
+*.lcov
+
+# OS
+.DS_Store
+
+# IDE
+.idea
+.vscode
+.cursor
+
+# Claude Code runtime state
+.claude/*.lock

@@ -1,0 +1,32 @@
+{
+  "name": "@symbiot/prettier-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/prettierConfig.ts",
+      "types": "./dist/prettierConfig.d.ts",
+      "default": "./dist/prettierConfig.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "prettier-plugin-tailwindcss": "latest"
+  },
+  "peerDependencies": {
+    "prettier": "^3.0.0"
+  },
+  "devDependencies": {
+    "@symbiot/eslint-config": "workspace:*",
+    "@symbiot/typescript-config": "workspace:*",
+    "prettier": "latest",
+    "typescript": "latest"
+  }
+}

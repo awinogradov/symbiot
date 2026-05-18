@@ -1,0 +1,12 @@
+{
+  "extends": "@symbiot/typescript-config/node.json",
+  "compilerOptions": {
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"]
+}

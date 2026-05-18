@@ -1,0 +1,13 @@
+{
+  "name": "@symbiot/tailwind-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": ["theme.css"],
+  "exports": {
+    "./theme.css": "./theme.css"
+  },
+  "peerDependencies": {
+    "tailwindcss": "^4.0.0"
+  }
+}

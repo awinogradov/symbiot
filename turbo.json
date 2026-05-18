@@ -1,0 +1,41 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "globalDependencies": [
+    "tsconfig.json",
+    "eslint.config.ts",
+    "packages/typescript-config/*.json",
+    ".prettierignore",
+    "bun.lock"
+  ],
+  "globalEnv": ["NODE_ENV"],
+  "globalPassThroughEnv": ["CI", "GITHUB_*", "RUNNER_*", "TURBO_*", "PATH", "HOME", "TMPDIR"],
+  "tasks": {
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".output/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "bundle-analyze": {
+      "dependsOn": ["^build"],
+      "outputs": ["bundle-stats/**"]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

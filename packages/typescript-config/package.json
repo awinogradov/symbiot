@@ -1,0 +1,12 @@
+{
+  "name": "@symbiot/typescript-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": ["base.json", "react.json", "node.json"],
+  "exports": {
+    "./base.json": "./base.json",
+    "./react.json": "./react.json",
+    "./node.json": "./node.json"
+  }
+}

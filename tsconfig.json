@@ -1,0 +1,23 @@
+{
+  "extends": "@symbiot/typescript-config/base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "eslint.config.ts",
+    "commitlint.config.ts",
+    "lint-staged.config.ts",
+    "vitest.config.ts"
+  ],
+  "references": [
+    { "path": "./apps/hook" },
+    { "path": "./apps/portal" },
+    { "path": "./apps/marketing" },
+    { "path": "./packages/eslint-config" },
+    { "path": "./packages/prettier-config" },
+    { "path": "./packages/symbiot-annotations" },
+    { "path": "./packages/symbiot-editor" },
+    { "path": "./packages/symbiot-server" },
+    { "path": "./packages/symbiot-ui" }
+  ]
+}

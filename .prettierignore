@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.output/
+
+# turborepo
+.turbo/
+
+# lockfile
+bun.lock
+
+# coverage
+coverage/
+
+# GitHub Actions
+.github/workflows/
+
+# planning docs (prose; not subject to prettier)
+plans/
+PRD.md

@@ -1,0 +1,21 @@
+{
+  "name": "@symbiot/annotations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo 'no build yet'",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@symbiot/eslint-config": "workspace:*",
+    "@symbiot/typescript-config": "workspace:*",
+    "eslint": "10.4.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.6"
+  }
+}

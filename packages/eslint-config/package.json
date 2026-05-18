@@ -1,0 +1,45 @@
+{
+  "name": "@symbiot/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/eslintConfig.ts",
+      "types": "./dist/eslintConfig.d.ts",
+      "default": "./dist/eslintConfig.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@eslint-react/eslint-plugin": "latest",
+    "@eslint/compat": "latest",
+    "@eslint/js": "latest",
+    "eslint-config-prettier": "latest",
+    "eslint-plugin-depend": "latest",
+    "eslint-plugin-import-x": "latest",
+    "eslint-plugin-jsdoc": "latest",
+    "eslint-plugin-jsx-a11y": "latest",
+    "eslint-plugin-n": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "eslint-plugin-unicorn": "latest",
+    "globals": "latest",
+    "typescript-eslint": "latest"
+  },
+  "peerDependencies": {
+    "eslint": "^10.0.0"
+  },
+  "devDependencies": {
+    "@symbiot/typescript-config": "workspace:*",
+    "eslint": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  }
+}
