@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { type PlanResponse } from "../../shared/apiTypes.ts";
-import { fetchPlan } from "../libs/api.ts";
+import { fetchPlan } from "../libs/apiClient.ts";
 
 /**
  * Fetch the plan + viewer mode once on mount. Returns `null` while the request

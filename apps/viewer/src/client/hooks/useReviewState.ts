@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import {
-  serializeFeedback,
   walkAnnotations,
   type AnnotationEntry,
   type GlobalCommentEntry,
@@ -13,12 +12,8 @@ import {
 import { type AnnotationSidebarEntry } from "@symbiot/ui/components/AnnotationSidebar";
 import { type EditorMode } from "@symbiot/ui/components/TopBar";
 
-import { type DraftPayload, type PlanResponse } from "../../shared/apiTypes.ts";
-import { deleteDraft, postApprove, postDeny, postFeedback } from "../libs/api.ts";
+import { type DraftPayload } from "../../shared/apiTypes.ts";
 import { projectEntries, toSidebarEntry } from "../utils/sidebarProjection.ts";
-
-/** Submission lifecycle phase: ready → submitting → done. */
-export type Phase = "ready" | "submitting" | "done";
 
 const editorModeKey = "symbiot.editor-mode";
 
@@ -29,9 +24,8 @@ const loadEditorMode = (): EditorMode => {
   return raw === "redline" ? "redline" : "review";
 };
 
-/** Inputs that bind the review session to its plan, draft, and draft I/O. */
-export interface ReviewProps {
-  plan: PlanResponse;
+/** Inputs that bind the review session to its loaded plan and persisted draft. */
+export interface ReviewStateProps {
   draft: DraftPayload | null;
   saveDraft: (snapshot: {
     value: unknown[];
@@ -39,23 +33,21 @@ export interface ReviewProps {
     commentImages: Map<string, string[]>;
     globalComments: GlobalCommentEntry[];
   }) => void;
-  cancelDraft: () => void;
 }
 
-/** Everything the {@link ReviewScreen} renders or wires through to children. */
+/** Everything the `<ReviewScreen>` renders or wires through to children. */
 export interface ReviewState {
-  phase: Phase;
+  editorHandle: ReviewEditorHandle | null;
   editorMode: EditorMode;
   sidebarEntries: AnnotationSidebarEntry[];
   initialValue: unknown[] | undefined;
   initialBodies: Map<string, string> | undefined;
   initialImages: Map<string, string[]> | undefined;
   reloadKey: number;
+  collectEntries: () => AnnotationEntry[];
   setEditorHandle: (handle: ReviewEditorHandle) => void;
   onEditorModeChange: (next: EditorMode) => void;
   onEditorChange: (snapshot: EditorSnapshot) => void;
-  onApprove: () => Promise<void>;
-  onSubmit: () => Promise<void>;
   onAddGlobalComment: (body: string, images: string[]) => void;
   onClearAll: () => void;
 }
@@ -69,17 +61,11 @@ const draftInitialMap = <V>(
 };
 
 /**
- * Centralizes review-session state: phase, editor handle, global comments,
- * mode toggle, latest snapshot, and reload counter. Returns the props the
- * `<ReviewScreen>` distributes to its children.
+ * Pure session state for the review screen: editor handle, mode, global
+ * comments, latest editor snapshot, and the reload counter that powers
+ * Clear-All. Submission side-effects live in {@link useReviewSubmit}.
  */
-export const useReviewState = ({
-  plan,
-  draft,
-  saveDraft,
-  cancelDraft,
-}: ReviewProps): ReviewState => {
-  const [phase, setPhase] = useState<Phase>("ready");
+export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewState => {
   const [editorHandle, setEditorHandle] = useState<ReviewEditorHandle | null>(null);
   const [globalComments, setGlobalComments] = useState<GlobalCommentEntry[]>(
     () => draft?.globalComments ?? []
@@ -123,35 +109,6 @@ export const useReviewState = ({
     return collectEntries().map(toSidebarEntry);
   }, [collectEntries, globalComments, latestSnapshot]);
 
-  const buildFeedbackMarkdown = useCallback(
-    (): string => serializeFeedback(collectEntries()),
-    [collectEntries]
-  );
-
-  const onApprove = useCallback(async () => {
-    setPhase("submitting");
-    // Stop the auto-save loop FIRST: a queued POST /api/draft fired after the
-    // DELETE below would re-create the draft and resurrect annotations on the
-    // next plan-review session for the same slug.
-    cancelDraft();
-    await postApprove();
-    await deleteDraft().catch(() => undefined);
-    setPhase("done");
-    window.close();
-  }, [cancelDraft]);
-
-  const onSubmit = useCallback(async () => {
-    if (editorHandle === null) return;
-    setPhase("submitting");
-    cancelDraft();
-    const feedback = buildFeedbackMarkdown();
-    const submit = plan.mode === "annotate" ? postFeedback : postDeny;
-    await submit(feedback);
-    await deleteDraft().catch(() => undefined);
-    setPhase("done");
-    window.close();
-  }, [buildFeedbackMarkdown, cancelDraft, editorHandle, plan.mode]);
-
   const onAddGlobalComment = useCallback((body: string, images: string[]): void => {
     const entry: GlobalCommentEntry = { id: crypto.randomUUID(), body };
     if (images.length > 0) entry.images = images;
@@ -165,18 +122,17 @@ export const useReviewState = ({
   }, []);
 
   return {
-    phase,
+    editorHandle,
     editorMode,
     sidebarEntries,
     initialValue: reloadKey === 0 ? draft?.value : undefined,
     initialBodies: draftInitialMap(draft?.commentBodies, reloadKey),
     initialImages: draftInitialMap(draft?.commentImages, reloadKey),
     reloadKey,
+    collectEntries,
     setEditorHandle,
     onEditorModeChange,
     onEditorChange,
-    onApprove,
-    onSubmit,
     onAddGlobalComment,
     onClearAll,
   };

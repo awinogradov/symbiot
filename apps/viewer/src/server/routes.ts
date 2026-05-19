@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 
+import { routeKey } from "../shared/apiRoutes.ts";
 import type { ViewerMode } from "../shared/apiTypes.ts";
 
 import {
@@ -190,18 +191,17 @@ const feedbackRoute = async (req: Request, ctx: RouteContext): Promise<Response>
 };
 
 type Handler = (req: Request, ctx: RouteContext) => Response | Promise<Response>;
-type RouteKey = `${string} ${string}`;
 
-const routes: Record<RouteKey, Handler> = {
-  "GET /api/plan": (_req, ctx) => planRoute(ctx),
-  "POST /api/approve": (_req, ctx) => approveRoute(ctx),
-  "POST /api/deny": (req, ctx) => denyRoute(req, ctx),
-  "POST /api/feedback": (req, ctx) => feedbackRoute(req, ctx),
-  "GET /api/draft": (_req, ctx) => draftGetRoute(ctx),
-  "POST /api/draft": (req, ctx) => draftPostRoute(req, ctx),
-  "DELETE /api/draft": (_req, ctx) => draftDeleteRoute(ctx),
-  "POST /api/upload": (req, ctx) => uploadRoute(req, ctx),
-  "GET /api/image": (req, ctx) => imageRoute(req, ctx),
+const routes: Record<string, Handler> = {
+  [routeKey("plan")]: (_req, ctx) => planRoute(ctx),
+  [routeKey("approve")]: (_req, ctx) => approveRoute(ctx),
+  [routeKey("deny")]: (req, ctx) => denyRoute(req, ctx),
+  [routeKey("feedback")]: (req, ctx) => feedbackRoute(req, ctx),
+  [routeKey("draftGet")]: (_req, ctx) => draftGetRoute(ctx),
+  [routeKey("draftPut")]: (req, ctx) => draftPostRoute(req, ctx),
+  [routeKey("draftDelete")]: (_req, ctx) => draftDeleteRoute(ctx),
+  [routeKey("upload")]: (req, ctx) => uploadRoute(req, ctx),
+  [routeKey("image")]: (req, ctx) => imageRoute(req, ctx),
 };
 
 export type { RouteContext };
