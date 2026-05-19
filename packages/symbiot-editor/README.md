@@ -4,6 +4,15 @@ The symbiot Plate editor as a reusable React package. Pattern A read-only sugges
 
 Embedded in the browser surface that `apps/hook` opens and in `apps/portal`.
 
+## Why a separate package
+
+Kept distinct from `@symbiot/ui` on purpose:
+
+- **Dependency surface.** `@symbiot/ui` is design-system only (Radix + Tailwind + `cva`/`cn`). The editor pulls in Plate, slate, shiki, remark, and `@symbiot/annotations` — folding it in would force every UI consumer to carry the Plate runtime.
+- **Layered direction.** `apps/viewer` → `@symbiot/editor` → `@symbiot/ui`. One-way arrow; the editor consumes ui primitives, not the other way around.
+- **Change cadence.** UI evolves with design tokens; editor evolves with the review/redline domain (suggestions, comments, markdown plugins). Separation lets each move independently.
+- **Reusability.** Other surfaces (settings panels, future apps) can depend on `@symbiot/ui` without inheriting the editor stack.
+
 ## Status
 
 Placeholder. Phased rollout:
