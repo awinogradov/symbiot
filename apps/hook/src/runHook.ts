@@ -28,6 +28,17 @@ const planFrom = (input: PreToolUseInput): string | null => {
   return input.tool_input?.plan ?? null;
 };
 
+const emitApproveDecision = (): void => {
+  const payload = {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "allow",
+      permissionDecisionReason: "Reviewer approved plan in symbiot.",
+    },
+  };
+  process.stdout.write(JSON.stringify(payload));
+};
+
 const emitDenyDecision = (feedback: string): void => {
   const payload = {
     decision: "block",
@@ -39,8 +50,10 @@ const emitDenyDecision = (feedback: string): void => {
 /**
  * Claude Code `PreToolUse` hook entry point matched against `ExitPlanMode`.
  * Hands the proposed plan to the viewer, blocks until the reviewer decides:
- * Approve → exit 0 (Claude proceeds with ExitPlanMode); Request changes →
- * emit `{decision: "block", reason}` so Claude sees the feedback and revises.
+ * Approve → emit `{hookSpecificOutput: {permissionDecision: "allow"}}` so
+ * Claude auto-approves ExitPlanMode without re-prompting the user; Request
+ * changes → emit `{decision: "block", reason}` so Claude sees the feedback
+ * and revises.
  */
 export const runHook = async (): Promise<number> => {
   const input = await readHookInput();
@@ -50,7 +63,10 @@ export const runHook = async (): Promise<number> => {
   process.stderr.write(`symbiot: review plan at ${server.url}\n`);
   const decision = await server.resolved;
   await server.stop();
-  if (decision.kind === "approve") return 0;
+  if (decision.kind === "approve") {
+    emitApproveDecision();
+    return 0;
+  }
   emitDenyDecision(decision.feedback);
   return 0;
 };
