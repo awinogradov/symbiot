@@ -61,6 +61,7 @@ interface ReviewProps {
     commentImages: Map<string, string[]>;
     globalComments: GlobalCommentEntry[];
   }) => void;
+  cancelDraft: () => void;
 }
 
 const toSidebarEntry = (entry: AnnotationEntry): AnnotationSidebarEntry => {
@@ -178,7 +179,7 @@ interface ReviewState {
   onClearAll: () => void;
 }
 
-const useReviewState = ({ plan, draft, saveDraft }: ReviewProps): ReviewState => {
+const useReviewState = ({ plan, draft, saveDraft, cancelDraft }: ReviewProps): ReviewState => {
   const [phase, setPhase] = useState<Phase>("ready");
   const [editorHandle, setEditorHandle] = useState<ReviewEditorHandle | null>(null);
   const [globalComments, setGlobalComments] = useState<GlobalCommentEntry[]>(
@@ -230,22 +231,27 @@ const useReviewState = ({ plan, draft, saveDraft }: ReviewProps): ReviewState =>
 
   const onApprove = useCallback(async () => {
     setPhase("submitting");
+    // Stop the auto-save loop FIRST: a queued POST /api/draft fired after the
+    // DELETE below would re-create the draft and resurrect annotations on the
+    // next plan-review session for the same slug.
+    cancelDraft();
     await postApprove();
     await deleteDraft().catch(() => undefined);
     setPhase("done");
     window.close();
-  }, []);
+  }, [cancelDraft]);
 
   const onSubmit = useCallback(async () => {
     if (editorHandle === null) return;
     setPhase("submitting");
+    cancelDraft();
     const feedback = buildFeedbackMarkdown();
     const submit = plan.mode === "annotate" ? postFeedback : postDeny;
     await submit(feedback);
     await deleteDraft().catch(() => undefined);
     setPhase("done");
     window.close();
-  }, [buildFeedbackMarkdown, editorHandle, plan.mode]);
+  }, [buildFeedbackMarkdown, cancelDraft, editorHandle, plan.mode]);
 
   const onAddGlobalComment = useCallback((body: string, images: string[]): void => {
     const entry: GlobalCommentEntry = { id: crypto.randomUUID(), body };
@@ -277,8 +283,25 @@ const useReviewState = ({ plan, draft, saveDraft }: ReviewProps): ReviewState =>
   };
 };
 
-const ReviewScreen = ({ plan, draft, saveDraft }: ReviewProps): React.ReactElement => {
-  const state = useReviewState({ plan, draft, saveDraft });
+const submittedHeading = (mode: PlanResponse["mode"]): string =>
+  mode === "annotate" ? "Feedback submitted." : "Sent to the agent.";
+
+interface SubmittedScreenProps {
+  mode: PlanResponse["mode"];
+}
+
+const SubmittedScreen = ({ mode }: SubmittedScreenProps): React.ReactElement => (
+  <div
+    data-testid="submitted-screen"
+    className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-sm"
+  >
+    <p className="text-foreground text-lg font-medium">{submittedHeading(mode)}</p>
+    <p>You can close this window.</p>
+  </div>
+);
+
+const ReviewScreen = ({ plan, draft, saveDraft, cancelDraft }: ReviewProps): React.ReactElement => {
+  const state = useReviewState({ plan, draft, saveDraft, cancelDraft });
   const {
     phase,
     editorMode,
@@ -295,6 +318,8 @@ const ReviewScreen = ({ plan, draft, saveDraft }: ReviewProps): React.ReactEleme
     onAddGlobalComment,
     onClearAll,
   } = state;
+
+  if (phase === "done") return <SubmittedScreen mode={plan.mode} />;
 
   return (
     <SidebarProvider>
@@ -337,7 +362,12 @@ interface PlanLoadedProps {
 }
 
 const PlanLoaded = ({ plan }: PlanLoadedProps): React.ReactElement => {
-  const { loaded: draft, isLoading: draftLoading, save: saveDraft } = useDraft();
+  const {
+    loaded: draft,
+    isLoading: draftLoading,
+    save: saveDraft,
+    cancel: cancelDraft,
+  } = useDraft();
   if (draftLoading) {
     return (
       <div className="text-muted-foreground flex h-full items-center justify-center">
@@ -345,7 +375,7 @@ const PlanLoaded = ({ plan }: PlanLoadedProps): React.ReactElement => {
       </div>
     );
   }
-  return <ReviewScreen plan={plan} draft={draft} saveDraft={saveDraft} />;
+  return <ReviewScreen plan={plan} draft={draft} saveDraft={saveDraft} cancelDraft={cancelDraft} />;
 };
 
 export const App = (): React.ReactElement => {

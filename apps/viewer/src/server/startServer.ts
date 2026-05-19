@@ -44,6 +44,8 @@ interface RequestContext {
   meta: PlanMeta;
   mode: ViewerMode;
   resolve: (decision: Decision) => void;
+  isResolved: () => boolean;
+  markResolved: () => void;
   origin: string;
   staticRoot: string;
   decisionFile: string | null;
@@ -85,6 +87,11 @@ export const startServer = async (options: StartServerOptions): Promise<RunningS
   const resolved = new Promise<Decision>((r) => {
     resolve = r;
   });
+  let resolvedFlag = false;
+  const isResolved = (): boolean => resolvedFlag;
+  const markResolved = (): void => {
+    resolvedFlag = true;
+  };
   const staticRoot = options.staticRoot ?? defaultStaticRoot;
   let port = 0;
   const server = Bun.serve({
@@ -96,6 +103,8 @@ export const startServer = async (options: StartServerOptions): Promise<RunningS
         meta,
         mode: options.mode ?? "plan",
         resolve,
+        isResolved,
+        markResolved,
         origin: `http://127.0.0.1:${port}`,
         staticRoot,
         decisionFile: options.decisionFile ?? null,

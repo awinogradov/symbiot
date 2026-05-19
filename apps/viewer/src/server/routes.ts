@@ -31,6 +31,10 @@ interface RouteContext {
   meta: PlanMeta;
   mode: ViewerMode;
   resolve: (decision: Decision) => void;
+  /** Flips to true once a decision has been recorded. Subsequent draft writes are rejected. */
+  isResolved: () => boolean;
+  /** Mark this context as resolved. Called by approve/deny/feedback after `resolve`. */
+  markResolved: () => void;
   /** When set, the most recent decision is persisted here for out-of-band readers (e.g. Playwright). */
   decisionFile?: string | null;
 }
@@ -49,23 +53,33 @@ const jsonResponse = (body: unknown, status = 200): Response =>
 const planRoute = (ctx: RouteContext): Response =>
   jsonResponse({ plan: ctx.plan, mode: ctx.mode, meta: ctx.meta });
 
-const approveRoute = async (ctx: RouteContext): Promise<Response> => {
-  const decision: Decision = { kind: "approve" };
+/**
+ * Finalize a submission: clear the draft, mark the context resolved so any
+ * straggling POST /api/draft becomes a no-op, persist the decision for
+ * out-of-band readers, and resolve the runOneShot promise.
+ *
+ * Order matters: clearDraft + markResolved happen BEFORE resolve so that even
+ * if the runOneShot tear-down (which calls server.stop) runs immediately on
+ * the next microtask, the draft state is already canonical.
+ */
+const finalize = async (ctx: RouteContext, decision: Decision): Promise<void> => {
+  await clearDraft(ctx.meta).catch(() => undefined);
+  ctx.markResolved();
   if (ctx.decisionFile !== undefined && ctx.decisionFile !== null) {
     await recordDecision(ctx.decisionFile, decision);
   }
   ctx.resolve(decision);
+};
+
+const approveRoute = async (ctx: RouteContext): Promise<Response> => {
+  await finalize(ctx, { kind: "approve" });
   return new Response(null, { status: 204 });
 };
 
 const denyRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
   const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
   const feedback = body?.feedback ?? "";
-  const decision: Decision = { kind: "deny", feedback };
-  if (ctx.decisionFile !== undefined && ctx.decisionFile !== null) {
-    await recordDecision(ctx.decisionFile, decision);
-  }
-  ctx.resolve(decision);
+  await finalize(ctx, { kind: "deny", feedback });
   return new Response(null, { status: 204 });
 };
 
@@ -79,6 +93,10 @@ const draftGetRoute = async (ctx: RouteContext): Promise<Response> => {
 };
 
 const draftPostRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  // After a decision has been resolved, late saves from a queued client-side
+  // debounce would re-create the draft on disk and resurrect annotations on
+  // the next session for the same plan slug. Drop them silently.
+  if (ctx.isResolved()) return new Response(null, { status: 204 });
   const raw = await req.text();
   await saveDraft(ctx.meta, raw);
   return new Response(null, { status: 204 });
@@ -164,11 +182,7 @@ const feedbackRoute = async (req: Request, ctx: RouteContext): Promise<Response>
   const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
   const feedback = body?.feedback ?? "";
   await saveFeedback(ctx.meta, feedback);
-  const decision: Decision = { kind: "feedback", feedback };
-  if (ctx.decisionFile !== undefined && ctx.decisionFile !== null) {
-    await recordDecision(ctx.decisionFile, decision);
-  }
-  ctx.resolve(decision);
+  await finalize(ctx, { kind: "feedback", feedback });
   return new Response(null, { status: 204 });
 };
 
