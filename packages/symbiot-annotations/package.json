@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "build": "echo 'no build yet'",
     "lint": "eslint . --max-warnings=0",
@@ -14,6 +17,7 @@
   "devDependencies": {
     "@symbiot/eslint-config": "workspace:*",
     "@symbiot/typescript-config": "workspace:*",
+    "@types/bun": "1.3.14",
     "eslint": "10.4.0",
     "typescript": "6.0.3",
     "vitest": "4.1.6"

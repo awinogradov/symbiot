@@ -24,7 +24,7 @@ After this phase, M2 holds — feedback markdown is byte-compatible with the pla
 
 ## Scope
 
-### `packages/symbiot-server`
+### `apps/viewer/src/server`
 
 Complete the plan + annotate endpoint set per PRD §15 retained list:
 
@@ -41,6 +41,8 @@ Bun runtime, filesystem-only storage. Security model: localhost-only binding, CO
 - Add `SuggestionKit` for delete suggestions.
 - Add `MediaImageKit` for inline image references.
 - Build `RedlineEditor` wrapper (`readOnly` default, selection auto-applies a deletion via Pattern A).
+- **Carry-over from Phase 2 (FR-1.2 coverage):** add `@platejs/table` (tables), a list/task plugin (`[ ]` / `[x]` → checkboxes), and Prism integration on `CodeBlockPlugin` for fenced-code syntax highlighting. Wrap any new void elements with a React-19-safe component (same pattern as `HrElement`). Block-level source-line metadata (start/end line per block) lands here so the annotations codec can emit plannotator's `(lines N–M)` heading prefix.
+- **Wire `CommentComposer` from `@symbiot/ui` into `ReviewEditor`** in place of `window.prompt`. The Phase 2 plumbing exists; flip the call site.
 
 ### `packages/symbiot-annotations`
 
@@ -61,12 +63,18 @@ Vendor and wire these shadcn components:
 - `Tabs`
 - `Badge`
 - `AlertDialog`
-- `Popover` composer for Comment (text + image attach)
+- `Tooltip` (deferred from Phase 2; needed for toolbar action labels)
+- `Popover` composer for Comment (text + image attach) — extend the Phase 2 `CommentComposer` with the image-attach affordance
 - Global Comment composer (similar Popover triggered from top bar)
 
 ### `apps/hook`
 
 Support annotate mode invocation; pass mode through the URL hash.
+
+### `apps/viewer` (Tailwind / typography polish)
+
+- Install `@tailwindcss/typography`; enable the plugin in `styles.css` so the editor's `prose` class actually styles headings, lists, code, blockquote sizing/spacing. Phase 2 left this as plain text.
+- Confirm new workspace packages added in Phase 3 are listed under `@source` in `apps/viewer/src/client/styles.css` so their Tailwind classes are scanned.
 
 ## Out of scope (deferred)
 
@@ -78,7 +86,7 @@ Support annotate mode invocation; pass mode through the URL hash.
 
 ## Tasks
 
-1. Extend `packages/symbiot-server`: add `/api/feedback`, `/api/upload`, `/api/image`, `/api/draft`. Implement upload security as specified above (whitelist, UUID, traversal guard).
+1. Extend `apps/viewer/src/server`: add `/api/feedback`, `/api/upload`, `/api/image`, `/api/draft`. Implement upload security as specified above (whitelist, UUID, traversal guard).
 2. Add `SuggestionKit` to the editor kit. Implement deletion authoring (selection → strikethrough render via suggestion mark).
 3. Build `RedlineEditor`: same kit + a `useEffect` hook on selection that auto-applies a deletion.
 4. Mode toggle in top bar; persist to `localStorage` key `symbiot.editor-mode`.
@@ -96,7 +104,11 @@ In addition to Phase 2's:
 
 - `@platejs/suggestion`
 - `@platejs/media` (image plugin only)
-- Additional shadcn primitives: `sidebar`, `toggle-group`, `dropdown-menu`, `tabs`, `badge`, `alert-dialog`
+- `@platejs/table` (tables — carry-over from Phase 2 FR-1.2)
+- `@platejs/list` (task lists — carry-over)
+- `prismjs` (or `shiki`) for fenced-code highlighting (carry-over)
+- `@tailwindcss/typography` (heading/prose styling — carry-over)
+- Additional shadcn primitives: `sidebar`, `toggle-group`, `dropdown-menu`, `tabs`, `badge`, `alert-dialog`, `tooltip` (deferred from Phase 2)
 
 ## Risks / OQs
 

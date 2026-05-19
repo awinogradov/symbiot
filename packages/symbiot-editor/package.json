@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "build": "echo 'no build yet'",
     "lint": "eslint . --max-warnings=0",
@@ -11,9 +14,24 @@
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo"
   },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@platejs/basic-nodes": "53.0.0",
+    "@platejs/code-block": "53.0.0",
+    "@platejs/comment": "53.0.0",
+    "@platejs/markdown": "53.0.4",
+    "@symbiot/annotations": "workspace:*",
+    "@symbiot/ui": "workspace:*",
+    "platejs": "53.0.3"
+  },
   "devDependencies": {
     "@symbiot/eslint-config": "workspace:*",
     "@symbiot/typescript-config": "workspace:*",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
     "eslint": "10.4.0",
     "typescript": "6.0.3",
     "vitest": "4.1.6"

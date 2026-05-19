@@ -1,4 +1,0 @@
-{
-  "extends": "@symbiot/typescript-config/node.json",
-  "include": ["src"]
-}

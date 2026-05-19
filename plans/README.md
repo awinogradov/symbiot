@@ -8,7 +8,7 @@ Read [`../PRD.md`](../PRD.md) for product context first. This directory sequence
 |---|---|---|---|
 | 0 | ✅ Complete (2026-05-18) | [`00-spike.md`](./00-spike.md) | Prove Pattern A (read-only Plate + transient suggestion authoring, OQ-1). Go/no-go gate. **PASS** — Pattern A works without read-only toggling; `editor.tf.*` bypasses DOM `contenteditable=false`. |
 | 1 | ✅ Complete (2026-05-19) | [`01-bootstrap.md`](./01-bootstrap.md) | **Bun + Turborepo** monorepo bootstrap (core settings only). |
-| 2 | ⏳ Pending | [`02-mvp.md`](./02-mvp.md) | Claude Code hook → symbiot server → Plate render → Approve/Deny + anchored Comment. |
+| 2 | ✅ Complete (2026-05-19) | [`02-mvp.md`](./02-mvp.md) | Claude Code hook → **apps/viewer (consolidated fullstack)** → Plate render → Approve/Deny + anchored Comment. **PASS** — end-to-end loop works against a real Claude Code session; M2 golden file holds. Known cosmetic gaps (tables / task lists / syntax highlighting / Tailwind Typography) are non-blocking and roll into Phase 3 polish. |
 | 3 | ⏳ Pending | [`03-critical-features.md`](./03-critical-features.md) | The 3 plan-review annotation types (Comment, Global Comment, Deletion), Review + Redline modes, sidebar, feedback export. |
 | 4 | ⏳ Pending | [`04-versioning.md`](./04-versioning.md) | Plan version history + `@platejs/diff` inline diff; annotations survive version changes. |
 | 5 | ⏳ Pending | [`05-extended-annotations.md`](./05-extended-annotations.md) | Insertion + Replacement — net-new symbiot annotation types completing the 5-type set. |
@@ -16,6 +16,17 @@ Read [`../PRD.md`](../PRD.md) for product context first. This directory sequence
 | 7 | ⏳ Pending | [`07-theming.md`](./07-theming.md) | System / light / dark with OS default, no FOUC, AA-contrast annotation tokens, theme toggle. |
 | 8 | ⏳ Pending | [`08-hardening.md`](./08-hardening.md) | Bundle size to NFR-1, single-file viewer HTML, a11y pass, cross-browser, CI/CD scaffolding. |
 | 9 | ⏳ Pending | [`09-wide-agents.md`](./09-wide-agents.md) | OpenCode plugin → Codex CLI → Copilot CLI → Pi / Gemini / others. |
+
+### Phase 2 architectural decisions (carry-forward for later phases)
+
+- **Server logic + browser UI consolidated in `apps/viewer`.** No separate `packages/symbiot-server` — the Phase 1 placeholder is removed at the top of Phase 2. The Bun HTTP server lives in `apps/viewer/src/server/` next to the React/Vite client in `apps/viewer/src/client/`, built into a single binary. Phase 9 agent integrations (`apps/hook`, future `apps/copilot`, `apps/gemini`, …) all spawn the same `apps/viewer` binary; they differ only in CLI shape.
+- **Hook event is `PreToolUse` with matcher `ExitPlanMode`** — NOT `Stop`. Stop fires after every assistant turn; `PreToolUse(ExitPlanMode)` fires exactly when the agent presents a plan and gives us a clean spot to block with feedback. Decision response shape: exit 0 = approve; `{"decision":"block","reason":"<feedback>"}` on stdout = request changes. The Phase 2 plan originally listed `Stop`/`PostToolUse`; corrected in execution.
+- **Hook command points at source `cli.ts`, not the bundle.** `bun build` inlines `@symbiot/viewer` into the bundle and rewrites `import.meta.url`, which breaks the viewer's relative path math to `dist/client/`. Installer writes `bun /abs/path/apps/hook/src/cli.ts run-hook`. Bun runs `.ts` directly; no bundling step needed for the hook.
+- **Selection toolbar is a custom DOM-`selectionchange` listener** in `packages/symbiot-editor/src/SelectionToolbar.tsx`, not `@platejs/floating-toolbar`. Plate's FloatingToolbar doesn't fire on `contenteditable=false` content — Phase 0 spike flagged this; Phase 2 realized the fallback. Phases 3+ can keep the same component or swap to Plate's once Plate ships read-only support.
+- **Plate void elements need wrappers in React 19.** Plate's `HorizontalRulePlugin` renders `<hr>` directly via `render: { as: "hr" }`. Slate-React always hands a zero-width text node as `children`; React 19 rejects children on void HTML elements. Fix: `HorizontalRulePlugin.withComponent(HrElement)` wraps in a div with `<hr/>` next to a hidden `<span>{children}</span>`. Same pattern applies to any future void element (`<img>`, `<br>`, `<input>`).
+- **Plate initial-value must be a deserialized array, not a markdown string.** `usePlateEditor({ value: markdownString })` triggers `splitDecorationsByChild` on `undefined` because Slate's `useChildren` runs before the markdown auto-deserializer. Fix: `value: (e) => e.getApi(MarkdownPlugin).markdown.deserialize(markdown)`.
+- **Tailwind v4 only scans the project root** (e.g. `apps/viewer`). Workspace package class names need explicit `@source` directives. The viewer's `styles.css` declares `@source "../../../../packages/symbiot-ui/src";` and `@source "../../../../packages/symbiot-editor/src";`. Every new workspace package that emits Tailwind classes must be added.
+- **Plannotator wire format pinned without source-line labels** (`(lines N–M)`). Phase 2 doesn't carry block-level source positions through the Plate value yet. Golden fixture under `fixtures/plannotator-reference/comment.md` documents the gap; Phase 3 tightens it when the full annotation pipeline lands.
 
 ### Phase 0 findings (carry-forward for later phases)
 
@@ -54,6 +65,7 @@ The PRD (v1.1) was validated against the plannotator concept and its public sour
 | 5 annotation types | The reference implementation ships **3 only**: Comment, Global Comment, Deletion. | Phase 3 ships those 3 types for wire-format compatibility. Insertion + Replacement land in **Phase 5** as net-new symbiot features. |
 | `~/.symbiot/` + `symbiot` CLI + `symbiot-*` packages | symbiot uses its own paths and naming throughout. | **Fresh product, no migrator.** R-7 dropped. |
 | Apps list in PRD §8.1 | Some agent integrations (Copilot, Gemini) live in their own apps; others (review, skills, vscode-extension) are deprecated or backlog. | Phase 9 covers `apps/copilot` and `apps/gemini`. `apps/review` dropped per NG2. `apps/skills` / `apps/vscode-extension` → backlog. |
+| `packages/symbiot-server` listed in PRD §8.1 workspace tree | Server is a thin Bun HTTP layer tightly coupled to the Vite-built client. A separate package adds workspace ceremony without an independent consumer. | **Consolidated into `apps/viewer`** at the start of Phase 2; the Phase 1 placeholder is deleted. All agent integrations spawn `apps/viewer`. |
 | Server endpoints §15 | Some endpoints (`/api/goal-setup`, external-annotations API) are code-review-adjacent. | Add `/api/goal-setup` in Phase 3 if surfaced. External-annotations API dropped. |
 | Improvement hooks / archive mode | Concepts in scope of plan-review tools generally; PRD silent. | Backlog. Not in this plan. |
 

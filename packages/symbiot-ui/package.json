@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "build": "echo 'no build yet'",
     "lint": "eslint . --max-warnings=0",
@@ -11,9 +14,23 @@
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo"
   },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-popover": "1.1.15",
+    "@radix-ui/react-tooltip": "1.2.8",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.16.0",
+    "tailwind-merge": "3.3.1"
+  },
   "devDependencies": {
     "@symbiot/eslint-config": "workspace:*",
     "@symbiot/typescript-config": "workspace:*",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
     "eslint": "10.4.0",
     "typescript": "6.0.3",
     "vitest": "4.1.6"

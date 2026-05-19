@@ -20,3 +20,7 @@ coverage/
 # planning docs (prose; not subject to prettier)
 plans/
 PRD.md
+
+# golden fixtures — must match plannotator output byte-for-byte
+fixtures/plannotator-reference/
+

@@ -69,7 +69,7 @@ Land the non-functional requirements:
 
 ## Tasks
 
-1. Configure `vite-plugin-singlefile` for the viewer bundle (in-app and portal).
+1. Configure `vite-plugin-singlefile` for the `apps/viewer` client bundle (and the `apps/portal` bundle).
 2. Lazy-load the editor (`React.lazy(() => import('@symbiot/editor'))` at the route level).
 3. Code-split highlight languages: import only on detected fenced lang, fallback to plain.
 4. Run `axe-core` on each app/page; fix every Critical and Serious issue.

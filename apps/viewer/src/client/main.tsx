@@ -1,0 +1,14 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+
+import { App } from "./App.tsx";
+import "./styles.css";
+
+const container = document.querySelector("#root");
+if (container === null) throw new Error("missing #root container");
+
+createRoot(container).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);

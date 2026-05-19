@@ -2,7 +2,7 @@
 
 ## Goal
 
-Extend the single-agent (Claude Code) MVP into a broader set of AI coding agents. Each integration is independent and additive; they all share the same `symbiot-server` contract proven in Phase 2.
+Extend the single-agent (Claude Code) MVP into a broader set of AI coding agents. Each integration is independent and additive; they all share the same `apps/viewer` HTTP contract proven in Phase 2.
 
 ## Sequence (user-confirmed priority)
 
@@ -30,7 +30,7 @@ For each agent integration:
    - How feedback is routed back to the agent.
    - Any agent-specific config files or env vars.
 2. **Build the integration:**
-   - Spawn `packages/symbiot-server` with the right mode and storage path under `~/.symbiot/`.
+   - Spawn `apps/viewer` (the fullstack binary) with the right mode and storage path under `~/.symbiot/`.
    - Open the browser to the served port.
    - Block on resolve, return the decision to the agent.
 3. **Smoke test** with the real agent.
@@ -50,7 +50,7 @@ For OpenCode (first integration):
 1. Read OpenCode's plugin/hook documentation. Identify the plan-finish event mechanism.
 2. Implement `apps/opencode-plugin/` against that mechanism.
 3. Use `~/.symbiot/` for all storage; CLI command `symbiot`.
-4. `package.json` name `@symbiot/opencode-plugin`; depends on `@symbiot/server` and `@symbiot/hook` (or a shared spawn helper extracted from `apps/hook`).
+4. `package.json` name `@symbiot/opencode-plugin`; depends on `@symbiot/viewer` (imports `startServer`) and the shared spawn helper extracted from `apps/hook`.
 5. Smoke test: install in a real OpenCode environment; trigger a plan-finish; verify the symbiot UI opens.
 
 For Codex / Copilot / Pi / Gemini: repeat the template per agent. Each agent gets its own PR.
@@ -61,7 +61,7 @@ Per-agent. None at the monorepo level beyond what already exists.
 
 ## Risks / OQs
 
-- **Server contract drift.** As more agents wire up, the `symbiot-server` API contract must stay stable. The golden-file CI workflow from Phase 8 catches feedback-markdown drift; need a similar check for endpoint signatures (consider TypeScript declaration tests).
+- **Server contract drift.** As more agents wire up, the `apps/viewer` HTTP API contract must stay stable. The golden-file CI workflow from Phase 8 catches feedback-markdown drift; need a similar check for endpoint signatures (consider TypeScript declaration tests).
 - **Agent-specific quirks** (e.g. Codex's stdout protocol, Copilot's hook discovery). Audit each agent's plugin API before implementation.
 
 ## Verification

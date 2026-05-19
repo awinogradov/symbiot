@@ -49,7 +49,7 @@ apps/
 └── marketing/         # Phase 9 or later
 
 packages/
-├── symbiot-server/        # Phase 2 (plan mode only) → Phase 3 (annotate mode) → Phase 4 (versioning)
+├── symbiot-server/        # scaffolded here; consolidated into apps/viewer at the start of Phase 2
 ├── symbiot-editor/        # Phase 2 (minimal kit) → Phase 3 (full annotations) → Phase 4 (diff)
 ├── symbiot-annotations/   # Phase 2 (Comment codec) → grows each phase
 └── symbiot-ui/            # Phase 2 (ThemeProvider + minimal top bar)

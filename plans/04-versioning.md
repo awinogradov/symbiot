@@ -20,7 +20,7 @@ When the agent emits a revised plan, surface a clean inline diff between version
 
 ## Scope
 
-### `packages/symbiot-server`
+### `apps/viewer/src/server`
 
 - Implement `GET /api/plan/version` (single version by number), `GET /api/plan/versions` (list), `GET /api/plan/history` (full).
 - Implement `POST /api/plan/vscode-diff` (opens a diff in VS Code; endpoint name kept plannotator-compatible).
@@ -53,7 +53,7 @@ When the agent emits a revised plan, surface a clean inline diff between version
 
 ## Tasks
 
-1. Extend `packages/symbiot-server` with the version endpoints; use the `~/.symbiot/history/{project}/{slug}/00N.md` filesystem layout.
+1. Extend `apps/viewer/src/server` with the version endpoints; use the `~/.symbiot/history/{project}/{slug}/00N.md` filesystem layout.
 2. Hook in `@platejs/diff`; smoke-test `computeDiff()` against fixture pairs.
 3. Implement diff-node namespacing (a Plate plugin that renders `data-source="diff"` marks via a separate component with no accept/reject affordance).
 4. Build the Clean vs Raw view toggle.

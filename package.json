@@ -17,6 +17,9 @@
     "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "hook:install": "bun --filter @symbiot/hook install-hook",
+    "hook:uninstall": "bun --filter @symbiot/hook uninstall-hook",
+    "viewer:smoke": "bun --filter @symbiot/viewer smoke",
     "clean": "turbo run clean && rm -rf node_modules",
     "postinstall": "bun run --filter ./packages/eslint-config --filter ./packages/prettier-config build",
     "prepare": "husky"

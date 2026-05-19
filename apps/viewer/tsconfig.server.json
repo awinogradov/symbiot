@@ -1,0 +1,9 @@
+{
+  "extends": "@symbiot/typescript-config/node.json",
+  "compilerOptions": {
+    "composite": true,
+    "allowImportingTsExtensions": true,
+    "types": ["bun"]
+  },
+  "include": ["src/server", "src/shared", "src/bin.ts"]
+}

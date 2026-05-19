@@ -13,11 +13,11 @@
     { "path": "./apps/hook" },
     { "path": "./apps/portal" },
     { "path": "./apps/marketing" },
+    { "path": "./apps/viewer" },
     { "path": "./packages/eslint-config" },
     { "path": "./packages/prettier-config" },
     { "path": "./packages/symbiot-annotations" },
     { "path": "./packages/symbiot-editor" },
-    { "path": "./packages/symbiot-server" },
     { "path": "./packages/symbiot-ui" }
   ]
 }
