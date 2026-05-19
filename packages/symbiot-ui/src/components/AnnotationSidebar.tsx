@@ -127,37 +127,38 @@ export const AnnotationSidebar = ({
           )}
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              data-testid="sidebar-clear-all"
-              variant="outline"
-              size="sm"
-              className="w-full"
-              disabled={entries.length === 0}
-            >
-              <Trash2 />
-              Clear all
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Clear all annotations?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This removes every comment, deletion, and global comment from the current plan. It
-                can&apos;t be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel data-testid="sidebar-clear-cancel">Cancel</AlertDialogCancel>
-              <AlertDialogAction data-testid="sidebar-clear-confirm" onClick={onClearAll}>
+      {entries.length > 0 && (
+        <SidebarFooter>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                data-testid="sidebar-clear-all"
+                variant="outline"
+                size="sm"
+                className="w-full"
+              >
+                <Trash2 />
                 Clear all
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </SidebarFooter>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear all annotations?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes every comment, deletion, and global comment from the current plan. It
+                  can&apos;t be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="sidebar-clear-cancel">Cancel</AlertDialogCancel>
+                <AlertDialogAction data-testid="sidebar-clear-confirm" onClick={onClearAll}>
+                  Clear all
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 };
