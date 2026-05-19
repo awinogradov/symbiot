@@ -1,6 +1,6 @@
 # Phase 3.3 — Images + Drafts + Annotate mode
 
-> **Status:** 🟢 Server-side complete (2026-05-19). Annotate mode (`symbiot annotate <file.md>`), draft auto-save/restore (`/api/draft`), and the upload + image security model (`/api/upload`, `/api/image`, extension whitelist, UUID-v4 filenames, path-traversal guard) all landed and are E2E-tested. **Editor/composer UI integration for images remains** as the only follow-up: the server accepts uploads and serves bytes back, but the editor doesn't yet render the image void element and the composers don't yet have an attach button. See [Follow-ups](#follow-ups-for-the-rest-of-3-3) at the bottom of this file.
+> **Status:** 🟢 Complete (2026-05-19). Server endpoints (`/api/upload`, `/api/image`, `/api/draft`, `/api/feedback`) shipped first with their security model (extension whitelist, UUID-v4 filenames, path-traversal guard). This iteration closes the UI follow-up: `@platejs/media`'s `ImagePlugin.withComponent(VoidImage)` is wired into `SymbiotEditorKit` so `![alt](url)` deserializes to a rendered `<img>`; `ImageAttachButton` and `ImagePreviewList` live in both `CommentComposer` and `GlobalCommentComposer`, uploading via `/api/upload` and threading the `${uuid}${ext}` refs into `CommentEntry.images` / `GlobalCommentEntry.images`; drafts now carry `commentImages` alongside `commentBodies`; new Playwright-BDD scenario `features/plan-review/image-attach.feature` covers the full UI path.
 
 > Fourth and final sub-phase of Phase 3. Lands the remaining endpoint set with its security model (`/api/upload`, `/api/image`, `/api/draft`, `/api/feedback`), the image-attach UI on all three annotation composers, draft auto-save + restore across reloads, and the `symbiot annotate <file.md>` CLI for arbitrary markdown files. Depends on **Phase 3.2**.
 
@@ -15,11 +15,11 @@ Close out Phase 3 by adding the three remaining server endpoints (each with a re
 - [x] `GET/POST/DELETE /api/draft` round-trips a per-`{project}/{slug}` JSON blob containing the Plate value, comment bodies, global-comment bodies, and deletions. Atomic writes.
 - [x] `POST /api/feedback` accepts annotate-mode feedback markdown and writes it to `~/.symbiot/annotations/{project}/{slug}/00N.md`. 204 on success.
 - [x] `GET /api/plan` returns a `mode: 'plan' | 'annotate'` flag.
-- [ ] Image attach in `CommentComposer` and `GlobalCommentComposer`. *(Outstanding — server endpoints accept uploads, but composers don't yet have an attach button. `@platejs/media` not in the kit yet.)*
+- [x] Image attach in `CommentComposer` and `GlobalCommentComposer`. `ImageAttachButton` opens the native file picker, POSTs to `/api/upload`, surfaces a `${uuid}${ext}` ref. `ImagePreviewList` shows thumbnails via `/api/image?id=...&ext=...`. Both composers thread `images: string[]` into the save payload. `@platejs/media`'s `ImagePlugin.withComponent(VoidImage)` is in `SymbiotEditorKit`.
 - [x] `useDraft.ts` hook: debounced (1 s) auto-save POST `/api/draft`. On mount, GET `/api/draft` and seed the editor; the saved state overrides markdown deserialize when present.
 - [x] In annotate mode, the top bar swaps Approve/Request-changes for **Submit feedback** wired to `/api/feedback`. *(Implemented as a flat button via `TopBarMode` prop, not as a DropdownMenu — that styling rolls in with the Phase 3.2 sidebar work.)*
 - [x] `apps/hook` exposes `symbiot annotate <file.md>`: reads the file → spawns viewer in annotate mode → blocks on `/api/feedback` → prints the resulting feedback markdown to stdout. Exit 0 on submit, 1 on cancel.
-- [~] New Playwright-BDD specs green: `features/plan-review/draft.feature` ✓, `features/annotate/round-trip.feature` ✓, `features/server/upload-security.feature` ✓. **`features/plan-review/image-attach.feature` outstanding** (needs the composer UI first).
+- [x] New Playwright-BDD specs green: `features/plan-review/draft.feature` ✓, `features/annotate/round-trip.feature` ✓, `features/server/upload-security.feature` ✓, `features/plan-review/image-attach.feature` ✓.
 
 ## Scope
 

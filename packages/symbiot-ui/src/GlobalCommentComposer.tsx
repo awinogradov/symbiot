@@ -10,11 +10,19 @@ import {
 import { Button } from "./components/Button.tsx";
 import { Popover, PopoverAnchor, PopoverContent } from "./components/Popover.tsx";
 import { Textarea } from "./components/Textarea.tsx";
+import { ImageAttachButton, type ImageRef } from "./ImageAttachButton.tsx";
+import { ImagePreviewList } from "./ImagePreviewList.tsx";
+
+/** Payload the host receives when the global composer saves. */
+export interface GlobalCommentComposerPayload {
+  body: string;
+  images: ImageRef[];
+}
 
 interface GlobalCommentComposerProps {
   open: boolean;
   anchor: ReactNode;
-  onSave: (body: string) => void;
+  onSave: (payload: GlobalCommentComposerPayload) => void;
   onCancel: () => void;
 }
 
@@ -32,7 +40,7 @@ const submitKey = (
   }
 };
 
-/** Top-bar-triggered Popover that captures a Global Comment body. Enter saves; Esc cancels. */
+/** Top-bar-triggered Popover that captures a Global Comment body + images. */
 export const GlobalCommentComposer = ({
   open,
   anchor,
@@ -40,6 +48,7 @@ export const GlobalCommentComposer = ({
   onCancel,
 }: GlobalCommentComposerProps): React.ReactElement => {
   const [body, setBody] = useState("");
+  const [images, setImages] = useState<ImageRef[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -47,15 +56,25 @@ export const GlobalCommentComposer = ({
   }, [open]);
 
   const save = useCallback(() => {
-    if (body.trim().length === 0) return;
-    onSave(body.trim());
+    if (body.trim().length === 0 && images.length === 0) return;
+    onSave({ body: body.trim(), images });
     setBody("");
-  }, [body, onSave]);
+    setImages([]);
+  }, [body, images, onSave]);
 
   const cancel = useCallback(() => {
     onCancel();
     setBody("");
+    setImages([]);
   }, [onCancel]);
+
+  const onAttach = useCallback((ref: ImageRef): void => {
+    setImages((prev) => [...prev, ref]);
+  }, []);
+
+  const onRemove = useCallback((ref: ImageRef): void => {
+    setImages((prev) => prev.filter((r) => r !== ref));
+  }, []);
 
   return (
     <Popover open={open} onOpenChange={(next) => !next && cancel()}>
@@ -69,17 +88,21 @@ export const GlobalCommentComposer = ({
           placeholder="Global feedback on the plan… (Enter to save, Esc to cancel)"
           onKeyDown={(e) => submitKey(e, save, cancel)}
         />
-        <div className="mt-2 flex justify-end gap-2">
-          <Button data-testid="global-composer-cancel" variant="ghost" onClick={cancel}>
-            Cancel
-          </Button>
-          <Button
-            data-testid="global-composer-save"
-            onClick={save}
-            disabled={body.trim().length === 0}
-          >
-            Save
-          </Button>
+        <ImagePreviewList images={images} onRemove={onRemove} />
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <ImageAttachButton onAttach={onAttach} />
+          <div className="flex gap-2">
+            <Button data-testid="global-composer-cancel" variant="ghost" onClick={cancel}>
+              Cancel
+            </Button>
+            <Button
+              data-testid="global-composer-save"
+              onClick={save}
+              disabled={body.trim().length === 0 && images.length === 0}
+            >
+              Save
+            </Button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>

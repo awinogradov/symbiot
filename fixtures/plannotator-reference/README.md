@@ -14,9 +14,26 @@ The serialization of a single `COMMENT` annotation against
 - comment body: `Should this be a wolf?`
 
 The plannotator source emits an optional `(lines N–M)` prefix in the heading
-when the annotation's block has a resolvable source-line range. Phase 2 does
-not yet carry block-level source-line metadata through the Plate value, so the
-line label is intentionally absent from this fixture. Phase 3 (which adds the
-full annotation pipeline including block-line tracking) will tighten this
-golden file to include the line label and add the remaining two
-plannotator-compatible types (`['G', …]` and `['D', …]`).
+when the annotation's block has a resolvable source-line range. This fixture
+was captured before symbiot's `SourceLinesPlugin` shipped, so the line label is
+absent. Once a real plannotator session is captured against the same input,
+the fixture should be replaced with that capture (which will include the line
+label) — see TODO below.
+
+## global-comment.md, deletion.md, mixed.md
+
+Synthesized from symbiot's own `serializeFeedback` against canonical inputs:
+
+- `global-comment.md` — one `['G', 'overall this looks great']` entry.
+- `deletion.md` — one `['D', 'redundant clause']` entry.
+- `mixed.md` — `C` + `D` + `G` together, in that order, with the same canonical
+  bodies as the single-kind fixtures.
+
+These are self-referential pins: they assert the serializer's output is stable.
+They do **not** independently verify plannotator parity for `G` / `D`. The next
+step is to capture all four (`comment.md`, `global-comment.md`, `deletion.md`,
+`mixed.md`) from a real plannotator session and swap them in here.
+
+<!-- TODO(post-3.1): replace synthesized G/D/mixed fixtures with real plannotator
+captures. See plans/03-1-wire-format-and-markdown.md follow-ups. -->
+

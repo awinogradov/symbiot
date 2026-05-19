@@ -35,7 +35,8 @@ export const postFeedback = async (feedback: string): Promise<void> => {
 export interface DraftPayload {
   value: unknown[];
   commentBodies: Record<string, string>;
-  globalComments: { id: string; body: string }[];
+  commentImages?: Record<string, string[]>;
+  globalComments: { id: string; body: string; images?: string[] }[];
   updatedAt: number;
 }
 

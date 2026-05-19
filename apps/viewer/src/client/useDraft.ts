@@ -6,7 +6,8 @@ import { getDraft, putDraft, type DraftPayload } from "./api.ts";
 export interface DraftSnapshot {
   value: unknown[];
   commentBodies: Map<string, string>;
-  globalComments: { id: string; body: string }[];
+  commentImages: Map<string, string[]>;
+  globalComments: { id: string; body: string; images?: string[] }[];
 }
 
 interface DraftHook {
@@ -21,6 +22,7 @@ interface DraftHook {
 const toPayload = (snapshot: DraftSnapshot): DraftPayload => ({
   value: snapshot.value,
   commentBodies: Object.fromEntries(snapshot.commentBodies),
+  commentImages: Object.fromEntries(snapshot.commentImages),
   globalComments: snapshot.globalComments,
   updatedAt: Date.now(),
 });

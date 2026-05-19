@@ -1,5 +1,6 @@
 import type {
   AnnotationEntry,
+  BlockLines,
   CommentEntry,
   DeletionEntry,
   GlobalCommentEntry,
@@ -10,6 +11,7 @@ import type {
 
 const commentIdPrefix = "comment_";
 const suggestionIdPrefix = "suggestion_";
+const blockLinesMark = "__symbiotBlockLines";
 
 const isText = (node: PlateNode): node is PlateTextLeaf =>
   typeof (node as PlateTextLeaf).text === "string";
@@ -24,53 +26,154 @@ const markIdsOf = (leaf: PlateTextLeaf, prefix: string): string[] => {
   return ids;
 };
 
-const collectLeaves = (value: PlateValue): PlateTextLeaf[] => {
-  const out: PlateTextLeaf[] = [];
-  const visit = (node: PlateNode): void => {
-    if (isText(node)) {
-      out.push(node);
-      return;
-    }
-    for (const child of node.children) visit(child);
-  };
-  for (const node of value) visit(node);
+interface LeafWithLines {
+  leaf: PlateTextLeaf;
+  lines: BlockLines | undefined;
+}
+
+const isBlockLines = (raw: unknown): raw is BlockLines => {
+  if (raw === null || typeof raw !== "object") return false;
+  const c = raw as Partial<BlockLines>;
+  return typeof c.startLine === "number" && typeof c.endLine === "number";
+};
+
+const readBlockLines = (node: PlateNode | undefined): BlockLines | undefined => {
+  if (node === undefined) return undefined;
+  const raw = (node as Record<string, unknown>)[blockLinesMark];
+  return isBlockLines(raw) ? { startLine: raw.startLine, endLine: raw.endLine } : undefined;
+};
+
+const collectLeavesWithLines = (value: PlateValue): LeafWithLines[] => {
+  const out: LeafWithLines[] = [];
+  for (const top of value) {
+    const lines = readBlockLines(top);
+    const visit = (node: PlateNode): void => {
+      if (isText(node)) {
+        out.push({ leaf: node, lines });
+        return;
+      }
+      for (const child of node.children) visit(child);
+    };
+    visit(top);
+  }
   return out;
 };
 
-const groupContiguous = (leaves: PlateTextLeaf[], prefix: string): Map<string, string> => {
-  const fragments = new Map<string, string>();
-  for (const leaf of leaves) {
+const earliestLines = (
+  prev: BlockLines | undefined,
+  next: BlockLines | undefined
+): BlockLines | undefined => {
+  if (prev === undefined) return next;
+  if (next === undefined) return prev;
+  if (next.startLine < prev.startLine) return next;
+  return prev;
+};
+
+interface Fragment {
+  text: string;
+  lines: BlockLines | undefined;
+}
+
+const mergeFragment = (
+  existing: Fragment | undefined,
+  leaf: PlateTextLeaf,
+  lines: BlockLines | undefined
+): Fragment => {
+  if (existing === undefined) return { text: leaf.text, lines };
+  return { text: existing.text + leaf.text, lines: earliestLines(existing.lines, lines) };
+};
+
+const groupContiguous = (entries: LeafWithLines[], prefix: string): Map<string, Fragment> => {
+  const out = new Map<string, Fragment>();
+  for (const { leaf, lines } of entries) {
     for (const id of markIdsOf(leaf, prefix)) {
-      fragments.set(id, (fragments.get(id) ?? "") + leaf.text);
+      out.set(id, mergeFragment(out.get(id), leaf, lines));
     }
   }
-  return fragments;
+  return out;
 };
 
 /** Inputs collected by the editor / app for a single walk. */
 export interface AnnotationSources {
   value: PlateValue;
   commentBodies: Map<string, string>;
+  /** Optional per-comment image refs (`${uuid}${ext}` strings), parallel to `commentBodies`. */
+  commentImages?: Map<string, string[]>;
   globalComments: GlobalCommentEntry[];
 }
 
+interface CommentParts {
+  id: string;
+  fragment: Fragment;
+  body: string | undefined;
+  images: string[] | undefined;
+}
+
+const nonEmpty = <T extends { length: number }>(value: T | undefined): value is T => {
+  if (value === undefined) return false;
+  return value.length > 0;
+};
+
+const decorateLines = (entry: { kind: "comment" } & CommentEntry, fragment: Fragment): void => {
+  if (fragment.lines === undefined) return;
+  entry.lines = fragment.lines;
+};
+
+const decorateImages = (
+  entry: { kind: "comment" } & CommentEntry,
+  images: string[] | undefined
+): void => {
+  if (!nonEmpty(images)) return;
+  entry.images = images;
+};
+
+const buildCommentEntry = ({
+  id,
+  fragment,
+  body,
+  images,
+}: CommentParts): ({ kind: "comment" } & CommentEntry) | null => {
+  const hasContent = nonEmpty(body) || nonEmpty(images);
+  if (!hasContent) return null;
+  const entry: { kind: "comment" } & CommentEntry = {
+    kind: "comment",
+    id,
+    originalText: fragment.text,
+    body: body ?? "",
+  };
+  decorateLines(entry, fragment);
+  decorateImages(entry, images);
+  return entry;
+};
+
 const walkCommentEntries = (
-  leaves: PlateTextLeaf[],
-  bodies: Map<string, string>
+  entries: LeafWithLines[],
+  bodies: Map<string, string>,
+  imagesByCommentId: Map<string, string[]> | undefined
 ): AnnotationEntry[] => {
   const out: AnnotationEntry[] = [];
-  for (const [id, originalText] of groupContiguous(leaves, commentIdPrefix)) {
-    const body = bodies.get(id);
-    if (body === undefined || body.length === 0) continue;
-    out.push({ kind: "comment", id, originalText, body });
+  for (const [id, fragment] of groupContiguous(entries, commentIdPrefix)) {
+    const entry = buildCommentEntry({
+      id,
+      fragment,
+      body: bodies.get(id),
+      images: imagesByCommentId?.get(id),
+    });
+    if (entry !== null) out.push(entry);
   }
   return out;
 };
 
-const walkDeletionEntries = (leaves: PlateTextLeaf[]): AnnotationEntry[] => {
+const walkDeletionEntries = (entries: LeafWithLines[]): AnnotationEntry[] => {
   const out: AnnotationEntry[] = [];
-  for (const [id, originalText] of groupContiguous(leaves, suggestionIdPrefix)) {
-    out.push({ kind: "deletion", id, originalText });
+  for (const [id, fragment] of groupContiguous(entries, suggestionIdPrefix)) {
+    const entry: { kind: "deletion" } & DeletionEntry = {
+      kind: "deletion",
+      id,
+      originalText: fragment.text,
+    };
+    if (fragment.lines !== undefined) entry.lines = fragment.lines;
+    out.push(entry);
   }
   return out;
 };
@@ -80,15 +183,16 @@ const walkGlobalEntries = (globals: GlobalCommentEntry[]): AnnotationEntry[] =>
 
 /**
  * Walk a Plate value and surface every annotation (Comment + Deletion) plus
- * app-level Global Comments. Comments come from `comment_<id>` marks paired
- * with `commentBodies`; Deletions come from the `@platejs/suggestion`
- * `suggestion_<id>` marks; Global Comments are passed in directly.
+ * app-level Global Comments. Each per-anchor entry carries the `BlockLines`
+ * range of its enclosing top-level block when the value was stamped by
+ * `SourceLinesPlugin` / `stampBlockLines`, so `serializeFeedback` can emit the
+ * `(lines N–M)` prefix.
  */
 export const walkAnnotations = (sources: AnnotationSources): AnnotationEntry[] => {
-  const leaves = collectLeaves(sources.value);
+  const entries = collectLeavesWithLines(sources.value);
   return [
-    ...walkCommentEntries(leaves, sources.commentBodies),
-    ...walkDeletionEntries(leaves),
+    ...walkCommentEntries(entries, sources.commentBodies, sources.commentImages),
+    ...walkDeletionEntries(entries),
     ...walkGlobalEntries(sources.globalComments),
   ];
 };

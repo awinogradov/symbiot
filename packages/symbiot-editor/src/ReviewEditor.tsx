@@ -2,25 +2,28 @@ import { MarkdownPlugin } from "@platejs/markdown";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plate, PlateContent, usePlateEditor, type PlateEditor } from "platejs/react";
 import type { PlateValue } from "@symbiot/annotations";
-import { Button, CommentComposer } from "@symbiot/ui";
+import { Button, CommentComposer, type CommentComposerPayload } from "@symbiot/ui";
 
 import { applyComment, type AppliedComment } from "./applyComment.ts";
 import { applyDeletion } from "./applyDeletion.ts";
 import { SymbiotEditorKit } from "./kit.ts";
 import { SelectionToolbar } from "./SelectionToolbar.tsx";
 import { useSelectionRect, type Rect } from "./selectionRect.ts";
+import { stampBlockLines } from "./sourceLines.ts";
 import { useTypingGuard } from "./typingGuard.ts";
 
 /** Imperative handle the host uses to read the current value and comment bodies. */
 export interface ReviewEditorHandle {
   getValue: () => unknown[];
   getCommentBodies: () => Map<string, string>;
+  getCommentImages: () => Map<string, string[]>;
 }
 
 /** Snapshot of the editor state surfaced via the onChange callback. */
 export interface EditorSnapshot {
   value: PlateValue;
   commentBodies: Map<string, string>;
+  commentImages: Map<string, string[]>;
 }
 
 interface ReviewEditorProps {
@@ -29,6 +32,8 @@ interface ReviewEditorProps {
   initialValue?: unknown[];
   /** Optional saved comment bodies to seed the discussion store. */
   initialBodies?: Map<string, string>;
+  /** Optional saved comment images, keyed by comment id. */
+  initialImages?: Map<string, string[]>;
   onReady?: (handle: ReviewEditorHandle) => void;
   onChange?: (snapshot: EditorSnapshot) => void;
 }
@@ -36,14 +41,16 @@ interface ReviewEditorProps {
 const useReadyHandle = (
   editor: PlateEditor,
   bodies: Map<string, string>,
+  images: Map<string, string[]>,
   onReady?: (h: ReviewEditorHandle) => void
 ): void => {
   useEffect(() => {
     onReady?.({
       getValue: () => editor.children,
       getCommentBodies: () => new Map(bodies),
+      getCommentImages: () => new Map(images),
     });
-  }, [editor, bodies, onReady]);
+  }, [editor, bodies, images, onReady]);
 };
 
 interface PendingComment {
@@ -74,14 +81,14 @@ const ComposerAnchor = ({ rect }: ComposerAnchorProps): React.ReactElement => (
  * drop anchored Comment marks via a floating selection toolbar. Pattern A:
  * editor stays `readOnly={true}`, comment marks are applied programmatically.
  *
- * Phase 3.3: accepts an `initialValue` to hydrate from a saved draft, and an
- * `onChange` callback that fires on every Plate value mutation so the host can
- * auto-save the draft.
+ * Phase 3.3: composer can attach images (uploaded to `/api/upload`), surfaced
+ * back via `getCommentImages()` and threaded into the codec's `images?` field.
  */
 export const ReviewEditor = ({
   markdown,
   initialValue,
   initialBodies,
+  initialImages,
   onReady,
   onChange,
 }: ReviewEditorProps): React.ReactElement => {
@@ -89,23 +96,31 @@ export const ReviewEditor = ({
   const [bodies, setBodies] = useState<Map<string, string>>(
     () => new Map(initialBodies ?? new Map())
   );
+  const [images, setImages] = useState<Map<string, string[]>>(
+    () => new Map(initialImages ?? new Map())
+  );
   const [pending, setPending] = useState<PendingComment | null>(null);
   const liveRect = useSelectionRect(containerRef);
 
   const editor = usePlateEditor({
     plugins: SymbiotEditorKit,
-    value: (e) =>
-      initialValue === undefined
-        ? e.getApi(MarkdownPlugin).markdown.deserialize(markdown)
-        : (initialValue as never),
+    value: (e): never => {
+      if (initialValue !== undefined) return initialValue as never;
+      const deserialized = e.getApi(MarkdownPlugin).markdown.deserialize(markdown);
+      return stampBlockLines(markdown, deserialized) as never;
+    },
   });
 
   useTypingGuard(containerRef);
-  useReadyHandle(editor, bodies, onReady);
+  useReadyHandle(editor, bodies, images, onReady);
 
   useEffect(() => {
-    onChange?.({ value: editor.children, commentBodies: new Map(bodies) });
-  }, [editor, bodies, onChange]);
+    onChange?.({
+      value: editor.children,
+      commentBodies: new Map(bodies),
+      commentImages: new Map(images),
+    });
+  }, [editor, bodies, images, onChange]);
 
   const onCommentClick = useCallback((): void => {
     if (liveRect === null) return;
@@ -116,14 +131,20 @@ export const ReviewEditor = ({
 
   const onDeleteClick = useCallback((): void => {
     applyDeletion(editor);
-    // Surface the updated value to the parent for draft auto-save.
-    onChange?.({ value: editor.children, commentBodies: new Map(bodies) });
-  }, [bodies, editor, onChange]);
+    onChange?.({
+      value: editor.children,
+      commentBodies: new Map(bodies),
+      commentImages: new Map(images),
+    });
+  }, [bodies, editor, images, onChange]);
 
   const onComposerSave = useCallback(
-    (body: string): void => {
+    (payload: CommentComposerPayload): void => {
       if (pending === null) return;
-      setBodies((prev) => new Map(prev).set(pending.applied.id, body));
+      setBodies((prev) => new Map(prev).set(pending.applied.id, payload.body));
+      if (payload.images.length > 0) {
+        setImages((prev) => new Map(prev).set(pending.applied.id, payload.images));
+      }
       setPending(null);
     },
     [pending]

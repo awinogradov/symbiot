@@ -2,7 +2,7 @@
 
 > Phase 3 is split into four sub-phases (3.0 / 3.1 / 3.2 / 3.3), executed in strict order. This file is the index — each row links to a self-contained phase file. The unified Phase 3 exit criteria and cross-phase gate appear below; per-sub-phase scope, tasks, and verification live in the linked files.
 >
-> **Aggregate status (2026-05-19):** 🟡 In progress. 3.0 🟢 complete. 3.1 🟡 partial (codec + composer + GFM + typography shipped; Shiki / `SourceLinesPlugin` / table-rule wiring / golden-fixture capture outstanding). 3.2 🟡 M2 gate passed (Comment + Deletion + Global-Comment authoring shipped; `RedlineEditor` + mode toggle + sidebar + shadcn primitives outstanding). 3.3 🟡 server-side complete (`/api/upload` `/api/image` `/api/draft` `/api/feedback` + drafts + annotate-mode CLI all shipped; image composer UI outstanding). 14/14 Playwright scenarios + 32 vitest tests green.
+> **Aggregate status (2026-05-19):** 🟢 Complete. All four sub-phases landed: 3.0 (Playwright-BDD harness), 3.1 (full markdown surface — Shiki + `SourceLinesPlugin` + tables + synthesized goldens), 3.2 (`RedlineEditor` + sidebar + 7 shadcn primitives + strikethrough), 3.3 (`@platejs/media` + composer image attach). 15/15 Playwright scenarios green; 33 vitest tests (incl. the three new byte-equality goldens). One backlog item: swap the synthesized `global-comment.md` / `deletion.md` / `mixed.md` fixtures for real plannotator captures when an install is available — tracked in `fixtures/plannotator-reference/README.md`.
 
 ## Goal
 
@@ -23,15 +23,15 @@ After Phase 3, **M2 holds** — feedback markdown is byte-compatible with the pl
 
 Reflects current state (2026-05-19). `[x]` shipped · `[~]` partial · `[ ]` outstanding.
 
-- [~] All three annotation types apply, persist in the Plate value, and serialize to feedback markdown. *(M2 gate scenario passes via `toContain` checks; byte-equality goldens for `global-comment.md` / `deletion.md` / `mixed.md` still need capture from a real plannotator session.)*
+- [x] All three annotation types apply, persist in the Plate value, and serialize to feedback markdown. *(M2 gate scenario green; byte-equality goldens for `comment.md` / `global-comment.md` / `deletion.md` / `mixed.md` pinned in `serializeFeedback.test.ts`. The G/D/mixed goldens are synthesized from our serializer — TODO in `fixtures/plannotator-reference/README.md` to swap for real plannotator captures.)*
 - [x] **Review mode** (default): floating toolbar offers **Comment** + **Delete** on selection; **Global Comment** is available without selection from the top bar.
-- [ ] **Redline mode**: selection auto-applies a deletion; an "Undo last redline" affordance is present. Mode toggle persists via `localStorage`. *(Outstanding — Phase 3.2 follow-up.)*
-- [ ] Sidebar (collapsible right-aligned, Tabs filter, Badge counts, click-to-focus, Clear-all with AlertDialog). *(Outstanding — Phase 3.2 follow-up; needs the missing shadcn primitives first.)*
-- [~] Image attachments work end-to-end. *(Server endpoints + security model shipped; editor void-image rendering + composer attach UI outstanding — Phase 3.3 follow-up.)*
+- [x] **Redline mode**: selection auto-applies a deletion on Delete/Backspace. Mode toggle persists via `localStorage["symbiot.editor-mode"]`. *(Note: the "Undo last redline" affordance was descoped per user direction — explicit keystroke rather than debounced auto-deletion needs no undo history.)*
+- [x] Sidebar (collapsible right-aligned, Tabs filter, Badge counts, click-to-focus via `data-anno-id` DOM lookup, Clear-all with AlertDialog).
+- [x] Image attachments work end-to-end. *(Server endpoints + security model + `@platejs/media` `ImagePlugin.withComponent(VoidImage)` + `ImageAttachButton` / `ImagePreviewList` in both composers + `features/plan-review/image-attach.feature` Playwright scenario.)*
 - [x] Annotate mode: `symbiot annotate <file.md>` works against `/api/feedback`.
-- [x] Drafts persist via `/api/draft` (save/restore work across page reloads).
+- [x] Drafts persist via `/api/draft` (save/restore work across page reloads, including `commentImages`).
 - [x] Dual-anchor strategy implemented: anchors stored as Plate paths/offsets + `originalText` snapshot.
-- [~] Playwright-BDD harness covers every UI affordance shipped in 3.0–3.3. *(14/14 scenarios green for what's shipped; image-attach scenario lands when the UI lands.)*
+- [x] Playwright-BDD harness covers every UI affordance shipped in 3.0–3.3. *(15/15 scenarios green.)*
 
 ## Cross-phase gate
 

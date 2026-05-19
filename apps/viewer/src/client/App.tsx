@@ -1,14 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  RedlineEditor,
   ReviewEditor,
   serializeFeedback,
   walkAnnotations,
+  type AnnotationEntry,
   type EditorSnapshot,
   type GlobalCommentEntry,
   type PlateValue,
   type ReviewEditorHandle,
 } from "@symbiot/editor";
-import { ThemeProvider, TopBar } from "@symbiot/ui";
+import {
+  AnnotationSidebar,
+  SidebarProvider,
+  ThemeProvider,
+  TopBar,
+  type AnnotationSidebarEntry,
+  type EditorMode,
+} from "@symbiot/ui";
 
 import {
   deleteDraft,
@@ -22,6 +31,14 @@ import {
 import { useDraft } from "./useDraft.ts";
 
 type Phase = "ready" | "submitting" | "done";
+
+const editorModeKey = "symbiot.editor-mode";
+
+const loadEditorMode = (): EditorMode => {
+  if (typeof window === "undefined") return "review";
+  const raw = window.localStorage.getItem(editorModeKey);
+  return raw === "redline" ? "redline" : "review";
+};
 
 const useLoadedPlan = (): PlanResponse | null => {
   const [plan, setPlan] = useState<PlanResponse | null>(null);
@@ -41,37 +58,175 @@ interface ReviewProps {
   saveDraft: (snapshot: {
     value: unknown[];
     commentBodies: Map<string, string>;
+    commentImages: Map<string, string[]>;
     globalComments: GlobalCommentEntry[];
   }) => void;
 }
 
-const ReviewScreen = ({ plan, draft, saveDraft }: ReviewProps): React.ReactElement => {
+const toSidebarEntry = (entry: AnnotationEntry): AnnotationSidebarEntry => {
+  if (entry.kind === "global") {
+    return { id: entry.id, kind: "global", primary: entry.body };
+  }
+  const base: AnnotationSidebarEntry = {
+    id: entry.id,
+    kind: entry.kind,
+    primary: entry.originalText,
+  };
+  if (entry.kind === "comment") base.body = entry.body;
+  if (entry.lines !== undefined) base.lines = entry.lines;
+  return base;
+};
+
+const focusAnnotation = (id: string): void => {
+  const target = document.querySelector(`[data-anno-id="${id}"]`);
+  if (target === null) return;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+};
+
+interface SourceWindow {
+  value: unknown[];
+  commentBodies: Map<string, string>;
+  commentImages: Map<string, string[]>;
+  globalComments: GlobalCommentEntry[];
+}
+
+const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] =>
+  walkAnnotations({
+    value: sources.value as PlateValue,
+    commentBodies: sources.commentBodies,
+    commentImages: sources.commentImages,
+    globalComments: sources.globalComments,
+  }).map(toSidebarEntry);
+
+const draftInitialBodies = (
+  draft: DraftPayload | null,
+  reloadKey: number
+): Map<string, string> | undefined => {
+  if (reloadKey !== 0 || draft === null) return undefined;
+  return new Map(Object.entries(draft.commentBodies));
+};
+
+const draftInitialImages = (
+  draft: DraftPayload | null,
+  reloadKey: number
+): Map<string, string[]> | undefined => {
+  if (reloadKey !== 0 || draft === null || draft.commentImages === undefined) return undefined;
+  return new Map(Object.entries(draft.commentImages));
+};
+
+interface EditorMountProps {
+  editorMode: EditorMode;
+  reloadKey: number;
+  plan: PlanResponse;
+  initialValue: unknown[] | undefined;
+  initialBodies: Map<string, string> | undefined;
+  initialImages: Map<string, string[]> | undefined;
+  onReady: (handle: ReviewEditorHandle) => void;
+  onChange: (snapshot: EditorSnapshot) => void;
+}
+
+const EditorMount = ({
+  editorMode,
+  reloadKey,
+  plan,
+  initialValue,
+  initialBodies,
+  initialImages,
+  onReady,
+  onChange,
+}: EditorMountProps): React.ReactElement => {
+  if (editorMode === "review") {
+    return (
+      <ReviewEditor
+        key={`review-${reloadKey}`}
+        markdown={plan.plan}
+        initialValue={initialValue}
+        initialBodies={initialBodies}
+        initialImages={initialImages}
+        onReady={onReady}
+        onChange={onChange}
+      />
+    );
+  }
+  return (
+    <RedlineEditor
+      key={`redline-${reloadKey}`}
+      markdown={plan.plan}
+      initialValue={initialValue}
+      initialBodies={initialBodies}
+      initialImages={initialImages}
+      onReady={onReady}
+      onChange={onChange}
+    />
+  );
+};
+
+interface ReviewState {
+  phase: Phase;
+  editorMode: EditorMode;
+  sidebarEntries: AnnotationSidebarEntry[];
+  initialValue: unknown[] | undefined;
+  initialBodies: Map<string, string> | undefined;
+  initialImages: Map<string, string[]> | undefined;
+  reloadKey: number;
+  setEditorHandle: (handle: ReviewEditorHandle) => void;
+  onEditorModeChange: (next: EditorMode) => void;
+  onEditorChange: (snapshot: EditorSnapshot) => void;
+  onApprove: () => Promise<void>;
+  onSubmit: () => Promise<void>;
+  onAddGlobalComment: (body: string, images: string[]) => void;
+  onClearAll: () => void;
+}
+
+const useReviewState = ({ plan, draft, saveDraft }: ReviewProps): ReviewState => {
   const [phase, setPhase] = useState<Phase>("ready");
   const [editorHandle, setEditorHandle] = useState<ReviewEditorHandle | null>(null);
   const [globalComments, setGlobalComments] = useState<GlobalCommentEntry[]>(
     () => draft?.globalComments ?? []
   );
+  const [editorMode, setEditorMode] = useState<EditorMode>(loadEditorMode);
+  const [latestSnapshot, setLatestSnapshot] = useState<EditorSnapshot | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const onEditorModeChange = useCallback((next: EditorMode): void => {
+    setEditorMode(next);
+    window.localStorage.setItem(editorModeKey, next);
+  }, []);
 
   const onEditorChange = useCallback(
     (snapshot: EditorSnapshot): void => {
+      setLatestSnapshot(snapshot);
       saveDraft({
         value: snapshot.value,
         commentBodies: snapshot.commentBodies,
+        commentImages: snapshot.commentImages,
         globalComments,
       });
     },
     [globalComments, saveDraft]
   );
 
-  const buildFeedbackMarkdown = useCallback((): string => {
-    if (editorHandle === null) return "";
-    const entries = walkAnnotations({
+  const collectEntries = useCallback((): AnnotationEntry[] => {
+    if (editorHandle === null) return [];
+    return walkAnnotations({
       value: editorHandle.getValue() as PlateValue,
       commentBodies: editorHandle.getCommentBodies(),
+      commentImages: editorHandle.getCommentImages(),
       globalComments,
     });
-    return serializeFeedback(entries, plan.plan);
-  }, [editorHandle, globalComments, plan.plan]);
+  }, [editorHandle, globalComments]);
+
+  const sidebarEntries = useMemo<AnnotationSidebarEntry[]>(() => {
+    if (latestSnapshot !== null) {
+      return projectEntries({ ...latestSnapshot, globalComments });
+    }
+    return collectEntries().map(toSidebarEntry);
+  }, [collectEntries, globalComments, latestSnapshot]);
+
+  const buildFeedbackMarkdown = useCallback(
+    (): string => serializeFeedback(collectEntries(), plan.plan),
+    [collectEntries, plan.plan]
+  );
 
   const onApprove = useCallback(async () => {
     setPhase("submitting");
@@ -85,42 +240,95 @@ const ReviewScreen = ({ plan, draft, saveDraft }: ReviewProps): React.ReactEleme
     if (editorHandle === null) return;
     setPhase("submitting");
     const feedback = buildFeedbackMarkdown();
-    if (plan.mode === "annotate") {
-      await postFeedback(feedback);
-    } else {
-      await postDeny(feedback);
-    }
+    const submit = plan.mode === "annotate" ? postFeedback : postDeny;
+    await submit(feedback);
     await deleteDraft().catch(() => undefined);
     setPhase("done");
     window.close();
   }, [buildFeedbackMarkdown, editorHandle, plan.mode]);
 
-  const onAddGlobalComment = useCallback((body: string): void => {
-    setGlobalComments((prev) => [...prev, { id: crypto.randomUUID(), body }]);
+  const onAddGlobalComment = useCallback((body: string, images: string[]): void => {
+    const entry: GlobalCommentEntry = { id: crypto.randomUUID(), body };
+    if (images.length > 0) entry.images = images;
+    setGlobalComments((prev) => [...prev, entry]);
   }, []);
 
-  const initialValue = draft?.value;
-  const initialBodies = draft === null ? undefined : new Map(Object.entries(draft.commentBodies));
+  const onClearAll = useCallback((): void => {
+    setGlobalComments([]);
+    setLatestSnapshot(null);
+    setReloadKey((prev) => prev + 1);
+  }, []);
+
+  return {
+    phase,
+    editorMode,
+    sidebarEntries,
+    initialValue: reloadKey === 0 ? draft?.value : undefined,
+    initialBodies: draftInitialBodies(draft, reloadKey),
+    initialImages: draftInitialImages(draft, reloadKey),
+    reloadKey,
+    setEditorHandle,
+    onEditorModeChange,
+    onEditorChange,
+    onApprove,
+    onSubmit,
+    onAddGlobalComment,
+    onClearAll,
+  };
+};
+
+const ReviewScreen = ({ plan, draft, saveDraft }: ReviewProps): React.ReactElement => {
+  const state = useReviewState({ plan, draft, saveDraft });
+  const {
+    phase,
+    editorMode,
+    sidebarEntries,
+    initialValue,
+    initialBodies,
+    initialImages,
+    reloadKey,
+    setEditorHandle,
+    onEditorModeChange,
+    onEditorChange,
+    onApprove,
+    onSubmit,
+    onAddGlobalComment,
+    onClearAll,
+  } = state;
 
   return (
-    <div className="flex h-full flex-col">
-      <TopBar
-        onApprove={onApprove}
-        onDeny={onSubmit}
-        onAddGlobalComment={onAddGlobalComment}
-        busy={phase === "submitting"}
-        mode={plan.mode}
-      />
-      <main className="flex-1 overflow-auto px-8 py-6">
-        <ReviewEditor
-          markdown={plan.plan}
-          initialValue={initialValue}
-          initialBodies={initialBodies}
-          onReady={setEditorHandle}
-          onChange={onEditorChange}
+    <SidebarProvider>
+      <div className="flex h-full flex-col">
+        <TopBar
+          onApprove={onApprove}
+          onDeny={onSubmit}
+          onAddGlobalComment={onAddGlobalComment}
+          busy={phase === "submitting"}
+          mode={plan.mode}
+          editorMode={editorMode}
+          onEditorModeChange={onEditorModeChange}
         />
-      </main>
-    </div>
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-auto px-8 py-6">
+            <EditorMount
+              editorMode={editorMode}
+              reloadKey={reloadKey}
+              plan={plan}
+              initialValue={initialValue}
+              initialBodies={initialBodies}
+              initialImages={initialImages}
+              onReady={setEditorHandle}
+              onChange={onEditorChange}
+            />
+          </main>
+          <AnnotationSidebar
+            entries={sidebarEntries}
+            onFocus={focusAnnotation}
+            onClearAll={onClearAll}
+          />
+        </div>
+      </div>
+    </SidebarProvider>
   );
 };
 

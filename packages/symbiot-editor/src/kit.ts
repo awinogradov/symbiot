@@ -7,6 +7,7 @@ import { CodeBlockPlugin } from "@platejs/code-block/react";
 import { CommentPlugin } from "@platejs/comment/react";
 import { ListPlugin } from "@platejs/list/react";
 import { MarkdownPlugin } from "@platejs/markdown";
+import { ImagePlugin } from "@platejs/media/react";
 import {
   TableCellHeaderPlugin,
   TableCellPlugin,
@@ -15,7 +16,17 @@ import {
 } from "@platejs/table/react";
 import remarkGfm from "remark-gfm";
 
+import { CodeBlockElement } from "./CodeBlockElement.tsx";
+import { SuggestionMarkPlugin } from "./deletionLeaf.tsx";
+import { SourceLinesPlugin } from "./sourceLines.ts";
+import {
+  TableCellElement,
+  TableCellHeaderElement,
+  TableElement,
+  TableRowElement,
+} from "./tableElements.tsx";
 import { HrElement } from "./voidElements.tsx";
+import { VoidImage } from "./voidImage.tsx";
 
 const MarkdownWithGfm = MarkdownPlugin.configure({
   options: { remarkPlugins: [remarkGfm] },
@@ -24,10 +35,15 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
 /**
  * Plate plugin composition for symbiot's read-only review editor.
  *
- * Phase 3.1 expands the FR-1.2 markdown surface: tables (@platejs/table) and
- * bullet / ordered / task lists (@platejs/list) join the kit so the markdown
- * deserializer recognises them. CodeBlockPlugin will get Shiki integration in
- * a follow-up Phase 3.1 task; for now it renders text-only as in Phase 2.
+ * Phase 3.1 wires the full FR-1.2 markdown surface:
+ *  - `remark-gfm` for tables / strikethrough / task lists at parse time
+ *  - explicit `Table*Element` components so mdast `table` nodes render as
+ *    semantic `<table>` instead of falling through to a `<div>` wrapper
+ *  - `SourceLinesPlugin` exposing `editor.api.sourceLines.getBlockLines(path)`
+ *    so `walkAnnotations` can attach `BlockLines` to per-anchor entries and
+ *    `serializeFeedback` can emit the `(lines N–M)` prefix
+ *  - `CodeBlockElement` with Shiki dual-themed highlighting on fenced code
+ *  - `DeletionLeaf` so suggestion marks render with strikethrough (3.2)
  *
  * `HorizontalRulePlugin` ships with `render: { as: "hr" }`, which React 19
  * rejects because Slate-React always passes a zero-width text node as
@@ -36,14 +52,17 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
  */
 export const SymbiotEditorKit = [
   MarkdownWithGfm,
+  SourceLinesPlugin,
   BasicBlocksPlugin,
   BasicMarksPlugin,
+  SuggestionMarkPlugin,
   HorizontalRulePlugin.withComponent(HrElement),
-  CodeBlockPlugin,
+  CodeBlockPlugin.withComponent(CodeBlockElement),
   ListPlugin,
-  TablePlugin,
-  TableRowPlugin,
-  TableCellPlugin,
-  TableCellHeaderPlugin,
+  TablePlugin.withComponent(TableElement),
+  TableRowPlugin.withComponent(TableRowElement),
+  TableCellPlugin.withComponent(TableCellElement),
+  TableCellHeaderPlugin.withComponent(TableCellHeaderElement),
+  ImagePlugin.withComponent(VoidImage),
   CommentPlugin,
 ];

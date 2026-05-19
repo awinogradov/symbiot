@@ -40,21 +40,35 @@ describe("serializeFeedback", () => {
     expect(actual).toBe(expected);
   });
 
-  it("emits Suggest deleting: for D entries", () => {
+  it("matches the synthesized deletion fixture (byte-equality)", async () => {
+    const expected = await loadFixture("plannotator-reference/deletion.md");
     const entries: AnnotationEntry[] = [
       { kind: "deletion", id: "1", originalText: "redundant clause" },
     ];
-    const out = serializeFeedback(entries, "");
-    expect(out).toContain('## 1. Suggest deleting: "redundant clause"');
+    expect(serializeFeedback(entries, "")).toBe(expected);
   });
 
-  it("emits General feedback for G entries with the quoted body", () => {
+  it("matches the synthesized global-comment fixture (byte-equality)", async () => {
+    const expected = await loadFixture("plannotator-reference/global-comment.md");
     const entries: AnnotationEntry[] = [
       { kind: "global", id: "1", body: "overall this looks great" },
     ];
-    const out = serializeFeedback(entries, "");
-    expect(out).toContain("## 1. General feedback");
-    expect(out).toContain("> overall this looks great");
+    expect(serializeFeedback(entries, "")).toBe(expected);
+  });
+
+  it("matches the synthesized mixed fixture (C+D+G byte-equality)", async () => {
+    const expected = await loadFixture("plannotator-reference/mixed.md");
+    const entries: AnnotationEntry[] = [
+      {
+        kind: "comment",
+        id: "c1",
+        originalText: "the quick brown fox",
+        body: "Should this be a wolf?",
+      },
+      { kind: "deletion", id: "d1", originalText: "redundant clause" },
+      { kind: "global", id: "g1", body: "overall this looks great" },
+    ];
+    expect(serializeFeedback(entries, "")).toBe(expected);
   });
 
   it("emits (lines N–M) prefix when block lines are present", () => {

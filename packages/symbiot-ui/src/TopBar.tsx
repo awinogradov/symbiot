@@ -1,16 +1,20 @@
 import { useCallback, useState } from "react";
 
 import { Button } from "./components/Button.tsx";
+import { ToggleGroup, ToggleGroupItem } from "./components/ToggleGroup.tsx";
 import { GlobalCommentComposer } from "./GlobalCommentComposer.tsx";
 
 export type TopBarMode = "plan" | "annotate";
+export type EditorMode = "review" | "redline";
 
 interface TopBarProps {
   onApprove: () => void;
   onDeny: () => void;
-  onAddGlobalComment?: (body: string) => void;
+  onAddGlobalComment?: (body: string, images: string[]) => void;
   busy?: boolean;
   mode?: TopBarMode;
+  editorMode?: EditorMode;
+  onEditorModeChange?: (next: EditorMode) => void;
 }
 
 const denyLabel = (mode: TopBarMode): string =>
@@ -56,22 +60,67 @@ const Actions = ({
   </div>
 );
 
+interface ModeToggleProps {
+  value: EditorMode;
+  onChange: (next: EditorMode) => void;
+  busy: boolean;
+}
+
+const ModeToggle = ({ value, onChange, busy }: ModeToggleProps): React.ReactElement => (
+  <ToggleGroup
+    type="single"
+    value={value}
+    onValueChange={(next): void => {
+      if (next === "review" || next === "redline") onChange(next);
+    }}
+    disabled={busy}
+    data-testid="top-bar-mode-toggle"
+  >
+    <ToggleGroupItem value="review" data-testid="mode-review">
+      Review
+    </ToggleGroupItem>
+    <ToggleGroupItem value="redline" data-testid="mode-redline">
+      Redline
+    </ToggleGroupItem>
+  </ToggleGroup>
+);
+
+interface ModeToggleSlotProps {
+  editorMode: EditorMode | undefined;
+  onEditorModeChange: ((next: EditorMode) => void) | undefined;
+  busy: boolean;
+}
+
+const ModeToggleSlot = ({
+  editorMode,
+  onEditorModeChange,
+  busy,
+}: ModeToggleSlotProps): React.ReactElement | null => {
+  if (editorMode === undefined || onEditorModeChange === undefined) return null;
+  return <ModeToggle value={editorMode} onChange={onEditorModeChange} busy={busy} />;
+};
+
 export const TopBar = ({
   onApprove,
   onDeny,
   onAddGlobalComment,
   busy = false,
   mode = "plan",
+  editorMode,
+  onEditorModeChange,
 }: TopBarProps): React.ReactElement => {
   const [composerOpen, setComposerOpen] = useState(false);
 
   const onSave = useCallback(
-    (body: string): void => {
-      onAddGlobalComment?.(body);
+    (payload: { body: string; images: string[] }): void => {
+      onAddGlobalComment?.(payload.body, payload.images);
       setComposerOpen(false);
     },
     [onAddGlobalComment]
   );
+
+  const onOpenGlobal =
+    onAddGlobalComment === undefined ? undefined : (): void => setComposerOpen(true);
 
   return (
     <header
@@ -80,15 +129,20 @@ export const TopBar = ({
       className="border-border bg-background flex items-center justify-between border-b px-6 py-3"
     >
       <h1 className="text-muted-foreground text-sm font-medium">{headingFor(mode)}</h1>
-      <Actions
-        onApprove={onApprove}
-        onDeny={onDeny}
-        onOpenGlobal={
-          onAddGlobalComment === undefined ? undefined : (): void => setComposerOpen(true)
-        }
-        busy={busy}
-        mode={mode}
-      />
+      <div className="flex items-center gap-3">
+        <ModeToggleSlot
+          editorMode={editorMode}
+          onEditorModeChange={onEditorModeChange}
+          busy={busy}
+        />
+        <Actions
+          onApprove={onApprove}
+          onDeny={onDeny}
+          onOpenGlobal={onOpenGlobal}
+          busy={busy}
+          mode={mode}
+        />
+      </div>
       {onAddGlobalComment !== undefined && (
         <GlobalCommentComposer
           open={composerOpen}

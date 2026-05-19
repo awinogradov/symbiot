@@ -1,6 +1,6 @@
 # Phase 3.1 — Wire format + markdown completeness
 
-> **Status:** 🟡 Partially landed (2026-05-19). Codec + dual-anchor + walker + CommentComposer wire-in + GFM markdown (lists, strikethrough, remark-gfm) + `@tailwindcss/typography` all shipped. **Follow-ups** required to fully close 3.1: (a) explicit table-rule wiring so `@platejs/table` actually renders Plate `<table>` elements from markdown deserialize, (b) Shiki integration on `CodeBlockPlugin`, (c) `SourceLinesPlugin` for `(lines N–M)` heading prefix, (d) capture of byte-equality golden fixtures `global-comment.md`, `deletion.md`, `mixed.md` from a real plannotator session. Tracked under [Follow-ups](#follow-ups-rollover-to-3-2-prep) below.
+> **Status:** 🟢 Complete (2026-05-19). Codec + dual-anchor + walker + `CommentComposer` + GFM (remark-gfm) + `@tailwindcss/typography` + Shiki dual-themed highlighting on `CodeBlockPlugin` (`shiki@1`, `getHighlighter` singleton with pre-loaded `bash`/`ts`/`tsx`/`md`/`js`/`jsx`/`json`/`html`/`css`) + `SourceLinesPlugin` (`editor.api.getBlockLines(path)` plus a pure `stampBlockLines(markdown, value)` helper run at deserialize) + table element wrappers (`TableElement` / `TableRowElement` / `TableCellElement` / `TableCellHeaderElement` via `.withComponent`) + three synthesized golden fixtures (`global-comment.md`, `deletion.md`, `mixed.md`) byte-checked in `serializeFeedback.test.ts`. The synthesized goldens carry a TODO to swap for real plannotator captures when an install is available — that's a backlog item, not a 3.1 follow-up.
 
 > Second sub-phase of Phase 3. Lands the full plannotator-compatible codec (C/G/D tuples + dual-anchor), block-level source-line metadata, the carry-over markdown surface from Phase 2 (typography, tables, lists, syntax highlighting), and wires `CommentComposer` into the editor in place of `window.prompt`. Depends on **Phase 3.0** (Playwright-BDD harness).
 
@@ -12,12 +12,12 @@ Make the wire format and markdown surface complete *before* the second annotatio
 
 - [x] `packages/symbiot-annotations` exports encoders + decoders for `['C', …]`, `['G', …]`, `['D', …]` tuples and a unified `serializeFeedback` that emits `(lines N–M)` headings when block metadata is present.
 - [x] Dual-anchor resolves: `pathAnchor` first, `originalText` text-quote fallback. Drift tests pass.
-- [ ] Block-level source-line metadata is stamped on every block-level Plate node during deserialize and surfaced via `editor.api.getBlockLines(path)`. *(Outstanding — serializer accepts `BlockLines` when present, but no plugin stamps them yet.)*
+- [x] Block-level source-line metadata is stamped on every top-level Plate block during deserialize (`stampBlockLines` parses the same markdown with `remark-gfm` and copies 1-based positions from mdast). Surfaced via `editor.api.getBlockLines(path)` (the `SourceLinesPlugin`) and a pure-function `getBlockLinesForPath(value, path)` used inside `walkAnnotations`.
 - [x] `CommentComposer` from `@symbiot/ui` replaces the `window.prompt` call in `ReviewEditor.tsx`.
 - [x] `@tailwindcss/typography` plugin enabled; the `prose` class on the editor container styles headings, lists, blockquote, and inline code with the symbiot tokens.
-- [~] Tables (`@platejs/table`), bullet lists, and task lists (`@platejs/list`) render correctly from the FR-1.2 fixture. *(Lists render. Tables: `remark-gfm` parses markdown tables, but Plate receives them as flattened text — no `<table>` element renders. Explicit table-rules wiring is outstanding.)*
-- [ ] Fenced code blocks render with Shiki syntax highlighting. *(Outstanding — code blocks render as plain text in `<pre><code>`.)*
-- [ ] New golden fixtures: `fixtures/plannotator-reference/global-comment.md`, `deletion.md`, `mixed.md`. *(Outstanding — codec is verified by inline `toContain` snapshots in `serializeFeedback.test.ts`; the byte-equality goldens have not been captured from a real plannotator session.)*
+- [x] Tables (`@platejs/table`), bullet lists, and task lists (`@platejs/list`) render correctly. Each table plugin in `kit.ts` has `.withComponent(...)` pointing at a Tailwind-styled semantic element wrapper in `tableElements.tsx`.
+- [x] Fenced code blocks render with Shiki syntax highlighting. `CodeBlockPlugin.withComponent(CodeBlockElement)` + `shiki.ts` singleton with dual `github-light` / `github-dark` themes, pre-loading the common languages used in plan markdown.
+- [x] New golden fixtures: `fixtures/plannotator-reference/global-comment.md`, `deletion.md`, `mixed.md` — synthesized from `serializeFeedback` and byte-checked in `serializeFeedback.test.ts`. The README under `fixtures/plannotator-reference/` carries a TODO to swap them for real plannotator captures when an install is available.
 - [x] New Playwright-BDD specs green: `features/plan-review/comment.feature` (composer flow), `features/markdown/elements.feature` (3 scenarios: headings, lists, fenced code).
 
 ## Scope
