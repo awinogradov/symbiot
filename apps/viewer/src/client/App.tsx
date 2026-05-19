@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ReviewEditor,
   serializeFeedback,
-  walkComments,
+  walkAnnotations,
+  type GlobalCommentEntry,
   type PlateValue,
   type ReviewEditorHandle,
 } from "@symbiot/editor";
@@ -31,6 +32,7 @@ interface ReviewProps {
 const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
   const [phase, setPhase] = useState<Phase>("ready");
   const [editorHandle, setEditorHandle] = useState<ReviewEditorHandle | null>(null);
+  const [globalComments, setGlobalComments] = useState<GlobalCommentEntry[]>([]);
 
   const onApprove = useCallback(async () => {
     setPhase("submitting");
@@ -42,18 +44,28 @@ const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
   const onDeny = useCallback(async () => {
     if (editorHandle === null) return;
     setPhase("submitting");
-    const tuples = walkComments(
-      editorHandle.getValue() as PlateValue,
-      editorHandle.getCommentBodies()
-    );
-    await postDeny(serializeFeedback(tuples, plan.plan));
+    const entries = walkAnnotations({
+      value: editorHandle.getValue() as PlateValue,
+      commentBodies: editorHandle.getCommentBodies(),
+      globalComments,
+    });
+    await postDeny(serializeFeedback(entries, plan.plan));
     setPhase("done");
     window.close();
-  }, [editorHandle, plan.plan]);
+  }, [editorHandle, globalComments, plan.plan]);
+
+  const onAddGlobalComment = useCallback((body: string): void => {
+    setGlobalComments((prev) => [...prev, { id: crypto.randomUUID(), body }]);
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
-      <TopBar onApprove={onApprove} onDeny={onDeny} busy={phase === "submitting"} />
+      <TopBar
+        onApprove={onApprove}
+        onDeny={onDeny}
+        onAddGlobalComment={onAddGlobalComment}
+        busy={phase === "submitting"}
+      />
       <main className="flex-1 overflow-auto px-8 py-6">
         <ReviewEditor markdown={plan.plan} onReady={setEditorHandle} />
       </main>

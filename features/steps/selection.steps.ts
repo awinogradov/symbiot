@@ -25,4 +25,8 @@ const browserSelect = (text: string): void => {
 
 When("I select the text {string} in the editor", async ({ page }, needle: string) => {
   await page.evaluate(browserSelect, needle);
+  await page.getByTestId("toolbar-comment").waitFor({ state: "visible" });
+  // Plate's selection observer batches DOM-selection events; give it a tick
+  // to settle so editor.selection points at the new range before the next click.
+  await page.waitForTimeout(50);
 });

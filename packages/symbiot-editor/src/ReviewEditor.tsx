@@ -4,6 +4,7 @@ import { Plate, PlateContent, usePlateEditor, type PlateEditor } from "platejs/r
 import { Button, CommentComposer } from "@symbiot/ui";
 
 import { applyComment, type AppliedComment } from "./applyComment.ts";
+import { applyDeletion } from "./applyDeletion.ts";
 import { SymbiotEditorKit } from "./kit.ts";
 import { SelectionToolbar } from "./SelectionToolbar.tsx";
 import { useSelectionRect, type Rect } from "./selectionRect.ts";
@@ -82,6 +83,10 @@ export const ReviewEditor = ({ markdown, onReady }: ReviewEditorProps): React.Re
     setPending({ applied, rect: liveRect });
   }, [editor, liveRect]);
 
+  const onDeleteClick = useCallback((): void => {
+    applyDeletion(editor);
+  }, [editor]);
+
   const onComposerSave = useCallback(
     (body: string): void => {
       if (pending === null) return;
@@ -105,6 +110,9 @@ export const ReviewEditor = ({ markdown, onReady }: ReviewEditorProps): React.Re
       <SelectionToolbar containerRef={containerRef}>
         <Button data-testid="toolbar-comment" variant="ghost" onClick={onCommentClick}>
           Comment
+        </Button>
+        <Button data-testid="toolbar-delete" variant="ghost" onClick={onDeleteClick}>
+          Delete
         </Button>
       </SelectionToolbar>
       {pending !== null && (

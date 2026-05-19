@@ -1,5 +1,7 @@
 # Phase 3.2 — Deletion + Modes + Sidebar (M2 gate)
 
+> **Status:** 🟢 M2 gate passed (2026-05-19). The end-to-end Playwright scenario `features/plan-review/m2-gate.feature` drops one Comment, one Deletion, and one Global Comment via the real UI and the resulting feedback markdown contains all three plannotator-compatible kinds. Deletion authoring (mark-only, no @platejs/suggestion plugin) and the top-bar Global Comment composer landed. **Follow-ups** required to fully close 3.2: (a) `RedlineEditor` with selection-auto-deletion + mode toggle (Review / Redline) persisted to `localStorage`, (b) `AnnotationSidebar` and the missing shadcn primitives (`Sidebar`, `ToggleGroup`, `DropdownMenu`, `Tabs`, `Badge`, `AlertDialog`, `Tooltip`), (c) optional strikethrough rendering for deletion marks (currently they're walked correctly by the codec but render as plain text in the editor; see [Follow-ups](#follow-ups-for-the-rest-of-3-2)).
+
 > Third sub-phase of Phase 3. Lands the Deletion authoring UI (via `@platejs/suggestion`), the `RedlineEditor` and Review/Redline mode toggle, the missing shadcn primitives, the right-aligned annotation sidebar, and the Global Comment composer in the top bar. After this sub-phase, **M2 holds** — symbiot's feedback markdown is byte-compatible with the plannotator wire format for all 3 shared annotation types (Comment, Global Comment, Deletion). Depends on **Phase 3.1**.
 
 ## Goal
@@ -151,3 +153,12 @@ bun run viewer:smoke
 # Click "Undo last redline" → strikethrough disappears.
 # Reload → still in Redline mode.
 ```
+
+## Follow-ups (for the rest of 3.2)
+
+The first iteration shipped the M2 gate — Deletion authoring via a toolbar Delete button and a top-bar Global Comment composer. Remaining 3.2 scope:
+
+- **Redline mode + mode toggle.** Build `RedlineEditor.tsx` that auto-applies a Deletion (debounced 400 ms) on selection. Add a `ToggleGroup` to the top bar that selects Review vs. Redline mode and persists to `localStorage["symbiot.editor-mode"]`. App.tsx reads the persisted mode on mount and renders the appropriate editor.
+- **Sidebar.** Vendor `Sidebar`, `ToggleGroup`, `DropdownMenu`, `Tabs`, `Badge`, `AlertDialog`, `Tooltip` under `packages/symbiot-ui/src/components/`. Build `AnnotationSidebar.tsx` with the three sections (Comments, Deletions, Global Comments), Badge counts, click-to-focus, and Clear-all via AlertDialog. Add `features/plan-review/sidebar.feature` scenario.
+- **Strikethrough rendering for deletion marks.** The walker picks up `suggestion_<id>: true` marks correctly, but the editor renders the marked text as plain. Either register a minimal leaf renderer for the `suggestion: true` mark (Tailwind `line-through` class) or revisit @platejs/suggestion integration with the correct mark-data shape.
+- **`@platejs/suggestion` proper integration.** Phase 3.2's first iteration used custom `suggestion_<id>: true` marks because the @platejs/suggestion plugin requires structured mark data and rendering proved brittle. Re-evaluate when the strikethrough renderer lands — if the plugin's leaf renderer can be used as-is, swap in for free.
