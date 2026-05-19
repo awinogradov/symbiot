@@ -13,6 +13,8 @@ interface TopBarProps {
   mode?: TopBarMode;
   /** When true, renders the annotation-sidebar toggle trigger on the right side. */
   showSidebarTrigger?: boolean;
+  /** In `plan` mode, swaps the action button: Approve when false, Request changes when true. */
+  hasAnnotations?: boolean;
 }
 
 const denyLabel = (mode: TopBarMode): string =>
@@ -26,22 +28,31 @@ interface ActionsProps {
   onDeny: () => void;
   busy: boolean;
   mode: TopBarMode;
+  hasAnnotations: boolean;
 }
 
-const Actions = ({ onApprove, onDeny, busy, mode }: ActionsProps): React.ReactElement => (
-  <div className="flex items-center gap-2">
-    <Button data-testid="top-bar-deny" variant="outline" size="sm" onClick={onDeny} disabled={busy}>
-      <Send />
-      {denyLabel(mode)}
-    </Button>
-    {mode === "plan" && (
+const Actions = ({
+  onApprove,
+  onDeny,
+  busy,
+  mode,
+  hasAnnotations,
+}: ActionsProps): React.ReactElement => {
+  if (mode === "plan" && !hasAnnotations) {
+    return (
       <Button data-testid="top-bar-approve" size="sm" onClick={onApprove} disabled={busy}>
         <Check />
         Approve
       </Button>
-    )}
-  </div>
-);
+    );
+  }
+  return (
+    <Button data-testid="top-bar-deny" size="sm" onClick={onDeny} disabled={busy}>
+      <Send />
+      {denyLabel(mode)}
+    </Button>
+  );
+};
 
 const SidebarTriggerSlot = ({ show }: { show: boolean }): React.ReactElement | null => {
   if (!show) return null;
@@ -61,6 +72,7 @@ export const TopBar = ({
   busy = false,
   mode = "plan",
   showSidebarTrigger = false,
+  hasAnnotations = false,
 }: TopBarProps): React.ReactElement => (
   <header
     data-testid="top-bar"
@@ -69,7 +81,13 @@ export const TopBar = ({
   >
     <h1 className="text-muted-foreground text-sm font-medium">{headingFor(mode)}</h1>
     <div className="ml-auto flex items-center gap-3">
-      <Actions onApprove={onApprove} onDeny={onDeny} busy={busy} mode={mode} />
+      <Actions
+        onApprove={onApprove}
+        onDeny={onDeny}
+        busy={busy}
+        mode={mode}
+        hasAnnotations={hasAnnotations}
+      />
       <SidebarTriggerSlot show={showSidebarTrigger} />
     </div>
   </header>

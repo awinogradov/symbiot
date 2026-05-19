@@ -44,6 +44,7 @@ export const ReviewScreen = ({
           busy={phase === "submitting"}
           mode={plan.mode}
           showSidebarTrigger
+          hasAnnotations={state.sidebarEntries.length > 0}
         />
         <main className="flex-1 overflow-auto px-8 py-6">
           <EditorMount
