@@ -1,11 +1,12 @@
 import { MarkdownPlugin } from "@platejs/markdown";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plate, PlateContent, usePlateEditor, type PlateEditor } from "platejs/react";
-import { Button } from "@symbiot/ui";
+import { Button, CommentComposer } from "@symbiot/ui";
 
-import { applyComment } from "./applyComment.ts";
+import { applyComment, type AppliedComment } from "./applyComment.ts";
 import { SymbiotEditorKit } from "./kit.ts";
 import { SelectionToolbar } from "./SelectionToolbar.tsx";
+import { useSelectionRect, type Rect } from "./selectionRect.ts";
 import { useTypingGuard } from "./typingGuard.ts";
 
 /** Imperative handle the host uses to read the current value and comment bodies. */
@@ -32,10 +33,28 @@ const useReadyHandle = (
   }, [editor, bodies, onReady]);
 };
 
-const promptForBody = (anchor: string): string | undefined => {
-  const snippet = anchor.length > 60 ? `${anchor.slice(0, 60)}…` : anchor;
-  return globalThis.prompt(`Comment on "${snippet}"`)?.trim();
-};
+interface PendingComment {
+  applied: AppliedComment;
+  rect: Rect;
+}
+
+interface ComposerAnchorProps {
+  rect: Rect;
+}
+
+const ComposerAnchor = ({ rect }: ComposerAnchorProps): React.ReactElement => (
+  <div
+    data-testid="composer-anchor"
+    style={{
+      position: "absolute",
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+      pointerEvents: "none",
+    }}
+  />
+);
 
 /**
  * Read-only Plate editor that renders a markdown plan and lets the reviewer
@@ -45,6 +64,8 @@ const promptForBody = (anchor: string): string | undefined => {
 export const ReviewEditor = ({ markdown, onReady }: ReviewEditorProps): React.ReactElement => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [bodies, setBodies] = useState<Map<string, string>>(() => new Map());
+  const [pending, setPending] = useState<PendingComment | null>(null);
+  const liveRect = useSelectionRect(containerRef);
 
   const editor = usePlateEditor({
     plugins: SymbiotEditorKit,
@@ -55,13 +76,22 @@ export const ReviewEditor = ({ markdown, onReady }: ReviewEditorProps): React.Re
   useReadyHandle(editor, bodies, onReady);
 
   const onCommentClick = useCallback((): void => {
+    if (liveRect === null) return;
     const applied = applyComment(editor);
     if (applied === null) return;
-    const body = promptForBody(applied.originalText);
-    if (body !== undefined && body.length > 0) {
-      setBodies((prev) => new Map(prev).set(applied.id, body));
-    }
-  }, [editor]);
+    setPending({ applied, rect: liveRect });
+  }, [editor, liveRect]);
+
+  const onComposerSave = useCallback(
+    (body: string): void => {
+      if (pending === null) return;
+      setBodies((prev) => new Map(prev).set(pending.applied.id, body));
+      setPending(null);
+    },
+    [pending]
+  );
+
+  const onComposerCancel = useCallback((): void => setPending(null), []);
 
   return (
     <div
@@ -73,10 +103,18 @@ export const ReviewEditor = ({ markdown, onReady }: ReviewEditorProps): React.Re
         <PlateContent readOnly className="outline-none" />
       </Plate>
       <SelectionToolbar containerRef={containerRef}>
-        <Button variant="ghost" onClick={onCommentClick}>
+        <Button data-testid="toolbar-comment" variant="ghost" onClick={onCommentClick}>
           Comment
         </Button>
       </SelectionToolbar>
+      {pending !== null && (
+        <CommentComposer
+          open
+          anchor={<ComposerAnchor rect={pending.rect} />}
+          onSave={onComposerSave}
+          onCancel={onComposerCancel}
+        />
+      )}
     </div>
   );
 };

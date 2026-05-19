@@ -53,19 +53,20 @@ export const CommentComposer = ({
   return (
     <Popover open={open} onOpenChange={(next) => !next && onCancel()}>
       <PopoverAnchor asChild>{anchor}</PopoverAnchor>
-      <PopoverContent>
+      <PopoverContent data-testid="comment-composer">
         <Textarea
           ref={textareaRef}
+          data-testid="composer-textarea"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Comment on this selection… (Enter to save, Esc to cancel)"
           onKeyDown={(e) => submitKey(e, save, onCancel)}
         />
         <div className="mt-2 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onCancel}>
+          <Button data-testid="composer-cancel" variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={body.trim().length === 0}>
+          <Button data-testid="composer-save" onClick={save} disabled={body.trim().length === 0}>
             Save
           </Button>
         </div>
