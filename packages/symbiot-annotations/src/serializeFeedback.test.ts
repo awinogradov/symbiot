@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { serializeFeedback } from "./serializeFeedback.ts";
 import { walkComments } from "./walkComments.ts";
-import type { CommentEntry, PlateValue } from "./types.ts";
+import type { AnnotationEntry, CommentEntry, PlateValue } from "./types.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const fixturesRoot = resolve(repoRoot, "fixtures");
@@ -38,6 +38,37 @@ describe("serializeFeedback", () => {
     ];
     const actual = serializeFeedback(entries, plan);
     expect(actual).toBe(expected);
+  });
+
+  it("emits Suggest deleting: for D entries", () => {
+    const entries: AnnotationEntry[] = [
+      { kind: "deletion", id: "1", originalText: "redundant clause" },
+    ];
+    const out = serializeFeedback(entries, "");
+    expect(out).toContain('## 1. Suggest deleting: "redundant clause"');
+  });
+
+  it("emits General feedback for G entries with the quoted body", () => {
+    const entries: AnnotationEntry[] = [
+      { kind: "global", id: "1", body: "overall this looks great" },
+    ];
+    const out = serializeFeedback(entries, "");
+    expect(out).toContain("## 1. General feedback");
+    expect(out).toContain("> overall this looks great");
+  });
+
+  it("emits (lines N–M) prefix when block lines are present", () => {
+    const entries: AnnotationEntry[] = [
+      {
+        kind: "comment",
+        id: "1",
+        originalText: "x",
+        body: "y",
+        lines: { startLine: 12, endLine: 14 },
+      },
+    ];
+    const out = serializeFeedback(entries, "");
+    expect(out).toContain('## 1. (lines 12–14) Feedback on: "x"');
   });
 });
 
