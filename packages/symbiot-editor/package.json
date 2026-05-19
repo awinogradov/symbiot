@@ -29,6 +29,7 @@
     "@platejs/table": "53.0.0",
     "@symbiot/annotations": "workspace:*",
     "@symbiot/ui": "workspace:*",
+    "lucide-react": "1.16.0",
     "platejs": "53.0.3",
     "remark-gfm": "4.0.1",
     "remark-parse": "11.0.0",

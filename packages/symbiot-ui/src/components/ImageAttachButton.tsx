@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
 import { Button } from "./Button.tsx";
 
@@ -24,6 +24,7 @@ export const buildImageUrl = (ref: ImageRef): string => {
 interface ImageAttachButtonProps {
   onAttach: (ref: ImageRef) => void;
   disabled?: boolean;
+  icon?: ReactNode;
 }
 
 const uploadFile = async (file: File): Promise<ImageRef> => {
@@ -37,15 +38,10 @@ const uploadFile = async (file: File): Promise<ImageRef> => {
   return `${json.id}${json.extension}`;
 };
 
-/**
- * File-picker button that POSTs a chosen image to `/api/upload` and surfaces
- * the returned `${uuid}${ext}` reference back to the parent composer. Errors
- * are swallowed silently after logging — the user can retry; persistent
- * failures will surface in DevTools.
- */
 export const ImageAttachButton = ({
   onAttach,
   disabled = false,
+  icon,
 }: ImageAttachButtonProps): React.ReactElement => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -85,9 +81,11 @@ export const ImageAttachButton = ({
       <Button
         data-testid="image-attach-button"
         variant="ghost"
+        size="sm"
         onClick={onPick}
         disabled={disabled || uploading}
       >
+        {icon}
         {uploading ? "Uploading…" : "Attach image"}
       </Button>
     </>

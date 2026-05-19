@@ -1,4 +1,5 @@
 import { MarkdownPlugin } from "@platejs/markdown";
+import { MessageSquare, Strikethrough } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { Plate, PlateContent, usePlateEditor, type PlateEditor } from "platejs/react";
 import type { PlateValue } from "@symbiot/annotations";
@@ -63,6 +64,11 @@ interface PendingComment {
   rect: Rect;
 }
 
+// Off-screen rect used while no comment is pending. The composer's Popover
+// stays mounted so Radix has a stable anchor reference — see
+// `inline-comment.feature`.
+const hiddenAnchorRect: Rect = { top: -9999, left: -9999, width: 0, height: 0 };
+
 interface ComposerAnchorProps {
   rect: Rect;
   // Forwarded by `<PopoverAnchor asChild>` so Radix's Floating UI has a real
@@ -70,11 +76,6 @@ interface ComposerAnchorProps {
   // at the default `translate(0, -200%)` placement — off-screen.
   ref?: Ref<HTMLDivElement>;
 }
-
-// Off-screen placeholder rect used when no comment is pending. The composer's
-// Popover stays mounted (so Radix has a stable reference element) — see
-// `inline-comment.feature`.
-const hiddenAnchorRect: Rect = { top: -9999, left: -9999, width: 0, height: 0 };
 
 const ComposerAnchor = ({ rect, ref }: ComposerAnchorProps): React.ReactElement => (
   <div
@@ -176,10 +177,12 @@ export const ReviewEditor = ({
       <Plate editor={editor}>
         <PlateContent readOnly className="outline-none" />
         <FloatingToolbar>
-          <Button data-testid="toolbar-comment" variant="ghost" onClick={onCommentClick}>
+          <Button data-testid="toolbar-comment" variant="ghost" size="sm" onClick={onCommentClick}>
+            <MessageSquare />
             Comment
           </Button>
-          <Button data-testid="toolbar-delete" variant="ghost" onClick={onDeleteClick}>
+          <Button data-testid="toolbar-delete" variant="ghost" size="sm" onClick={onDeleteClick}>
+            <Strikethrough />
             Delete
           </Button>
         </FloatingToolbar>

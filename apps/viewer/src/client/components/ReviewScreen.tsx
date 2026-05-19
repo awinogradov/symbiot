@@ -1,5 +1,5 @@
 import { AnnotationSidebar } from "@symbiot/ui/components/AnnotationSidebar";
-import { SidebarProvider } from "@symbiot/ui/components/Sidebar";
+import { SidebarInset, SidebarProvider } from "@symbiot/ui/components/Sidebar";
 import { TopBar } from "@symbiot/ui/components/TopBar";
 
 import { useReviewState } from "../hooks/useReviewState.ts";
@@ -35,8 +35,8 @@ export const ReviewScreen = ({
   if (phase === "done") return <SubmittedScreen mode={plan.mode} />;
 
   return (
-    <SidebarProvider>
-      <div className="flex h-full flex-col">
+    <SidebarProvider defaultOpen>
+      <SidebarInset className="flex h-svh flex-col">
         <TopBar
           onApprove={onApprove}
           onDeny={onSubmit}
@@ -45,27 +45,26 @@ export const ReviewScreen = ({
           mode={plan.mode}
           editorMode={state.editorMode}
           onEditorModeChange={state.onEditorModeChange}
+          showSidebarTrigger
         />
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-auto px-8 py-6">
-            <EditorMount
-              editorMode={state.editorMode}
-              reloadKey={state.reloadKey}
-              plan={plan}
-              initialValue={state.initialValue}
-              initialBodies={state.initialBodies}
-              initialImages={state.initialImages}
-              onReady={state.setEditorHandle}
-              onChange={state.onEditorChange}
-            />
-          </main>
-          <AnnotationSidebar
-            entries={state.sidebarEntries}
-            onFocus={focusAnnotation}
-            onClearAll={state.onClearAll}
+        <main className="flex-1 overflow-auto px-8 py-6">
+          <EditorMount
+            editorMode={state.editorMode}
+            reloadKey={state.reloadKey}
+            plan={plan}
+            initialValue={state.initialValue}
+            initialBodies={state.initialBodies}
+            initialImages={state.initialImages}
+            onReady={state.setEditorHandle}
+            onChange={state.onEditorChange}
           />
-        </div>
-      </div>
+        </main>
+      </SidebarInset>
+      <AnnotationSidebar
+        entries={state.sidebarEntries}
+        onFocus={focusAnnotation}
+        onClearAll={state.onClearAll}
+      />
     </SidebarProvider>
   );
 };

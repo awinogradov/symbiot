@@ -22,6 +22,7 @@
     "@symbiot/annotations": "workspace:*",
     "@symbiot/editor": "workspace:*",
     "@symbiot/ui": "workspace:*",
+    "lucide-react": "1.16.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "zod": "4.4.3"

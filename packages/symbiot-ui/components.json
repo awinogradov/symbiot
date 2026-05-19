@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "../tailwind-config/theme.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@symbiot/ui/components",
+    "utils": "@symbiot/ui/utils/cn",
+    "ui": "@symbiot/ui/components",
+    "hooks": "@symbiot/ui/hooks",
+    "lib": "@symbiot/ui/utils"
+  },
+  "iconLibrary": "lucide"
+}

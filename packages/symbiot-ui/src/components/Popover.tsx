@@ -11,7 +11,6 @@ interface PopoverContentProps extends ComponentPropsWithoutRef<typeof PopoverPri
   ref?: Ref<HTMLDivElement>;
 }
 
-/** shadcn-style popover content wrapped in the Radix portal. */
 export const PopoverContent = ({
   className,
   align = "start",

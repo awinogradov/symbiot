@@ -1,7 +1,8 @@
 import { useEditorRef, useEditorSelection } from "platejs/react";
 import { useMemo, type MouseEvent, type ReactNode } from "react";
+import { Popover, PopoverAnchor, PopoverContent } from "@symbiot/ui/components/Popover";
 
-import { selectionRect } from "../utils/selectionRect.ts";
+import { selectionRect, type Rect } from "../utils/selectionRect.ts";
 
 interface FloatingToolbarProps {
   children: ReactNode;
@@ -17,13 +18,16 @@ export const preserveSelection = (event: MouseEvent): void => {
   event.preventDefault();
 };
 
+// Off-screen rect used while the selection is collapsed. The Popover stays
+// mounted so Radix has a stable anchor reference; opacity 0 hides it.
+const offscreen: Rect = { top: -9999, left: -9999, width: 0, height: 0 };
+
 /**
- * Floating toolbar that tracks Plate's `editor.selection` (works in read-only
- * mode — Pattern A applies marks via `editor.tf.addMarks` which bypasses
- * contenteditable=false). Hidden while the selection is collapsed so the
- * toolbar only appears once the reviewer has actually highlighted text.
+ * Floating toolbar anchored to Plate's `editor.selection` via a virtual
+ * `<PopoverAnchor>`. Shadcn Popover handles flip / shift / collision detection
+ * via Floating UI; we just position a 0-sized anchor at the selection rect.
  */
-export const FloatingToolbar = ({ children }: FloatingToolbarProps): React.ReactElement | null => {
+export const FloatingToolbar = ({ children }: FloatingToolbarProps): React.ReactElement => {
   const editor = useEditorRef();
   const selection = useEditorSelection();
   const rect = useMemo(() => {
@@ -31,22 +35,34 @@ export const FloatingToolbar = ({ children }: FloatingToolbarProps): React.React
     return selectionRect(editor);
   }, [editor, selection]);
 
-  if (rect === null) return null;
-  const style: React.CSSProperties = {
-    position: "absolute",
-    top: Math.max(0, rect.top - 44),
-    left: rect.left + rect.width / 2,
-    transform: "translateX(-50%)",
-    zIndex: 40,
-  };
+  const anchorRect = rect ?? offscreen;
+  const open = rect !== null;
+
   return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown intercept guards the editor selection from being collapsed by the click; the interactive controls are the children (buttons).
-    <div
-      style={style}
-      onMouseDown={preserveSelection}
-      className="border-border bg-popover rounded-md border px-2 py-1 shadow-md"
-    >
-      {children}
-    </div>
+    <Popover open={open}>
+      <PopoverAnchor asChild>
+        <div
+          data-testid="floating-toolbar-anchor"
+          style={{
+            position: "fixed",
+            top: anchorRect.top - window.scrollY,
+            left: anchorRect.left - window.scrollX,
+            width: anchorRect.width,
+            height: anchorRect.height,
+            pointerEvents: "none",
+          }}
+        />
+      </PopoverAnchor>
+      <PopoverContent
+        side="top"
+        align="center"
+        sideOffset={8}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onMouseDown={preserveSelection}
+        className="flex w-auto items-center gap-1 p-1"
+      >
+        {children}
+      </PopoverContent>
+    </Popover>
   );
 };
