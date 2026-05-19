@@ -7,9 +7,9 @@ export const Popover = PopoverPrimitive.Root;
 export const PopoverTrigger = PopoverPrimitive.Trigger;
 export const PopoverAnchor = PopoverPrimitive.Anchor;
 
-type PopoverContentProps = ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
+interface PopoverContentProps extends ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> {
   ref?: Ref<HTMLDivElement>;
-};
+}
 
 /** shadcn-style popover content wrapped in the Radix portal. */
 export const PopoverContent = ({

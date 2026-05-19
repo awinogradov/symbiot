@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import {
   AlertDialog,
@@ -69,35 +69,40 @@ interface EntryCardProps {
   onFocus: (id: string) => void;
 }
 
-const EntryCard = ({ entry, onFocus }: EntryCardProps): React.ReactElement => (
-  <button
-    type="button"
-    data-testid={`sidebar-entry-${entry.id}`}
-    data-kind={entry.kind}
-    onClick={(): void => onFocus(entry.id)}
-    className="border-border bg-card hover:bg-accent flex w-full flex-col gap-1 rounded-md border p-3 text-left text-sm transition-colors"
-  >
-    <div className="text-muted-foreground flex items-center justify-between text-xs">
-      <span>{kindLabel(entry.kind)}</span>
-      {entry.lines !== undefined && (
-        <span>
-          lines {entry.lines.startLine}–{entry.lines.endLine}
-        </span>
+const EntryCardInner = ({ entry, onFocus }: EntryCardProps): React.ReactElement => {
+  const handleClick = useCallback((): void => onFocus(entry.id), [entry.id, onFocus]);
+  return (
+    <button
+      type="button"
+      data-testid={`sidebar-entry-${entry.id}`}
+      data-kind={entry.kind}
+      onClick={handleClick}
+      className="border-border bg-card hover:bg-accent flex w-full flex-col gap-1 rounded-md border p-3 text-left text-sm transition-colors"
+    >
+      <div className="text-muted-foreground flex items-center justify-between text-xs">
+        <span>{kindLabel(entry.kind)}</span>
+        {entry.lines !== undefined && (
+          <span>
+            lines {entry.lines.startLine}–{entry.lines.endLine}
+          </span>
+        )}
+      </div>
+      <span className="line-clamp-2 font-medium">{entry.primary}</span>
+      {entry.body !== undefined && (
+        <span className="text-muted-foreground line-clamp-2 text-xs">{entry.body}</span>
       )}
-    </div>
-    <span className="line-clamp-2 font-medium">{entry.primary}</span>
-    {entry.body !== undefined && (
-      <span className="text-muted-foreground line-clamp-2 text-xs">{entry.body}</span>
-    )}
-  </button>
-);
+    </button>
+  );
+};
 
-const counts = (entries: AnnotationSidebarEntry[]): Record<Tab, number> => ({
-  all: entries.length,
-  comment: entries.filter((e) => e.kind === "comment").length,
-  deletion: entries.filter((e) => e.kind === "deletion").length,
-  global: entries.filter((e) => e.kind === "global").length,
-});
+const EntryCard = memo(EntryCardInner);
+EntryCard.displayName = "EntryCard";
+
+const countByKind = (entries: AnnotationSidebarEntry[]): Record<Tab, number> => {
+  const out: Record<Tab, number> = { all: entries.length, comment: 0, deletion: 0, global: 0 };
+  for (const e of entries) out[e.kind] += 1;
+  return out;
+};
 
 const TABS: Tab[] = ["all", "comment", "deletion", "global"];
 
@@ -112,8 +117,8 @@ export const AnnotationSidebar = ({
   onClearAll,
 }: AnnotationSidebarProps): React.ReactElement => {
   const [tab, setTab] = useState<Tab>("all");
-  const c = counts(entries);
-  const filtered = tabFilter(entries, tab);
+  const c = useMemo(() => countByKind(entries), [entries]);
+  const filtered = useMemo(() => tabFilter(entries, tab), [entries, tab]);
 
   const onTabChange = useCallback((value: string): void => {
     setTab(value as Tab);

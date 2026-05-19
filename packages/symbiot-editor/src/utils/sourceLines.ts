@@ -24,10 +24,16 @@ interface BlockLineRange {
 
 const blockLinesMark = "__symbiotBlockLines";
 
+const isMdastRoot = (raw: unknown): raw is MdastRoot =>
+  raw !== null &&
+  typeof raw === "object" &&
+  Array.isArray((raw as { children?: unknown }).children);
+
 const collectMdastBlockLines = (markdown: string): BlockLineRange[] => {
-  const tree = unified().use(remarkParse).use(remarkGfm).parse(markdown) as unknown as MdastRoot;
+  const parsed: unknown = unified().use(remarkParse).use(remarkGfm).parse(markdown);
+  if (!isMdastRoot(parsed)) return [];
   const out: BlockLineRange[] = [];
-  for (const child of tree.children) {
+  for (const child of parsed.children) {
     if (child.position === undefined) continue;
     out.push({
       startLine: child.position.start.line,
@@ -49,8 +55,7 @@ const collectMdastBlockLines = (markdown: string): BlockLineRange[] => {
 export const stampBlockLines = (markdown: string, value: PlateValue): PlateValue => {
   const ranges = collectMdastBlockLines(markdown);
   const out: PlateValue = [];
-  for (let i = 0; i < value.length; i += 1) {
-    const node = value[i] as PlateNode;
+  for (const [i, node] of value.entries()) {
     const range = ranges[i];
     if (range === undefined) {
       out.push(node);
@@ -96,6 +101,7 @@ export const SourceLinesPlugin = createPlatePlugin({
   getBlockLines: (path: number[]): BlockLines | null => {
     const [blockIndex] = path;
     if (blockIndex === undefined) return null;
+    // Plate's internal element type is structurally compatible with our PlateNode.
     const top = editor.children[blockIndex] as unknown as PlateNode | undefined;
     return readBlockLines(top);
   },

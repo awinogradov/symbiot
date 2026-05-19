@@ -10,8 +10,7 @@ import { getReactConfig } from "./react.ts";
 import { getTypescriptConfig } from "./typescript.ts";
 import { getVitestConfig } from "./vitest.ts";
 
-type RulesetFactory = () => Linter.Config | Linter.Config[];
-type Ruleset = RulesetFactory | Linter.Config | Linter.Config[];
+type RulesetFactory = () => Linter.Config[];
 
 interface ConfigureOptions {
   /**
@@ -37,9 +36,9 @@ export const rulesets = {
 } as const satisfies Record<string, RulesetFactory>;
 
 /**
- * Compose a flat ESLint config from a list of ruleset factories or raw
- * config blocks. Always prepends the shared ignore config and appends the
- * Prettier compatibility config so formatting rules win.
+ * Compose a flat ESLint config from a list of ruleset factories. Always
+ * prepends the shared ignore config and appends the Prettier compatibility
+ * config so formatting rules win.
  *
  * @example
  *   import { configure, rulesets } from "@symbiot/eslint-config";
@@ -50,11 +49,8 @@ export const rulesets = {
  *     rulesets.BROWSER,
  *   ], { tsconfigRootDir: import.meta.dirname });
  */
-export function configure(list: Ruleset[], options: ConfigureOptions = {}): Linter.Config[] {
-  const resolved = list.flatMap((ruleset) => {
-    const value = typeof ruleset === "function" ? ruleset() : ruleset;
-    return Array.isArray(value) ? value : [value];
-  });
+export function configure(list: RulesetFactory[], options: ConfigureOptions = {}): Linter.Config[] {
+  const resolved = list.flatMap((factory) => factory());
   const rootDirOverride: Linter.Config[] = options.tsconfigRootDir
     ? [
         {

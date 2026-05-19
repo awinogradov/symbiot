@@ -19,8 +19,7 @@ import type {
  * @see fixtures/plannotator-reference/README.md
  */
 export const serializeFeedback = (
-  entries: ReadonlyArray<AnnotationEntry | CommentEntry>,
-  _originalPlan: string
+  entries: ReadonlyArray<AnnotationEntry | CommentEntry>
 ): string => {
   const normalized = entries.map(coerceLegacy);
   if (normalized.length === 0) return "No changes detected.";

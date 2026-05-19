@@ -226,8 +226,8 @@ const useReviewState = ({ plan, draft, saveDraft, cancelDraft }: ReviewProps): R
   }, [collectEntries, globalComments, latestSnapshot]);
 
   const buildFeedbackMarkdown = useCallback(
-    (): string => serializeFeedback(collectEntries(), plan.plan),
-    [collectEntries, plan.plan]
+    (): string => serializeFeedback(collectEntries()),
+    [collectEntries]
   );
 
   const onApprove = useCallback(async () => {

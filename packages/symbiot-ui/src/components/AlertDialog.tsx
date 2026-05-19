@@ -8,9 +8,11 @@ export const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 export const AlertDialogAction = AlertDialogPrimitive.Action;
 export const AlertDialogCancel = AlertDialogPrimitive.Cancel;
 
-type AlertDialogContentProps = ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content> & {
+interface AlertDialogContentProps extends ComponentPropsWithoutRef<
+  typeof AlertDialogPrimitive.Content
+> {
   ref?: Ref<HTMLDivElement>;
-};
+}
 
 export const AlertDialogContent = ({
   className,

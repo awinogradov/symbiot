@@ -6,9 +6,11 @@ import { cn } from "../utils/cn.ts";
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 
-type DropdownMenuContentProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
+interface DropdownMenuContentProps extends ComponentPropsWithoutRef<
+  typeof DropdownMenuPrimitive.Content
+> {
   ref?: Ref<HTMLDivElement>;
-};
+}
 
 export const DropdownMenuContent = ({
   className,
@@ -31,9 +33,11 @@ export const DropdownMenuContent = ({
   </DropdownMenuPrimitive.Portal>
 );
 
-type DropdownMenuItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
+interface DropdownMenuItemProps extends ComponentPropsWithoutRef<
+  typeof DropdownMenuPrimitive.Item
+> {
   ref?: Ref<HTMLDivElement>;
-};
+}
 
 export const DropdownMenuItem = ({
   className,

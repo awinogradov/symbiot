@@ -14,7 +14,6 @@ export type {
   PlateValue,
 } from "./types.ts";
 export { toCommentTuple, toDeletionTuple, toGlobalCommentTuple } from "./types.ts";
-export { walkComments } from "./walkComments.ts";
 export {
   walkAnnotations,
   onlyComments,

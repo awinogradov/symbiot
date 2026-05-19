@@ -66,24 +66,30 @@ interface ModeToggleProps {
   busy: boolean;
 }
 
-const ModeToggle = ({ value, onChange, busy }: ModeToggleProps): React.ReactElement => (
-  <ToggleGroup
-    type="single"
-    value={value}
-    onValueChange={(next): void => {
+const ModeToggle = ({ value, onChange, busy }: ModeToggleProps): React.ReactElement => {
+  const handleValueChange = useCallback(
+    (next: string): void => {
       if (next === "review" || next === "redline") onChange(next);
-    }}
-    disabled={busy}
-    data-testid="top-bar-mode-toggle"
-  >
-    <ToggleGroupItem value="review" data-testid="mode-review">
-      Review
-    </ToggleGroupItem>
-    <ToggleGroupItem value="redline" data-testid="mode-redline">
-      Redline
-    </ToggleGroupItem>
-  </ToggleGroup>
-);
+    },
+    [onChange]
+  );
+  return (
+    <ToggleGroup
+      type="single"
+      value={value}
+      onValueChange={handleValueChange}
+      disabled={busy}
+      data-testid="top-bar-mode-toggle"
+    >
+      <ToggleGroupItem value="review" data-testid="mode-review">
+        Review
+      </ToggleGroupItem>
+      <ToggleGroupItem value="redline" data-testid="mode-redline">
+        Redline
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+};
 
 interface ModeToggleSlotProps {
   editorMode: EditorMode | undefined;
@@ -119,8 +125,9 @@ export const TopBar = ({
     [onAddGlobalComment]
   );
 
-  const onOpenGlobal =
-    onAddGlobalComment === undefined ? undefined : (): void => setComposerOpen(true);
+  const onCancel = useCallback((): void => setComposerOpen(false), []);
+  const openComposer = useCallback((): void => setComposerOpen(true), []);
+  const onOpenGlobal = onAddGlobalComment === undefined ? undefined : openComposer;
 
   return (
     <header
@@ -147,13 +154,10 @@ export const TopBar = ({
         <GlobalCommentComposer
           open={composerOpen}
           anchor={
-            <span
-              data-testid="global-composer-anchor"
-              style={{ position: "absolute", top: 60, right: 24 }}
-            />
+            <span data-testid="global-composer-anchor" className="absolute top-[60px] right-6" />
           }
           onSave={onSave}
-          onCancel={() => setComposerOpen(false)}
+          onCancel={onCancel}
         />
       )}
     </header>

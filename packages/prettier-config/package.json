@@ -18,7 +18,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "prettier-plugin-tailwindcss": "latest"
+    "prettier-plugin-tailwindcss": "0.8.0"
   },
   "peerDependencies": {
     "prettier": "^3.0.0"
@@ -26,7 +26,7 @@
   "devDependencies": {
     "@symbiot/eslint-config": "workspace:*",
     "@symbiot/typescript-config": "workspace:*",
-    "prettier": "latest",
-    "typescript": "latest"
+    "prettier": "3.8.3",
+    "typescript": "6.0.3"
   }
 }

@@ -3,6 +3,8 @@ import type { ComponentPropsWithoutRef, Ref } from "react";
 
 import { cn } from "../utils/cn.ts";
 
+// ToggleGroupPrimitive.Root's props are a discriminated union (single | multiple),
+// which TS interfaces cannot extend — keep this as a type alias.
 type ToggleGroupProps = ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Root> & {
   ref?: Ref<HTMLDivElement>;
 };
@@ -15,9 +17,9 @@ export const ToggleGroup = ({ className, ref, ...rest }: ToggleGroupProps): Reac
   />
 );
 
-type ToggleGroupItemProps = ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item> & {
+interface ToggleGroupItemProps extends ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item> {
   ref?: Ref<HTMLButtonElement>;
-};
+}
 
 export const ToggleGroupItem = ({
   className,

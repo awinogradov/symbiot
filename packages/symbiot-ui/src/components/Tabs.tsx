@@ -5,9 +5,9 @@ import { cn } from "../utils/cn.ts";
 
 export const Tabs = TabsPrimitive.Root;
 
-type TabsListProps = ComponentPropsWithoutRef<typeof TabsPrimitive.List> & {
+interface TabsListProps extends ComponentPropsWithoutRef<typeof TabsPrimitive.List> {
   ref?: Ref<HTMLDivElement>;
-};
+}
 
 export const TabsList = ({ className, ref, ...rest }: TabsListProps): React.ReactElement => (
   <TabsPrimitive.List
@@ -20,9 +20,9 @@ export const TabsList = ({ className, ref, ...rest }: TabsListProps): React.Reac
   />
 );
 
-type TabsTriggerProps = ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & {
+interface TabsTriggerProps extends ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> {
   ref?: Ref<HTMLButtonElement>;
-};
+}
 
 export const TabsTrigger = ({ className, ref, ...rest }: TabsTriggerProps): React.ReactElement => (
   <TabsPrimitive.Trigger
@@ -35,9 +35,9 @@ export const TabsTrigger = ({ className, ref, ...rest }: TabsTriggerProps): Reac
   />
 );
 
-type TabsContentProps = ComponentPropsWithoutRef<typeof TabsPrimitive.Content> & {
+interface TabsContentProps extends ComponentPropsWithoutRef<typeof TabsPrimitive.Content> {
   ref?: Ref<HTMLDivElement>;
-};
+}
 
 export const TabsContent = ({ className, ref, ...rest }: TabsContentProps): React.ReactElement => (
   <TabsPrimitive.Content
