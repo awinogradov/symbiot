@@ -14,6 +14,7 @@ import {
   TablePlugin,
   TableRowPlugin,
 } from "@platejs/table/react";
+import { ParagraphPlugin } from "platejs/react";
 import remarkGfm from "remark-gfm";
 
 import { CodeBlockElement } from "../components/CodeBlockElement.tsx";
@@ -50,11 +51,17 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
  * rejects because Slate-React always passes a zero-width text node as
  * children — `<hr>` is a void element that can't host children. Override
  * with a wrapper component that keeps the Slate children hidden.
+ *
+ * `ParagraphPlugin` ships without a `render` config, so paragraph nodes
+ * fall through to the default `<div>` element — breaking semantic HTML and
+ * any `.prose p` / `p code` selector that depends on it. Configure it to
+ * render as `<p>`.
  */
 export const SymbiotEditorKit = [
   MarkdownWithGfm,
   SourceLinesPlugin,
   BasicBlocksPlugin,
+  ParagraphPlugin.configure({ render: { as: "p" } }),
   BasicMarksPlugin,
   SuggestionMarkPlugin,
   HorizontalRulePlugin.withComponent(HrElement),
