@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 
 import type { ViewerMode } from "../shared/api-types.ts";
 
-import { saveFeedback, type PlanMeta } from "./storage.ts";
+import { clearDraft, loadDraft, saveDraft, saveFeedback, type PlanMeta } from "./storage.ts";
 
 /** Outcome of the reviewer's interaction with a plan. */
 export type Decision =
@@ -53,6 +53,26 @@ const denyRoute = async (req: Request, ctx: RouteContext): Promise<Response> => 
   return new Response(null, { status: 204 });
 };
 
+const draftGetRoute = async (ctx: RouteContext): Promise<Response> => {
+  const raw = await loadDraft(ctx.meta);
+  if (raw === null) return new Response(null, { status: 204 });
+  return new Response(raw, {
+    status: 200,
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+  });
+};
+
+const draftPostRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  const raw = await req.text();
+  await saveDraft(ctx.meta, raw);
+  return new Response(null, { status: 204 });
+};
+
+const draftDeleteRoute = async (ctx: RouteContext): Promise<Response> => {
+  await clearDraft(ctx.meta);
+  return new Response(null, { status: 204 });
+};
+
 const feedbackRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
   const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
   const feedback = body?.feedback ?? "";
@@ -73,6 +93,9 @@ const routes: Record<RouteKey, Handler> = {
   "POST /api/approve": (_req, ctx) => approveRoute(ctx),
   "POST /api/deny": (req, ctx) => denyRoute(req, ctx),
   "POST /api/feedback": (req, ctx) => feedbackRoute(req, ctx),
+  "GET /api/draft": (_req, ctx) => draftGetRoute(ctx),
+  "POST /api/draft": (req, ctx) => draftPostRoute(req, ctx),
+  "DELETE /api/draft": (_req, ctx) => draftDeleteRoute(ctx),
 };
 
 export type { RouteContext };

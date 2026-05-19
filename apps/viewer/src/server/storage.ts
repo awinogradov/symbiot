@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -14,6 +14,7 @@ export const storageRoot = join(homedir(), ".symbiot");
 
 const historyDir = join(storageRoot, "history");
 const annotationsDir = join(storageRoot, "annotations");
+const draftsDir = join(storageRoot, "drafts");
 
 export type { PlanMeta };
 
@@ -111,4 +112,27 @@ export const saveFeedback = async (
   const version = await nextAnnotationVersion(meta.project, meta.slug);
   await writeAtomic(annotationFile(meta.project, meta.slug, version), feedback);
   return { version };
+};
+
+const draftFile = (project: string, slug: string): string =>
+  join(draftsDir, project, slug, "draft.json");
+
+/** Persist the reviewer's in-progress annotations for restoration across reloads. */
+export const saveDraft = async (meta: PlanMeta, draft: string): Promise<void> => {
+  await writeAtomic(draftFile(meta.project, meta.slug), draft);
+};
+
+/** Read the saved draft for this plan, or null if none exists. */
+export const loadDraft = async (meta: PlanMeta): Promise<string | null> => {
+  try {
+    return await readFile(draftFile(meta.project, meta.slug), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+};
+
+/** Remove any saved draft for this plan. Idempotent. */
+export const clearDraft = async (meta: PlanMeta): Promise<void> => {
+  await rm(draftFile(meta.project, meta.slug), { force: true });
 };

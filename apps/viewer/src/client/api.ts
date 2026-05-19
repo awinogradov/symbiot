@@ -30,3 +30,32 @@ export const postFeedback = async (feedback: string): Promise<void> => {
   });
   if (!res.ok) throw new Error(`POST /api/feedback failed: ${res.status}`);
 };
+
+/** Server-side draft schema for `/api/draft`. */
+export interface DraftPayload {
+  value: unknown[];
+  commentBodies: Record<string, string>;
+  globalComments: { id: string; body: string }[];
+  updatedAt: number;
+}
+
+export const getDraft = async (): Promise<DraftPayload | null> => {
+  const res = await fetch("/api/draft");
+  if (res.status === 204) return null;
+  if (!res.ok) throw new Error(`GET /api/draft failed: ${res.status}`);
+  return (await res.json()) as DraftPayload;
+};
+
+export const putDraft = async (draft: DraftPayload): Promise<void> => {
+  const res = await fetch("/api/draft", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(draft),
+  });
+  if (!res.ok) throw new Error(`POST /api/draft failed: ${res.status}`);
+};
+
+export const deleteDraft = async (): Promise<void> => {
+  const res = await fetch("/api/draft", { method: "DELETE" });
+  if (!res.ok) throw new Error(`DELETE /api/draft failed: ${res.status}`);
+};

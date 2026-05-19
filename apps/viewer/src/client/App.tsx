@@ -3,15 +3,25 @@ import {
   ReviewEditor,
   serializeFeedback,
   walkAnnotations,
+  type EditorSnapshot,
   type GlobalCommentEntry,
   type PlateValue,
   type ReviewEditorHandle,
 } from "@symbiot/editor";
 import { ThemeProvider, TopBar } from "@symbiot/ui";
 
-import { fetchPlan, postApprove, postDeny, postFeedback, type PlanResponse } from "./api.ts";
+import {
+  deleteDraft,
+  fetchPlan,
+  postApprove,
+  postDeny,
+  postFeedback,
+  type DraftPayload,
+  type PlanResponse,
+} from "./api.ts";
+import { useDraft } from "./useDraft.ts";
 
-type Phase = "loading" | "ready" | "submitting" | "done";
+type Phase = "ready" | "submitting" | "done";
 
 const useLoadedPlan = (): PlanResponse | null => {
   const [plan, setPlan] = useState<PlanResponse | null>(null);
@@ -27,12 +37,31 @@ const useLoadedPlan = (): PlanResponse | null => {
 
 interface ReviewProps {
   plan: PlanResponse;
+  draft: DraftPayload | null;
+  saveDraft: (snapshot: {
+    value: unknown[];
+    commentBodies: Map<string, string>;
+    globalComments: GlobalCommentEntry[];
+  }) => void;
 }
 
-const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
+const ReviewScreen = ({ plan, draft, saveDraft }: ReviewProps): React.ReactElement => {
   const [phase, setPhase] = useState<Phase>("ready");
   const [editorHandle, setEditorHandle] = useState<ReviewEditorHandle | null>(null);
-  const [globalComments, setGlobalComments] = useState<GlobalCommentEntry[]>([]);
+  const [globalComments, setGlobalComments] = useState<GlobalCommentEntry[]>(
+    () => draft?.globalComments ?? []
+  );
+
+  const onEditorChange = useCallback(
+    (snapshot: EditorSnapshot): void => {
+      saveDraft({
+        value: snapshot.value,
+        commentBodies: snapshot.commentBodies,
+        globalComments,
+      });
+    },
+    [globalComments, saveDraft]
+  );
 
   const buildFeedbackMarkdown = useCallback((): string => {
     if (editorHandle === null) return "";
@@ -47,6 +76,7 @@ const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
   const onApprove = useCallback(async () => {
     setPhase("submitting");
     await postApprove();
+    await deleteDraft().catch(() => undefined);
     setPhase("done");
     window.close();
   }, []);
@@ -60,6 +90,7 @@ const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
     } else {
       await postDeny(feedback);
     }
+    await deleteDraft().catch(() => undefined);
     setPhase("done");
     window.close();
   }, [buildFeedbackMarkdown, editorHandle, plan.mode]);
@@ -67,6 +98,9 @@ const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
   const onAddGlobalComment = useCallback((body: string): void => {
     setGlobalComments((prev) => [...prev, { id: crypto.randomUUID(), body }]);
   }, []);
+
+  const initialValue = draft?.value;
+  const initialBodies = draft === null ? undefined : new Map(Object.entries(draft.commentBodies));
 
   return (
     <div className="flex h-full flex-col">
@@ -78,10 +112,32 @@ const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
         mode={plan.mode}
       />
       <main className="flex-1 overflow-auto px-8 py-6">
-        <ReviewEditor markdown={plan.plan} onReady={setEditorHandle} />
+        <ReviewEditor
+          markdown={plan.plan}
+          initialValue={initialValue}
+          initialBodies={initialBodies}
+          onReady={setEditorHandle}
+          onChange={onEditorChange}
+        />
       </main>
     </div>
   );
+};
+
+interface PlanLoadedProps {
+  plan: PlanResponse;
+}
+
+const PlanLoaded = ({ plan }: PlanLoadedProps): React.ReactElement => {
+  const { loaded: draft, isLoading: draftLoading, save: saveDraft } = useDraft();
+  if (draftLoading) {
+    return (
+      <div className="text-muted-foreground flex h-full items-center justify-center">
+        Loading draft…
+      </div>
+    );
+  }
+  return <ReviewScreen plan={plan} draft={draft} saveDraft={saveDraft} />;
 };
 
 export const App = (): React.ReactElement => {
@@ -93,7 +149,7 @@ export const App = (): React.ReactElement => {
           Loading plan…
         </div>
       ) : (
-        <ReviewScreen plan={plan} />
+        <PlanLoaded plan={plan} />
       )}
     </ThemeProvider>
   );

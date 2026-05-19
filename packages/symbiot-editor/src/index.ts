@@ -1,5 +1,5 @@
 export { SymbiotEditorKit } from "./kit.ts";
-export { ReviewEditor, type ReviewEditorHandle } from "./ReviewEditor.tsx";
+export { ReviewEditor, type ReviewEditorHandle, type EditorSnapshot } from "./ReviewEditor.tsx";
 export { applyComment, type AppliedComment } from "./applyComment.ts";
 export { applyDeletion, type AppliedDeletion } from "./applyDeletion.ts";
 export { walkComments, walkAnnotations, serializeFeedback } from "@symbiot/annotations";
