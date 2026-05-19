@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+
 import type { PlanMeta } from "./storage.ts";
 
 /** Outcome of the reviewer's interaction with a plan. */
@@ -7,7 +9,14 @@ interface RouteContext {
   plan: string;
   meta: PlanMeta;
   resolve: (decision: Decision) => void;
+  /** When set, the most recent decision is persisted here for out-of-band readers (e.g. Playwright). */
+  decisionFile?: string | null;
 }
+
+const recordDecision = async (path: string, decision: Decision): Promise<void> => {
+  const payload = JSON.stringify({ ...decision, at: Date.now() });
+  await writeFile(path, payload, "utf8");
+};
 
 const jsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), {
@@ -18,15 +27,23 @@ const jsonResponse = (body: unknown, status = 200): Response =>
 const planRoute = (ctx: RouteContext): Response =>
   jsonResponse({ plan: ctx.plan, mode: "plan", meta: ctx.meta });
 
-const approveRoute = (ctx: RouteContext): Response => {
-  ctx.resolve({ kind: "approve" });
+const approveRoute = async (ctx: RouteContext): Promise<Response> => {
+  const decision: Decision = { kind: "approve" };
+  if (ctx.decisionFile !== undefined && ctx.decisionFile !== null) {
+    await recordDecision(ctx.decisionFile, decision);
+  }
+  ctx.resolve(decision);
   return new Response(null, { status: 204 });
 };
 
 const denyRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
   const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
   const feedback = body?.feedback ?? "";
-  ctx.resolve({ kind: "deny", feedback });
+  const decision: Decision = { kind: "deny", feedback };
+  if (ctx.decisionFile !== undefined && ctx.decisionFile !== null) {
+    await recordDecision(ctx.decisionFile, decision);
+  }
+  ctx.resolve(decision);
   return new Response(null, { status: 204 });
 };
 
@@ -38,6 +55,8 @@ const routes: Record<RouteKey, Handler> = {
   "POST /api/approve": (_req, ctx) => approveRoute(ctx),
   "POST /api/deny": (req, ctx) => denyRoute(req, ctx),
 };
+
+export type { RouteContext };
 
 /**
  * Dispatch /api/* routes. Returns null for non-API requests so the caller can

@@ -30,6 +30,10 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "bundle-analyze": {
       "dependsOn": ["^build"],
       "outputs": ["bundle-stats/**"]

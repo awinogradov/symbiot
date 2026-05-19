@@ -64,7 +64,11 @@ export const ReviewEditor = ({ markdown, onReady }: ReviewEditorProps): React.Re
   }, [editor]);
 
   return (
-    <div ref={containerRef} className="prose prose-neutral dark:prose-invert relative max-w-3xl">
+    <div
+      ref={containerRef}
+      data-testid="editor-root"
+      className="prose prose-neutral dark:prose-invert relative max-w-3xl"
+    >
       <Plate editor={editor}>
         <PlateContent readOnly className="outline-none" />
       </Plate>

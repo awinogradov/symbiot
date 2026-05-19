@@ -13,6 +13,10 @@ export interface StartServerOptions {
   cwd?: string;
   openInBrowser?: boolean;
   staticRoot?: string;
+  /** Path to write each decision to as JSON. Enables out-of-band readers (Playwright). */
+  decisionFile?: string | null;
+  /** Bind to this port instead of an OS-assigned one. */
+  port?: number | null;
 }
 
 /** Handle returned by {@link startServer} for resolving + tearing down the loop. */
@@ -37,6 +41,7 @@ interface RequestContext {
   resolve: (decision: Decision) => void;
   origin: string;
   staticRoot: string;
+  decisionFile: string | null;
 }
 
 const buildResponse = async (req: Request, ctx: RequestContext): Promise<Response> => {
@@ -79,7 +84,7 @@ export const startServer = async (options: StartServerOptions): Promise<RunningS
   let port = 0;
   const server = Bun.serve({
     hostname: "127.0.0.1",
-    port: 0,
+    port: options.port ?? 0,
     fetch: (req: Request): Promise<Response> =>
       handle(req, {
         plan: options.plan,
@@ -87,6 +92,7 @@ export const startServer = async (options: StartServerOptions): Promise<RunningS
         resolve,
         origin: `http://127.0.0.1:${port}`,
         staticRoot,
+        decisionFile: options.decisionFile ?? null,
       }),
   });
   port = server.port ?? 0;

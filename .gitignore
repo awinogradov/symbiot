@@ -37,3 +37,8 @@ coverage
 
 # Claude Code runtime state
 .claude/*.lock
+
+# Playwright + playwright-bdd
+.features-generated
+test-results
+playwright-report
