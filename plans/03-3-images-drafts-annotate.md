@@ -10,16 +10,16 @@ Close out Phase 3 by adding the three remaining server endpoints (each with a re
 
 ## Exit criteria
 
-- [ ] `POST /api/upload` accepts multipart uploads of images with extensions in `[.png .jpg .jpeg .gif .webp]`. Rejects all others with HTTP 400. Generates UUID-v4 temp names. Writes to `~/.symbiot/uploads/{project}/{slug}/{uuid}.{ext}` via atomic write. Rejects path-traversal payloads (`../`, absolute paths, null bytes).
-- [ ] `GET /api/image?id={uuid}` streams the bytes; 404 if missing. No directory listing.
-- [ ] `GET/POST/DELETE /api/draft` round-trips a per-`{project}/{slug}` JSON blob containing the Plate value, comment bodies, global-comment bodies, and deletions. Atomic writes.
-- [ ] `POST /api/feedback` accepts annotate-mode feedback markdown and writes it to `~/.symbiot/annotations/{project}/{slug}/NNN.md`. 204 on success.
-- [ ] `GET /api/plan` returns a `mode: 'plan' | 'annotate'` flag.
-- [ ] Image attach in `CommentComposer` and `GlobalCommentComposer`: file picker → POST `/api/upload` → returned UUID appended to the annotation's `images[]`. Preview row in the popover and in the sidebar entry. Deletion entries skip the image affordance (per the D-tuple shape, deletions support images but no body — keep the affordance accessible from the sidebar entry's edit handle).
-- [ ] `useDraft.ts` hook: debounced (1 s) auto-save POST `/api/draft`. On mount, GET `/api/draft` and seed the editor; the saved state overrides markdown deserialize when present.
-- [ ] In annotate mode, the top-bar dropdown replaces Approve/Request-changes with **Submit feedback** wired to `/api/feedback`.
-- [ ] `apps/hook` exposes `symbiot annotate <file.md>`: reads the file → spawns viewer in annotate mode → blocks on `/api/feedback` → prints the resulting feedback markdown to stdout. Exit 0 on submit, 1 on cancel.
-- [ ] New Playwright-BDD specs green: `features/plan-review/image-attach.feature`, `draft.feature`, `features/annotate/round-trip.feature`, `features/server/upload-security.feature`.
+- [x] `POST /api/upload` accepts multipart uploads of images with extensions in `[.png .jpg .jpeg .gif .webp]`. Rejects all others with HTTP 400. Generates UUID-v4 temp names. Writes to `~/.symbiot/uploads/{project}/{slug}/{uuid}.{ext}` via atomic write. Rejects path-traversal payloads (`../`, absolute paths, null bytes).
+- [x] `GET /api/image?id={uuid}&ext={.ext}` streams the bytes; 404 if missing. No directory listing.
+- [x] `GET/POST/DELETE /api/draft` round-trips a per-`{project}/{slug}` JSON blob containing the Plate value, comment bodies, global-comment bodies, and deletions. Atomic writes.
+- [x] `POST /api/feedback` accepts annotate-mode feedback markdown and writes it to `~/.symbiot/annotations/{project}/{slug}/00N.md`. 204 on success.
+- [x] `GET /api/plan` returns a `mode: 'plan' | 'annotate'` flag.
+- [ ] Image attach in `CommentComposer` and `GlobalCommentComposer`. *(Outstanding — server endpoints accept uploads, but composers don't yet have an attach button. `@platejs/media` not in the kit yet.)*
+- [x] `useDraft.ts` hook: debounced (1 s) auto-save POST `/api/draft`. On mount, GET `/api/draft` and seed the editor; the saved state overrides markdown deserialize when present.
+- [x] In annotate mode, the top bar swaps Approve/Request-changes for **Submit feedback** wired to `/api/feedback`. *(Implemented as a flat button via `TopBarMode` prop, not as a DropdownMenu — that styling rolls in with the Phase 3.2 sidebar work.)*
+- [x] `apps/hook` exposes `symbiot annotate <file.md>`: reads the file → spawns viewer in annotate mode → blocks on `/api/feedback` → prints the resulting feedback markdown to stdout. Exit 0 on submit, 1 on cancel.
+- [~] New Playwright-BDD specs green: `features/plan-review/draft.feature` ✓, `features/annotate/round-trip.feature` ✓, `features/server/upload-security.feature` ✓. **`features/plan-review/image-attach.feature` outstanding** (needs the composer UI first).
 
 ## Scope
 

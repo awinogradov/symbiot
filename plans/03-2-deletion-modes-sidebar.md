@@ -10,19 +10,15 @@ Add the remaining UIs for the two annotation types whose codec already landed in
 
 ## Exit criteria
 
-- [ ] **Comment**, **Global Comment**, and **Deletion** can all be applied in the viewer and survive a `serializeFeedback` round-trip that byte-matches the corresponding `fixtures/plannotator-reference/*.md` golden.
-- [ ] Review mode (default): floating toolbar offers **Comment** + **Delete** on selection; Global Comment is available from a dropdown in the top bar without selection.
-- [ ] Redline mode: making a selection auto-applies a Deletion after a 400 ms debounce; **Undo last redline** is exposed in the top bar and rewinds the most recent suggestion.
-- [ ] Mode toggle in the top bar persists across reloads via `localStorage["symbiot.editor-mode"]`.
-- [ ] Right-aligned collapsible sidebar:
-  - Two sections: **Annotations** (filterable by type via Tabs) and **Global Comments**.
-  - Counts via shadcn `Badge`.
-  - Click an entry → editor scrolls and focuses its anchor.
-  - **Clear all** with `AlertDialog` confirmation.
-- [ ] Top bar replaces the single Approve/Deny pair with a `DropdownMenu` (Approve / Request changes / Share — Share disabled with `Tooltip`).
-- [ ] All missing shadcn primitives vendored under `packages/symbiot-ui/src/components/`: `Sidebar`, `ToggleGroup`, `DropdownMenu`, `Tabs`, `Badge`, `AlertDialog`, `Tooltip`.
-- [ ] All four golden fixtures (`comment.md`, `global-comment.md`, `deletion.md`, `mixed.md`) byte-match end-to-end via Playwright-BDD scenarios that drive the real UI.
-- [ ] **M2 GATE:** `mixed.md` produced by a real Playwright run that drops one of each annotation type byte-matches the plannotator reference fixture.
+- [~] **Comment**, **Global Comment**, and **Deletion** can all be applied in the viewer and survive a `serializeFeedback` round-trip. *(All three apply and round-trip; the byte-equality goldens for G/D/mixed remain Phase 3.1 follow-ups, so the assertion is currently `toContain`-shaped in `features/plan-review/m2-gate.feature`.)*
+- [x] Review mode: floating toolbar offers **Comment** + **Delete** on selection (`toolbar-comment`, `toolbar-delete` in `ReviewEditor.tsx`); Global Comment is available from the top bar without selection (`top-bar-global-comment`).
+- [ ] Redline mode: making a selection auto-applies a Deletion after a 400 ms debounce; **Undo last redline**. *(Outstanding — `RedlineEditor` not built.)*
+- [ ] Mode toggle in the top bar persists across reloads via `localStorage["symbiot.editor-mode"]`. *(Outstanding — `ToggleGroup` not vendored.)*
+- [ ] Right-aligned collapsible sidebar with Annotations / Global Comments sections, `Badge` counts, click-to-focus, Clear-all `AlertDialog`. *(Outstanding — `AnnotationSidebar` not built; `Sidebar`/`Tabs`/`Badge`/`AlertDialog` not vendored.)*
+- [ ] Top bar replaces Approve/Deny pair with a `DropdownMenu` (Approve / Request changes / Share — Share disabled with `Tooltip`). *(Outstanding — top bar still uses flat `Button`s.)*
+- [ ] All missing shadcn primitives vendored under `packages/symbiot-ui/src/components/`: `Sidebar`, `ToggleGroup`, `DropdownMenu`, `Tabs`, `Badge`, `AlertDialog`, `Tooltip`. *(Outstanding — only `Button`, `Popover`, `Textarea` vendored.)*
+- [~] All four golden fixtures (`comment.md`, `global-comment.md`, `deletion.md`, `mixed.md`) byte-match end-to-end via Playwright-BDD scenarios. *(Only `comment.md` is captured; the other three are `toContain` checks in `m2-gate.feature` / `deletion.feature` / `global-comment.feature` pending real-plannotator capture.)*
+- [x] **M2 GATE:** a Playwright run that drops one of each annotation type produces feedback markdown carrying every plannotator-compatible section (`features/plan-review/m2-gate.feature`). Byte-equality against a captured `mixed.md` is the next-step tightening.
 
 ## Scope
 

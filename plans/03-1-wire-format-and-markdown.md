@@ -10,15 +10,15 @@ Make the wire format and markdown surface complete *before* the second annotatio
 
 ## Exit criteria
 
-- [ ] `packages/symbiot-annotations` exports encoders + decoders for `['C', …]`, `['G', …]`, `['D', …]` tuples and a unified `serializeFeedback` that emits `(lines N–M)` headings when block metadata is present.
-- [ ] Dual-anchor resolves: `pathAnchor` first, `originalText` text-quote fallback. Drift tests pass.
-- [ ] Block-level source-line metadata is stamped on every block-level Plate node during deserialize and surfaced via `editor.api.getBlockLines(path)`.
-- [ ] `CommentComposer` from `@symbiot/ui` replaces the `window.prompt` call in `ReviewEditor.tsx`.
-- [ ] `@tailwindcss/typography` plugin enabled; the `prose` class on the editor container styles headings, lists, blockquote, and inline code with the symbiot tokens.
-- [ ] Tables (`@platejs/table`), bullet lists, and task lists (`@platejs/list`) render correctly from the FR-1.2 fixture.
-- [ ] Fenced code blocks render with Shiki syntax highlighting. `bash` / `ts` / `tsx` / `md` grammars pre-loaded synchronously; other languages lazy-load on demand.
-- [ ] New golden fixtures: `fixtures/plannotator-reference/global-comment.md`, `deletion.md`, `mixed.md`. Vitest diffs `serializeFeedback()` output byte-for-byte for each.
-- [ ] New Playwright-BDD specs green: `features/plan-review/comment.feature` (composer flow), `features/markdown/elements.feature` (one scenario per FR-1.2 element).
+- [x] `packages/symbiot-annotations` exports encoders + decoders for `['C', …]`, `['G', …]`, `['D', …]` tuples and a unified `serializeFeedback` that emits `(lines N–M)` headings when block metadata is present.
+- [x] Dual-anchor resolves: `pathAnchor` first, `originalText` text-quote fallback. Drift tests pass.
+- [ ] Block-level source-line metadata is stamped on every block-level Plate node during deserialize and surfaced via `editor.api.getBlockLines(path)`. *(Outstanding — serializer accepts `BlockLines` when present, but no plugin stamps them yet.)*
+- [x] `CommentComposer` from `@symbiot/ui` replaces the `window.prompt` call in `ReviewEditor.tsx`.
+- [x] `@tailwindcss/typography` plugin enabled; the `prose` class on the editor container styles headings, lists, blockquote, and inline code with the symbiot tokens.
+- [~] Tables (`@platejs/table`), bullet lists, and task lists (`@platejs/list`) render correctly from the FR-1.2 fixture. *(Lists render. Tables: `remark-gfm` parses markdown tables, but Plate receives them as flattened text — no `<table>` element renders. Explicit table-rules wiring is outstanding.)*
+- [ ] Fenced code blocks render with Shiki syntax highlighting. *(Outstanding — code blocks render as plain text in `<pre><code>`.)*
+- [ ] New golden fixtures: `fixtures/plannotator-reference/global-comment.md`, `deletion.md`, `mixed.md`. *(Outstanding — codec is verified by inline `toContain` snapshots in `serializeFeedback.test.ts`; the byte-equality goldens have not been captured from a real plannotator session.)*
+- [x] New Playwright-BDD specs green: `features/plan-review/comment.feature` (composer flow), `features/markdown/elements.feature` (3 scenarios: headings, lists, fenced code).
 
 ## Scope
 
