@@ -21,3 +21,12 @@ export const postDeny = async (feedback: string): Promise<void> => {
   });
   if (!res.ok) throw new Error(`POST /api/deny failed: ${res.status}`);
 };
+
+export const postFeedback = async (feedback: string): Promise<void> => {
+  const res = await fetch("/api/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ feedback }),
+  });
+  if (!res.ok) throw new Error(`POST /api/feedback failed: ${res.status}`);
+};

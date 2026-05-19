@@ -1,9 +1,12 @@
 #!/usr/bin/env bun
 import { installHook, uninstallHook } from "./installHook.ts";
+import { runAnnotate } from "./runAnnotate.ts";
 import { runHook } from "./runHook.ts";
 
 const usage = (): never => {
-  process.stderr.write("usage: symbiot <install-hook|uninstall-hook|run-hook>\n");
+  process.stderr.write(
+    "usage: symbiot <install-hook|uninstall-hook|run-hook|annotate <file.md>>\n"
+  );
   process.exit(64);
 };
 
@@ -25,7 +28,8 @@ const runUninstall = async (): Promise<number> => {
   return 0;
 };
 
-const dispatch = async (command: string | undefined): Promise<number> => {
+const dispatch = async (argv: string[]): Promise<number> => {
+  const [command] = argv;
   switch (command) {
     case "install-hook":
       return runInstall();
@@ -33,12 +37,14 @@ const dispatch = async (command: string | undefined): Promise<number> => {
       return runUninstall();
     case "run-hook":
       return runHook();
+    case "annotate":
+      return runAnnotate(argv[1]);
     default:
       return usage();
   }
 };
 
-dispatch(process.argv[2]).then(
+dispatch(process.argv.slice(2)).then(
   (code) => process.exit(code),
   (error: unknown) => {
     process.stderr.write(`${(error as Error).message}\n`);

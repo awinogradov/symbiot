@@ -9,7 +9,7 @@ import {
 } from "@symbiot/editor";
 import { ThemeProvider, TopBar } from "@symbiot/ui";
 
-import { fetchPlan, postApprove, postDeny, type PlanResponse } from "./api.ts";
+import { fetchPlan, postApprove, postDeny, postFeedback, type PlanResponse } from "./api.ts";
 
 type Phase = "loading" | "ready" | "submitting" | "done";
 
@@ -34,6 +34,16 @@ const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
   const [editorHandle, setEditorHandle] = useState<ReviewEditorHandle | null>(null);
   const [globalComments, setGlobalComments] = useState<GlobalCommentEntry[]>([]);
 
+  const buildFeedbackMarkdown = useCallback((): string => {
+    if (editorHandle === null) return "";
+    const entries = walkAnnotations({
+      value: editorHandle.getValue() as PlateValue,
+      commentBodies: editorHandle.getCommentBodies(),
+      globalComments,
+    });
+    return serializeFeedback(entries, plan.plan);
+  }, [editorHandle, globalComments, plan.plan]);
+
   const onApprove = useCallback(async () => {
     setPhase("submitting");
     await postApprove();
@@ -41,18 +51,18 @@ const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
     window.close();
   }, []);
 
-  const onDeny = useCallback(async () => {
+  const onSubmit = useCallback(async () => {
     if (editorHandle === null) return;
     setPhase("submitting");
-    const entries = walkAnnotations({
-      value: editorHandle.getValue() as PlateValue,
-      commentBodies: editorHandle.getCommentBodies(),
-      globalComments,
-    });
-    await postDeny(serializeFeedback(entries, plan.plan));
+    const feedback = buildFeedbackMarkdown();
+    if (plan.mode === "annotate") {
+      await postFeedback(feedback);
+    } else {
+      await postDeny(feedback);
+    }
     setPhase("done");
     window.close();
-  }, [editorHandle, globalComments, plan.plan]);
+  }, [buildFeedbackMarkdown, editorHandle, plan.mode]);
 
   const onAddGlobalComment = useCallback((body: string): void => {
     setGlobalComments((prev) => [...prev, { id: crypto.randomUUID(), body }]);
@@ -62,9 +72,10 @@ const ReviewScreen = ({ plan }: ReviewProps): React.ReactElement => {
     <div className="flex h-full flex-col">
       <TopBar
         onApprove={onApprove}
-        onDeny={onDeny}
+        onDeny={onSubmit}
         onAddGlobalComment={onAddGlobalComment}
         busy={phase === "submitting"}
+        mode={plan.mode}
       />
       <main className="flex-1 overflow-auto px-8 py-6">
         <ReviewEditor markdown={plan.plan} onReady={setEditorHandle} />

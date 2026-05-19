@@ -13,6 +13,7 @@ import type { PlanMeta } from "../shared/api-types.ts";
 export const storageRoot = join(homedir(), ".symbiot");
 
 const historyDir = join(storageRoot, "history");
+const annotationsDir = join(storageRoot, "annotations");
 
 export type { PlanMeta };
 
@@ -80,3 +81,34 @@ export const savePlan = async (plan: string, cwd: string = process.cwd()): Promi
 
 export const loadPlan = async (meta: PlanMeta): Promise<string> =>
   readFile(planFile(meta.project, meta.slug, meta.version), "utf8");
+
+const annotationFile = (project: string, slug: string, version: number): string =>
+  join(annotationsDir, project, slug, `${padVersion(version)}.md`);
+
+const nextAnnotationVersion = async (project: string, slug: string): Promise<number> => {
+  const dir = join(annotationsDir, project, slug);
+  try {
+    const entries = await readdir(dir);
+    const versions = entries
+      .map((name) => /^(\d{3})\.md$/.exec(name)?.[1])
+      .filter((v): v is string => v !== undefined)
+      .map((v) => Number.parseInt(v, 10));
+    return versions.length > 0 ? Math.max(...versions) + 1 : 1;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return 1;
+    throw error;
+  }
+};
+
+/**
+ * Persist a feedback markdown blob under
+ * ~/.symbiot/annotations/{project}/{slug}/00N.md for annotate mode.
+ */
+export const saveFeedback = async (
+  meta: PlanMeta,
+  feedback: string
+): Promise<{ version: number }> => {
+  const version = await nextAnnotationVersion(meta.project, meta.slug);
+  await writeAtomic(annotationFile(meta.project, meta.slug, version), feedback);
+  return { version };
+};

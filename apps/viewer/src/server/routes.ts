@@ -1,13 +1,19 @@
 import { writeFile } from "node:fs/promises";
 
-import type { PlanMeta } from "./storage.ts";
+import type { ViewerMode } from "../shared/api-types.ts";
+
+import { saveFeedback, type PlanMeta } from "./storage.ts";
 
 /** Outcome of the reviewer's interaction with a plan. */
-export type Decision = { kind: "approve" } | { kind: "deny"; feedback: string };
+export type Decision =
+  | { kind: "approve" }
+  | { kind: "deny"; feedback: string }
+  | { kind: "feedback"; feedback: string };
 
 interface RouteContext {
   plan: string;
   meta: PlanMeta;
+  mode: ViewerMode;
   resolve: (decision: Decision) => void;
   /** When set, the most recent decision is persisted here for out-of-band readers (e.g. Playwright). */
   decisionFile?: string | null;
@@ -25,7 +31,7 @@ const jsonResponse = (body: unknown, status = 200): Response =>
   });
 
 const planRoute = (ctx: RouteContext): Response =>
-  jsonResponse({ plan: ctx.plan, mode: "plan", meta: ctx.meta });
+  jsonResponse({ plan: ctx.plan, mode: ctx.mode, meta: ctx.meta });
 
 const approveRoute = async (ctx: RouteContext): Promise<Response> => {
   const decision: Decision = { kind: "approve" };
@@ -47,6 +53,18 @@ const denyRoute = async (req: Request, ctx: RouteContext): Promise<Response> => 
   return new Response(null, { status: 204 });
 };
 
+const feedbackRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
+  const feedback = body?.feedback ?? "";
+  await saveFeedback(ctx.meta, feedback);
+  const decision: Decision = { kind: "feedback", feedback };
+  if (ctx.decisionFile !== undefined && ctx.decisionFile !== null) {
+    await recordDecision(ctx.decisionFile, decision);
+  }
+  ctx.resolve(decision);
+  return new Response(null, { status: 204 });
+};
+
 type Handler = (req: Request, ctx: RouteContext) => Response | Promise<Response>;
 type RouteKey = `${string} ${string}`;
 
@@ -54,6 +72,7 @@ const routes: Record<RouteKey, Handler> = {
   "GET /api/plan": (_req, ctx) => planRoute(ctx),
   "POST /api/approve": (_req, ctx) => approveRoute(ctx),
   "POST /api/deny": (req, ctx) => denyRoute(req, ctx),
+  "POST /api/feedback": (req, ctx) => feedbackRoute(req, ctx),
 };
 
 export type { RouteContext };

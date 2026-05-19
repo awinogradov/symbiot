@@ -1,6 +1,8 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { ViewerMode } from "../shared/api-types.ts";
+
 import { corsHeaders, isOriginAllowed } from "./cors.ts";
 import { handleApi, type Decision } from "./routes.ts";
 import { openBrowser } from "./openBrowser.ts";
@@ -17,6 +19,8 @@ export interface StartServerOptions {
   decisionFile?: string | null;
   /** Bind to this port instead of an OS-assigned one. */
   port?: number | null;
+  /** Viewer mode: 'plan' (Approve/Deny) or 'annotate' (Submit feedback). Defaults to 'plan'. */
+  mode?: ViewerMode;
 }
 
 /** Handle returned by {@link startServer} for resolving + tearing down the loop. */
@@ -38,6 +42,7 @@ const defaultStaticRoot = join(
 interface RequestContext {
   plan: string;
   meta: PlanMeta;
+  mode: ViewerMode;
   resolve: (decision: Decision) => void;
   origin: string;
   staticRoot: string;
@@ -89,6 +94,7 @@ export const startServer = async (options: StartServerOptions): Promise<RunningS
       handle(req, {
         plan: options.plan,
         meta,
+        mode: options.mode ?? "plan",
         resolve,
         origin: `http://127.0.0.1:${port}`,
         staticRoot,

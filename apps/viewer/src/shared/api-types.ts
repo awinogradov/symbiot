@@ -10,9 +10,12 @@ export interface PlanMeta {
   version: number;
 }
 
+/** Operating mode of the viewer. `plan` = Approve/Deny; `annotate` = Submit feedback. */
+export type ViewerMode = "plan" | "annotate";
+
 /** Response payload of `GET /api/plan`. */
 export interface PlanResponse {
   plan: string;
-  mode: "plan";
+  mode: ViewerMode;
   meta: PlanMeta;
 }

@@ -5,16 +5,21 @@ import { defineConfig, devices } from "@playwright/test";
 import { defineBddConfig } from "playwright-bdd";
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
-const decisionFile = join(rootDir, ".features-generated", "last-decision.json");
+const planDecisionFile = join(rootDir, ".features-generated", "last-decision.json");
+const annotateDecisionFile = join(rootDir, ".features-generated", "annotate-decision.json");
 const planPath = join(rootDir, "fixtures", "plans", "elements.md");
-const port = 3210;
-const baseURL = `http://127.0.0.1:${port}`;
+const planPort = 3210;
+const annotatePort = 3211;
+const baseURL = `http://127.0.0.1:${planPort}`;
 
 const testDir = defineBddConfig({
   features: ["features/**/*.feature"],
   steps: ["features/steps/**/*.ts", "features/support/**/*.ts"],
   outputDir: ".features-generated",
 });
+
+const viewerCommand = (port: number, decisionFile: string, mode: "plan" | "annotate"): string =>
+  `bun apps/viewer/src/bin.ts --plan ${planPath} --port ${port} --no-open --keep-alive --decision-file ${decisionFile} --mode ${mode}`;
 
 export default defineConfig({
   testDir,
@@ -27,13 +32,23 @@ export default defineConfig({
     trace: "retain-on-failure",
     viewport: { width: 1280, height: 800 },
   },
-  webServer: {
-    command: `bun apps/viewer/src/bin.ts --plan ${planPath} --port ${port} --no-open --keep-alive --decision-file ${decisionFile}`,
-    url: baseURL,
-    reuseExistingServer: process.env["CI"] !== "true",
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: 30_000,
-  },
+  webServer: [
+    {
+      command: viewerCommand(planPort, planDecisionFile, "plan"),
+      url: baseURL,
+      reuseExistingServer: process.env["CI"] !== "true",
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+    {
+      command: viewerCommand(annotatePort, annotateDecisionFile, "annotate"),
+      url: `http://127.0.0.1:${annotatePort}`,
+      reuseExistingServer: process.env["CI"] !== "true",
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+  ],
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });
