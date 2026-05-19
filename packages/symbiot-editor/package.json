@@ -22,10 +22,13 @@
     "@platejs/basic-nodes": "53.0.0",
     "@platejs/code-block": "53.0.0",
     "@platejs/comment": "53.0.0",
+    "@platejs/list": "53.0.2",
     "@platejs/markdown": "53.0.4",
+    "@platejs/table": "53.0.0",
     "@symbiot/annotations": "workspace:*",
     "@symbiot/ui": "workspace:*",
-    "platejs": "53.0.3"
+    "platejs": "53.0.3",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@symbiot/eslint-config": "workspace:*",

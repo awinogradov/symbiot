@@ -29,6 +29,7 @@
     "@symbiot/eslint-config": "workspace:*",
     "@symbiot/tailwind-config": "workspace:*",
     "@symbiot/typescript-config": "workspace:*",
+    "@tailwindcss/typography": "0.5.19",
     "@tailwindcss/vite": "4.3.0",
     "@types/bun": "1.3.14",
     "@types/react": "19.2.14",

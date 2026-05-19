@@ -1,5 +1,7 @@
 # Phase 3.1 — Wire format + markdown completeness
 
+> **Status:** 🟡 Partially landed (2026-05-19). Codec + dual-anchor + walker + CommentComposer wire-in + GFM markdown (lists, strikethrough, remark-gfm) + `@tailwindcss/typography` all shipped. **Follow-ups** required to fully close 3.1: (a) explicit table-rule wiring so `@platejs/table` actually renders Plate `<table>` elements from markdown deserialize, (b) Shiki integration on `CodeBlockPlugin`, (c) `SourceLinesPlugin` for `(lines N–M)` heading prefix, (d) capture of byte-equality golden fixtures `global-comment.md`, `deletion.md`, `mixed.md` from a real plannotator session. Tracked under [Follow-ups](#follow-ups-rollover-to-3-2-prep) below.
+
 > Second sub-phase of Phase 3. Lands the full plannotator-compatible codec (C/G/D tuples + dual-anchor), block-level source-line metadata, the carry-over markdown surface from Phase 2 (typography, tables, lists, syntax highlighting), and wires `CommentComposer` into the editor in place of `window.prompt`. Depends on **Phase 3.0** (Playwright-BDD harness).
 
 ## Goal
@@ -126,3 +128,12 @@ bun run viewer:smoke
 #   → task list shows checkboxes
 #   → code block is syntax-highlighted via Shiki
 ```
+
+## Follow-ups (rollover to 3.2 prep)
+
+These remain from the original 3.1 scope and must be picked up before or alongside Phase 3.2:
+
+- **Table render integration.** `@platejs/table` plugins are registered in `SymbiotEditorKit` and `remark-gfm` is parsing markdown tables, but the Plate value receives the table cells as flattened text instead of `MdTable`/`MdTableRow`/`MdTableCell` Plate nodes. Needs explicit table rules wired into `MarkdownPlugin.configure({ options: { rules: {...} } })` or a different bridge between `remark-gfm`'s mdast and the registered table plugins. Re-add the `Tables render as native HTML tables` Playwright scenario when this lands.
+- **Shiki on `CodeBlockPlugin`.** Pre-load `bash` / `ts` / `tsx` / `md`; lazy-load others. Dual-theme via CSS variables for Phase 7. Currently code blocks render as plain text inside `<pre>/<code>` (Phase 2 baseline).
+- **`SourceLinesPlugin`.** Stamp `{ startLine, endLine }` at deserialize time; expose `editor.api.getBlockLines(path)`. The serializer already emits `(lines N–M)` when `BlockLines` is present — only the plugin that produces them is missing.
+- **Golden fixtures `global-comment.md` / `deletion.md` / `mixed.md`.** Capture from a real plannotator session against `fixtures/plans/elements.md` and add byte-equality tests against them in `serializeFeedback.test.ts`. Until captured, the format is only validated by inline `toContain` assertions.

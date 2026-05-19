@@ -1,5 +1,7 @@
 @import "@symbiot/tailwind-config/theme.css";
 
+@plugin "@tailwindcss/typography";
+
 /*
  * Tailwind v4 scans the project root by default. Workspace packages live
  * outside that root, so explicitly point Tailwind at the symbiot UI + editor
