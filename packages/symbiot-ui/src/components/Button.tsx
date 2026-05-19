@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
 
-import { cn } from "../cn.ts";
+import { cn } from "../utils/cn.ts";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "default" | "outline" | "ghost";

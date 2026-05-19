@@ -1,6 +1,6 @@
 import type { Ref, TextareaHTMLAttributes } from "react";
 
-import { cn } from "../cn.ts";
+import { cn } from "../utils/cn.ts";
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   ref?: Ref<HTMLTextAreaElement>;

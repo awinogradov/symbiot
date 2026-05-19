@@ -2,7 +2,11 @@ import { MarkdownPlugin } from "@platejs/markdown";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plate, PlateContent, usePlateEditor, type PlateEditor } from "platejs/react";
 import type { PlateValue } from "@symbiot/annotations";
-import { Button, CommentComposer, type CommentComposerPayload } from "@symbiot/ui";
+import { Button } from "@symbiot/ui/components/Button";
+import {
+  CommentComposer,
+  type CommentComposerPayload,
+} from "@symbiot/ui/components/CommentComposer";
 
 import { applyComment, type AppliedComment } from "./applyComment.ts";
 import { applyDeletion } from "./applyDeletion.ts";

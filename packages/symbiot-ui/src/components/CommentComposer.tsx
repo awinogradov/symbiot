@@ -7,22 +7,22 @@ import {
   type ReactNode,
 } from "react";
 
-import { Button } from "./components/Button.tsx";
-import { Popover, PopoverAnchor, PopoverContent } from "./components/Popover.tsx";
-import { Textarea } from "./components/Textarea.tsx";
+import { Button } from "./Button.tsx";
 import { ImageAttachButton, type ImageRef } from "./ImageAttachButton.tsx";
 import { ImagePreviewList } from "./ImagePreviewList.tsx";
+import { Popover, PopoverAnchor, PopoverContent } from "./Popover.tsx";
+import { Textarea } from "./Textarea.tsx";
 
-/** Payload the host receives when the global composer saves. */
-export interface GlobalCommentComposerPayload {
+/** Payload the host receives when the composer saves. */
+export interface CommentComposerPayload {
   body: string;
   images: ImageRef[];
 }
 
-interface GlobalCommentComposerProps {
+interface CommentComposerProps {
   open: boolean;
   anchor: ReactNode;
-  onSave: (payload: GlobalCommentComposerPayload) => void;
+  onSave: (payload: CommentComposerPayload) => void;
   onCancel: () => void;
 }
 
@@ -40,13 +40,13 @@ const submitKey = (
   }
 };
 
-/** Top-bar-triggered Popover that captures a Global Comment body + images. */
-export const GlobalCommentComposer = ({
+/** Selection-anchored Popover that captures a comment body + optional images. */
+export const CommentComposer = ({
   open,
   anchor,
   onSave,
   onCancel,
-}: GlobalCommentComposerProps): React.ReactElement => {
+}: CommentComposerProps): React.ReactElement => {
   const [body, setBody] = useState("");
   const [images, setImages] = useState<ImageRef[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -62,12 +62,6 @@ export const GlobalCommentComposer = ({
     setImages([]);
   }, [body, images, onSave]);
 
-  const cancel = useCallback(() => {
-    onCancel();
-    setBody("");
-    setImages([]);
-  }, [onCancel]);
-
   const onAttach = useCallback((ref: ImageRef): void => {
     setImages((prev) => [...prev, ref]);
   }, []);
@@ -76,27 +70,33 @@ export const GlobalCommentComposer = ({
     setImages((prev) => prev.filter((r) => r !== ref));
   }, []);
 
+  const onCancelInternal = useCallback((): void => {
+    setBody("");
+    setImages([]);
+    onCancel();
+  }, [onCancel]);
+
   return (
-    <Popover open={open} onOpenChange={(next) => !next && cancel()}>
+    <Popover open={open} onOpenChange={(next) => !next && onCancelInternal()}>
       <PopoverAnchor asChild>{anchor}</PopoverAnchor>
-      <PopoverContent data-testid="global-comment-composer">
+      <PopoverContent data-testid="comment-composer">
         <Textarea
           ref={textareaRef}
-          data-testid="global-composer-textarea"
+          data-testid="composer-textarea"
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Global feedback on the plan… (Enter to save, Esc to cancel)"
-          onKeyDown={(e) => submitKey(e, save, cancel)}
+          placeholder="Comment on this selection… (Enter to save, Esc to cancel)"
+          onKeyDown={(e) => submitKey(e, save, onCancelInternal)}
         />
         <ImagePreviewList images={images} onRemove={onRemove} />
         <div className="mt-2 flex items-center justify-between gap-2">
           <ImageAttachButton onAttach={onAttach} />
           <div className="flex gap-2">
-            <Button data-testid="global-composer-cancel" variant="ghost" onClick={cancel}>
+            <Button data-testid="composer-cancel" variant="ghost" onClick={onCancelInternal}>
               Cancel
             </Button>
             <Button
-              data-testid="global-composer-save"
+              data-testid="composer-save"
               onClick={save}
               disabled={body.trim().length === 0 && images.length === 0}
             >

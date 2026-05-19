@@ -8,11 +8,11 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "./components/AlertDialog.tsx";
-import { Badge } from "./components/Badge.tsx";
-import { Button } from "./components/Button.tsx";
-import { Sidebar } from "./components/Sidebar.tsx";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/Tabs.tsx";
+} from "./AlertDialog.tsx";
+import { Badge } from "./Badge.tsx";
+import { Button } from "./Button.tsx";
+import { Sidebar } from "./Sidebar.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./Tabs.tsx";
 
 /**
  * Sidebar-friendly projection of an annotation. Keeps `kind` + `id` + `text` so

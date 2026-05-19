@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ChangeEvent } from "react";
 
-import { Button } from "./components/Button.tsx";
+import { Button } from "./Button.tsx";
 
 interface UploadResponse {
   id: string;

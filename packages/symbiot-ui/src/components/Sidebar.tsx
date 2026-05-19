@@ -1,6 +1,6 @@
 import { createContext, use, useMemo, useState, type HTMLAttributes, type ReactNode } from "react";
 
-import { cn } from "../cn.ts";
+import { cn } from "../utils/cn.ts";
 
 interface SidebarState {
   open: boolean;

@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 
-import { Button } from "./components/Button.tsx";
-import { ToggleGroup, ToggleGroupItem } from "./components/ToggleGroup.tsx";
+import { Button } from "./Button.tsx";
 import { GlobalCommentComposer } from "./GlobalCommentComposer.tsx";
+import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup.tsx";
 
 export type TopBarMode = "plan" | "annotate";
 export type EditorMode = "review" | "redline";

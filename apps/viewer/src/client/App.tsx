@@ -12,12 +12,11 @@ import {
 } from "@symbiot/editor";
 import {
   AnnotationSidebar,
-  SidebarProvider,
-  ThemeProvider,
-  TopBar,
   type AnnotationSidebarEntry,
-  type EditorMode,
-} from "@symbiot/ui";
+} from "@symbiot/ui/components/AnnotationSidebar";
+import { SidebarProvider } from "@symbiot/ui/components/Sidebar";
+import { ThemeProvider } from "@symbiot/ui/components/ThemeProvider";
+import { TopBar, type EditorMode } from "@symbiot/ui/components/TopBar";
 
 import {
   deleteDraft,

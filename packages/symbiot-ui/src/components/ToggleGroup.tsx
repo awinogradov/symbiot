@@ -1,7 +1,7 @@
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
 import type { ComponentPropsWithoutRef, Ref } from "react";
 
-import { cn } from "../cn.ts";
+import { cn } from "../utils/cn.ts";
 
 type ToggleGroupProps = ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Root> & {
   ref?: Ref<HTMLDivElement>;
