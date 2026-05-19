@@ -28,3 +28,15 @@ body {
     Arial,
     sans-serif;
 }
+
+/*
+ * Shiki dual themes: the highlighter inlines the light theme as
+ * `color` / `background-color` and the dark theme as `--shiki-dark` /
+ * `--shiki-dark-bg`. Promote the dark slot when the app is in dark mode.
+ * `!important` overrides Shiki's inline styles on every span.
+ */
+html.dark .shiki,
+html.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}

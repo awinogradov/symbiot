@@ -41,8 +41,7 @@ const getHighlighter = async (): Promise<HighlighterCore> => {
  * fallback so highlighting failure never blocks plan rendering.
  *
  * Pre-loaded languages: bash, ts, tsx, md, js, jsx, json, html, css. Everything
- * else falls through to `text` (no highlighting). Phase 7 wires `--shiki-light`
- * / `--shiki-dark` CSS variables to the dual-theme slots.
+ * else falls through to `text` (no highlighting).
  */
 export const highlightToHtml = async (code: string, lang: string): Promise<string | null> => {
   const highlighter = await getHighlighter();
