@@ -1,3 +1,8 @@
+/**
+ * Cross-platform "open this URL in the default browser" helper. Spawns the
+ * OS-native opener (`open` / `xdg-open` / `cmd /c start`) detached so the
+ * viewer process can exit while the browser tab stays alive.
+ */
 import { spawn } from "node:child_process";
 
 const platformOpener = (): { command: string; args: string[] } => {

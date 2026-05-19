@@ -5,16 +5,22 @@ import { fileURLToPath } from "node:url";
 
 const settingsPath = join(homedir(), ".claude", "settings.json");
 
+/** Single hook entry stored in `~/.claude/settings.json` under an event/matcher. */
 interface ClaudeHook {
   type: "command";
   command: string;
 }
 
+/** Group of hooks scoped to an optional tool matcher (e.g. `ExitPlanMode`). */
 interface ClaudeHookGroup {
   matcher?: string;
   hooks: ClaudeHook[];
 }
 
+/**
+ * Shape of `~/.claude/settings.json` as far as we care about it. Other top-level
+ * keys (`mcpServers`, `theme`, …) ride along untouched via the index signature.
+ */
 interface ClaudeSettings {
   hooks?: Record<string, ClaudeHookGroup[]>;
   [key: string]: unknown;
@@ -66,17 +72,13 @@ const readSettings = async (): Promise<ClaudeSettings> => {
  * deprecated Stop registration shipped in the first Phase 2 cut), then writes
  * the current absolute-path command. Other hooks in the file are untouched.
  */
-export const installHook = async (): Promise<{
-  updated: boolean;
-  path: string;
-  command: string;
-}> => {
+export const installHook = async (): Promise<{ path: string; command: string }> => {
   const command = cliCommand();
   const current = await readSettings();
   const next = ensureHook(current, command);
   await mkdir(dirname(settingsPath), { recursive: true });
   await writeFile(settingsPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-  return { updated: true, path: settingsPath, command };
+  return { path: settingsPath, command };
 };
 
 const stripAllSymbiot = (settings: ClaudeSettings): { next: ClaudeSettings; removed: number } => {

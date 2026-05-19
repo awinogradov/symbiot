@@ -1,8 +1,10 @@
 /**
- * Localhost-only CORS guard. The viewer binds to 127.0.0.1; the only legitimate
- * origin is the same host:port. Reject anything else so a stray browser tab
- * can't drive the server.
+ * Localhost-only CORS guard. The viewer binds to 127.0.0.1 and is single-tenant;
+ * the only legitimate origin is the same host:port. Anything else is rejected so
+ * a stray browser tab can't drive the server.
  */
+
+/** Build the CORS response headers for one request. Echoes only the expected origin. */
 export const corsHeaders = (
   origin: string | null,
   expectedOrigin: string
@@ -16,5 +18,6 @@ export const corsHeaders = (
   };
 };
 
+/** True when the request lacks an Origin (same-origin or curl) or matches expectedOrigin. */
 export const isOriginAllowed = (origin: string | null, expectedOrigin: string): boolean =>
   origin === null || origin === expectedOrigin;

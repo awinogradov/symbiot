@@ -1,5 +1,15 @@
 import { startServer } from "@symbiot/viewer";
 
+/**
+ * JSON payload Claude Code writes to the hook's stdin on `PreToolUse`. We only
+ * care about `ExitPlanMode` invocations, which carry the proposed plan in
+ * `tool_input.plan`.
+ *
+ * @example
+ *   { "hook_event_name": "PreToolUse",
+ *     "tool_name": "ExitPlanMode",
+ *     "tool_input": { "plan": "# Plan\n\n..." } }
+ */
 interface PreToolUseInput {
   hook_event_name?: string;
   tool_name?: string;

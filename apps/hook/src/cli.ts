@@ -1,4 +1,13 @@
 #!/usr/bin/env bun
+/**
+ * `symbiot` CLI entrypoint. Dispatches to:
+ *  - `install-hook`   — register the PreToolUse(ExitPlanMode) hook in ~/.claude/settings.json
+ *  - `uninstall-hook` — remove every symbiot entry from ~/.claude/settings.json
+ *  - `run-hook`       — handler invoked by Claude Code on ExitPlanMode (reads stdin)
+ *  - `annotate <file>`— launch the viewer in annotate mode against a markdown file
+ *
+ * Exit codes: 0 on success, 1 on unhandled error, 64 on usage error.
+ */
 import { installHook, uninstallHook } from "./installHook.ts";
 import { runAnnotate } from "./runAnnotate.ts";
 import { runHook } from "./runHook.ts";
@@ -47,7 +56,8 @@ const dispatch = async (argv: string[]): Promise<number> => {
 dispatch(process.argv.slice(2)).then(
   (code) => process.exit(code),
   (error: unknown) => {
-    process.stderr.write(`${(error as Error).message}\n`);
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`${message}\n`);
     process.exit(1);
   }
 );

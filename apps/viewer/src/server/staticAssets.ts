@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 
-const MIME: Record<string, string> = {
+const mimeTypes: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -11,7 +11,8 @@ const MIME: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-const contentType = (path: string): string => MIME[extname(path)] ?? "application/octet-stream";
+const contentType = (path: string): string =>
+  mimeTypes[extname(path)] ?? "application/octet-stream";
 
 const safeJoin = (root: string, requestPath: string): string | null => {
   const target = resolve(root, `.${normalize(requestPath)}`);

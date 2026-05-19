@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 
-import type { ViewerMode } from "../shared/api-types.ts";
+import type { ViewerMode } from "../shared/apiTypes.ts";
 
 import {
   clearDraft,
@@ -38,6 +38,9 @@ interface RouteContext {
   /** When set, the most recent decision is persisted here for out-of-band readers (e.g. Playwright). */
   decisionFile?: string | null;
 }
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 const recordDecision = async (path: string, decision: Decision): Promise<void> => {
   const payload = JSON.stringify({ ...decision, at: Date.now() });
@@ -118,14 +121,14 @@ const uploadRoute = async (req: Request, ctx: RouteContext): Promise<Response> =
   try {
     extension = assertWhitelistedExtension(file.name);
   } catch (error) {
-    return badRequest((error as Error).message);
+    return badRequest(errorMessage(error));
   }
   const filename = mintUuidFilename(extension);
   const target = uploadPath(ctx.meta, filename);
   try {
     assertNoTraversal(uploadsRoot, target);
   } catch (error) {
-    return badRequest((error as Error).message);
+    return badRequest(errorMessage(error));
   }
   const bytes = await file.arrayBuffer();
   await saveUpload(target, bytes);
@@ -152,7 +155,7 @@ const resolveImageTarget = (
   try {
     assertWhitelistedExtension(`x${extension}`);
   } catch (error) {
-    return { error: (error as Error).message };
+    return { error: errorMessage(error) };
   }
   const target = uploadPath(ctx.meta, `${id}${extension}`);
   try {

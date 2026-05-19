@@ -1,7 +1,7 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { ViewerMode } from "../shared/api-types.ts";
+import type { ViewerMode } from "../shared/apiTypes.ts";
 
 import { corsHeaders, isOriginAllowed } from "./cors.ts";
 import { handleApi, type Decision } from "./routes.ts";

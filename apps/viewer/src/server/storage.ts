@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
-import type { PlanMeta } from "../shared/api-types.ts";
+import type { PlanMeta } from "../shared/apiTypes.ts";
 
 /**
  * symbiot's on-disk storage root. All plan history and drafts live under here.
@@ -50,15 +50,14 @@ const planDir = (project: string, slug: string): string => join(historyDir, proj
 const planFile = (project: string, slug: string, version: number): string =>
   join(planDir(project, slug), `${padVersion(version)}.md`);
 
-const writeAtomic = async (target: string, content: string): Promise<void> => {
+const writeAtomic = async (target: string, content: string | Uint8Array): Promise<void> => {
   await mkdir(dirname(target), { recursive: true });
   const tmp = `${target}.${randomUUID()}.tmp`;
-  await writeFile(tmp, content, "utf8");
+  await writeFile(tmp, content, typeof content === "string" ? "utf8" : undefined);
   await rename(tmp, target);
 };
 
-const nextVersion = async (project: string, slug: string): Promise<number> => {
-  const dir = planDir(project, slug);
+const nextVersionIn = async (dir: string): Promise<number> => {
   try {
     const entries = await readdir(dir);
     const versions = entries
@@ -79,7 +78,7 @@ const nextVersion = async (project: string, slug: string): Promise<number> => {
 export const savePlan = async (plan: string, cwd: string = process.cwd()): Promise<PlanMeta> => {
   const project = deriveProjectSlug(cwd);
   const slug = derivePlanSlug(plan);
-  const version = await nextVersion(project, slug);
+  const version = await nextVersionIn(planDir(project, slug));
   await writeAtomic(planFile(project, slug, version), plan);
   return { project, slug, version };
 };
@@ -87,23 +86,11 @@ export const savePlan = async (plan: string, cwd: string = process.cwd()): Promi
 export const loadPlan = async (meta: PlanMeta): Promise<string> =>
   readFile(planFile(meta.project, meta.slug, meta.version), "utf8");
 
-const annotationFile = (project: string, slug: string, version: number): string =>
-  join(annotationsDir, project, slug, `${padVersion(version)}.md`);
+const annotationDir = (project: string, slug: string): string =>
+  join(annotationsDir, project, slug);
 
-const nextAnnotationVersion = async (project: string, slug: string): Promise<number> => {
-  const dir = join(annotationsDir, project, slug);
-  try {
-    const entries = await readdir(dir);
-    const versions = entries
-      .map((name) => /^(\d{3})\.md$/.exec(name)?.[1])
-      .filter((v): v is string => v !== undefined)
-      .map((v) => Number.parseInt(v, 10));
-    return versions.length > 0 ? Math.max(...versions) + 1 : 1;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return 1;
-    throw error;
-  }
-};
+const annotationFile = (project: string, slug: string, version: number): string =>
+  join(annotationDir(project, slug), `${padVersion(version)}.md`);
 
 /**
  * Persist a feedback markdown blob under
@@ -113,7 +100,7 @@ export const saveFeedback = async (
   meta: PlanMeta,
   feedback: string
 ): Promise<{ version: number }> => {
-  const version = await nextAnnotationVersion(meta.project, meta.slug);
+  const version = await nextVersionIn(annotationDir(meta.project, meta.slug));
   await writeAtomic(annotationFile(meta.project, meta.slug, version), feedback);
   return { version };
 };
@@ -149,10 +136,7 @@ export const uploadPath = (meta: PlanMeta, filename: string): string =>
 
 /** Persist uploaded image bytes via atomic write. */
 export const saveUpload = async (target: string, bytes: ArrayBuffer): Promise<void> => {
-  await mkdir(dirname(target), { recursive: true });
-  const tmp = `${target}.${randomUUID()}.tmp`;
-  await writeFile(tmp, new Uint8Array(bytes));
-  await rename(tmp, target);
+  await writeAtomic(target, new Uint8Array(bytes));
 };
 
 /** Read uploaded image bytes from disk. Returns null when the file is absent. */

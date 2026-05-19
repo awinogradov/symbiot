@@ -23,7 +23,8 @@
     "@symbiot/editor": "workspace:*",
     "@symbiot/ui": "workspace:*",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@symbiot/eslint-config": "workspace:*",

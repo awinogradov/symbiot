@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getDraft, putDraft, type DraftPayload } from "./api.ts";
+import { getDraft, putDraft, type DraftPayload } from "../libs/api.ts";
 
 /** Captured editor state passed in on each change. */
 export interface DraftSnapshot {

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import type { ViewerMode } from "./shared/api-types.ts";
+import type { ViewerMode } from "./shared/apiTypes.ts";
 import { startServer, type RunningServer } from "./server/startServer.ts";
 
 interface CliArgs {
@@ -104,6 +104,7 @@ const main = async (): Promise<void> => {
 };
 
 main().catch((error: unknown) => {
-  process.stderr.write(`${(error as Error).message}\n`);
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`${message}\n`);
   process.exit(1);
 });
