@@ -1,6 +1,6 @@
-import { useEffect, useState, type RefObject } from "react";
+import type { PlateEditor } from "platejs/react";
 
-/** Document-space bounding rect for a DOM selection. */
+/** Document-space bounding rect for the editor's current selection. */
 export interface Rect {
   top: number;
   left: number;
@@ -8,40 +8,23 @@ export interface Rect {
   height: number;
 }
 
-const selectionInside = (container: HTMLElement): Selection | null => {
-  const sel = window.getSelection();
-  if (sel === null || sel.isCollapsed || sel.rangeCount === 0) return null;
-  const range = sel.getRangeAt(0);
-  return container.contains(range.commonAncestorContainer) ? sel : null;
-};
+/**
+ * Document-space rect for the editor's current selection, or null when there
+ * is nothing to anchor a floating toolbar to. Returns null when the selection
+ * is missing, collapsed (caret only — a click without drag), outside the DOM,
+ * or has zero size.
+ */
+const measurable = (r: DOMRect | undefined): r is DOMRect =>
+  r !== undefined && (r.width !== 0 || r.height !== 0);
 
-const rectOf = (selection: Selection): Rect | null => {
-  const r = selection.getRangeAt(0).getBoundingClientRect();
-  if (r.width === 0 && r.height === 0) return null;
+export const selectionRect = (editor: PlateEditor): Rect | null => {
+  if (editor.selection === null || editor.api.isCollapsed()) return null;
+  const r = editor.api.toDOMRange(editor.selection)?.getBoundingClientRect();
+  if (!measurable(r)) return null;
   return {
     top: r.top + window.scrollY,
     left: r.left + window.scrollX,
     width: r.width,
     height: r.height,
   };
-};
-
-/**
- * Track the bounding rect of the current DOM selection inside a container.
- * Returns null when there's no selection or the selection is outside the
- * container. Updates via the `selectionchange` event.
- */
-export const useSelectionRect = (containerRef: RefObject<HTMLElement | null>): Rect | null => {
-  const [rect, setRect] = useState<Rect | null>(null);
-  useEffect(() => {
-    const node = containerRef.current;
-    if (node === null) return;
-    const update = (): void => {
-      const sel = selectionInside(node);
-      setRect(sel === null ? null : rectOf(sel));
-    };
-    document.addEventListener("selectionchange", update);
-    return () => document.removeEventListener("selectionchange", update);
-  }, [containerRef]);
-  return rect;
 };

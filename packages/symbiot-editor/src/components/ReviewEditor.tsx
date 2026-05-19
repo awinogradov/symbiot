@@ -1,5 +1,5 @@
 import { MarkdownPlugin } from "@platejs/markdown";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { Plate, PlateContent, usePlateEditor, type PlateEditor } from "platejs/react";
 import type { PlateValue } from "@symbiot/annotations";
 import { Button } from "@symbiot/ui/components/Button";
@@ -11,11 +11,11 @@ import {
 import { applyComment, type AppliedComment } from "../utils/applyComment.ts";
 import { applyDeletion } from "../utils/applyDeletion.ts";
 import { SymbiotEditorKit } from "../utils/kit.ts";
-import { useSelectionRect, type Rect } from "../utils/selectionRect.ts";
+import { selectionRect, type Rect } from "../utils/selectionRect.ts";
 import { stampBlockLines } from "../utils/sourceLines.ts";
 import { useTypingGuard } from "../utils/typingGuard.ts";
 
-import { SelectionToolbar } from "./SelectionToolbar.tsx";
+import { FloatingToolbar } from "./FloatingToolbar.tsx";
 
 /** Imperative handle the host uses to read the current value and comment bodies. */
 export interface ReviewEditorHandle {
@@ -65,10 +65,20 @@ interface PendingComment {
 
 interface ComposerAnchorProps {
   rect: Rect;
+  // Forwarded by `<PopoverAnchor asChild>` so Radix's Floating UI has a real
+  // reference element to measure against. Without this, the popover renders
+  // at the default `translate(0, -200%)` placement — off-screen.
+  ref?: Ref<HTMLDivElement>;
 }
 
-const ComposerAnchor = ({ rect }: ComposerAnchorProps): React.ReactElement => (
+// Off-screen placeholder rect used when no comment is pending. The composer's
+// Popover stays mounted (so Radix has a stable reference element) — see
+// `inline-comment.feature`.
+const hiddenAnchorRect: Rect = { top: -9999, left: -9999, width: 0, height: 0 };
+
+const ComposerAnchor = ({ rect, ref }: ComposerAnchorProps): React.ReactElement => (
   <div
+    ref={ref}
     data-testid="composer-anchor"
     style={{
       position: "absolute",
@@ -105,7 +115,6 @@ export const ReviewEditor = ({
     () => new Map(initialImages ?? new Map())
   );
   const [pending, setPending] = useState<PendingComment | null>(null);
-  const liveRect = useSelectionRect(containerRef);
 
   const editor = usePlateEditor({
     plugins: SymbiotEditorKit,
@@ -128,11 +137,12 @@ export const ReviewEditor = ({
   }, [editor, bodies, images, onChange]);
 
   const onCommentClick = useCallback((): void => {
-    if (liveRect === null) return;
+    const rect = selectionRect(editor);
+    if (rect === null) return;
     const applied = applyComment(editor);
     if (applied === null) return;
-    setPending({ applied, rect: liveRect });
-  }, [editor, liveRect]);
+    setPending({ applied, rect });
+  }, [editor]);
 
   const onDeleteClick = useCallback((): void => {
     applyDeletion(editor);
@@ -165,23 +175,21 @@ export const ReviewEditor = ({
     >
       <Plate editor={editor}>
         <PlateContent readOnly className="outline-none" />
+        <FloatingToolbar>
+          <Button data-testid="toolbar-comment" variant="ghost" onClick={onCommentClick}>
+            Comment
+          </Button>
+          <Button data-testid="toolbar-delete" variant="ghost" onClick={onDeleteClick}>
+            Delete
+          </Button>
+        </FloatingToolbar>
       </Plate>
-      <SelectionToolbar containerRef={containerRef}>
-        <Button data-testid="toolbar-comment" variant="ghost" onClick={onCommentClick}>
-          Comment
-        </Button>
-        <Button data-testid="toolbar-delete" variant="ghost" onClick={onDeleteClick}>
-          Delete
-        </Button>
-      </SelectionToolbar>
-      {pending !== null && (
-        <CommentComposer
-          open
-          anchor={<ComposerAnchor rect={pending.rect} />}
-          onSave={onComposerSave}
-          onCancel={onComposerCancel}
-        />
-      )}
+      <CommentComposer
+        open={pending !== null}
+        anchor={<ComposerAnchor rect={pending?.rect ?? hiddenAnchorRect} />}
+        onSave={onComposerSave}
+        onCancel={onComposerCancel}
+      />
     </div>
   );
 };
