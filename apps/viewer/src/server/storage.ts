@@ -15,6 +15,10 @@ export const storageRoot = join(homedir(), ".symbiot");
 const historyDir = join(storageRoot, "history");
 const annotationsDir = join(storageRoot, "annotations");
 const draftsDir = join(storageRoot, "drafts");
+const uploadsDir = join(storageRoot, "uploads");
+
+/** Root directory for `/api/upload` writes. Exposed for security guards. */
+export const uploadsRoot = uploadsDir;
 
 export type { PlanMeta };
 
@@ -135,4 +139,28 @@ export const loadDraft = async (meta: PlanMeta): Promise<string | null> => {
 /** Remove any saved draft for this plan. Idempotent. */
 export const clearDraft = async (meta: PlanMeta): Promise<void> => {
   await rm(draftFile(meta.project, meta.slug), { force: true });
+};
+
+const uploadDir = (project: string, slug: string): string => join(uploadsDir, project, slug);
+
+/** Resolve the on-disk path for an uploaded image. Caller MUST validate the filename. */
+export const uploadPath = (meta: PlanMeta, filename: string): string =>
+  join(uploadDir(meta.project, meta.slug), filename);
+
+/** Persist uploaded image bytes via atomic write. */
+export const saveUpload = async (target: string, bytes: ArrayBuffer): Promise<void> => {
+  await mkdir(dirname(target), { recursive: true });
+  const tmp = `${target}.${randomUUID()}.tmp`;
+  await writeFile(tmp, new Uint8Array(bytes));
+  await rename(tmp, target);
+};
+
+/** Read uploaded image bytes from disk. Returns null when the file is absent. */
+export const loadUpload = async (target: string): Promise<Buffer | null> => {
+  try {
+    return await readFile(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
 };

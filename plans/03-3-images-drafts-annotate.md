@@ -1,6 +1,6 @@
 # Phase 3.3 — Images + Drafts + Annotate mode
 
-> **Status:** 🟡 Annotate mode landed (2026-05-19). `symbiot annotate <file.md>` reads a markdown file, spawns the viewer in annotate mode, blocks on `POST /api/feedback`, and prints the feedback markdown to stdout. `GET /api/plan` carries the mode flag; the top bar swaps Approve/Request-changes for Submit-feedback. Server persists annotations to `~/.symbiot/annotations/{project}/{slug}/00N.md` with atomic-write semantics. **Remaining for full 3.3:** (a) `/api/draft` round-trip + `useDraft` hook for client auto-save/restore, (b) `/api/upload` + `/api/image` with the upload-security model, (c) image-attach affordance on both composers, (d) `MediaImageKit` integration in the editor. See [Follow-ups](#follow-ups-for-the-rest-of-3-3) at the bottom of this file.
+> **Status:** 🟢 Server-side complete (2026-05-19). Annotate mode (`symbiot annotate <file.md>`), draft auto-save/restore (`/api/draft`), and the upload + image security model (`/api/upload`, `/api/image`, extension whitelist, UUID-v4 filenames, path-traversal guard) all landed and are E2E-tested. **Editor/composer UI integration for images remains** as the only follow-up: the server accepts uploads and serves bytes back, but the editor doesn't yet render the image void element and the composers don't yet have an attach button. See [Follow-ups](#follow-ups-for-the-rest-of-3-3) at the bottom of this file.
 
 > Fourth and final sub-phase of Phase 3. Lands the remaining endpoint set with its security model (`/api/upload`, `/api/image`, `/api/draft`, `/api/feedback`), the image-attach UI on all three annotation composers, draft auto-save + restore across reloads, and the `symbiot annotate <file.md>` CLI for arbitrary markdown files. Depends on **Phase 3.2**.
 
@@ -159,9 +159,7 @@ After 3.3 ships:
 
 ## Follow-ups (for the rest of 3.3)
 
-The first 3.3 iteration shipped annotate mode end-to-end. Remaining scope:
+Drafts, annotate mode, and upload + image server endpoints with the full security model have all landed. The remaining scope is the editor + composer UI for images:
 
-- **Drafts.** `POST /api/draft` / `GET /api/draft` / `DELETE /api/draft` storing per-`{project}/{slug}` JSON of the editor's Plate value + comment bodies + globalComments + deletions; `useDraft.ts` debounced client hook with auto-save on changes and restore on mount; `ReviewEditor` accepts an optional `initialValue: PlateValue` to seed from a restored draft.
-- **Image uploads.** `apps/viewer/src/server/uploadSecurity.ts` (pure helpers: extension whitelist, UUID minting, traversal guard) plus `uploadRoute.ts` / `imageRoute.ts`. The pure helpers must be tested in isolation (vitest) before they're called from the multipart route.
-- **MediaImageKit + composer image-attach.** Add `@platejs/media` to `SymbiotEditorKit` (with the React-19-safe `voidImage.tsx` wrapper). Build `ImageAttachButton` + `ImagePreviewList` in `@symbiot/ui` and extend both composers (`CommentComposer`, `GlobalCommentComposer`) to call `/api/upload` and pass the resulting UUID into the annotation's `images[]`.
-- **E2E.** `features/plan-review/image-attach.feature`, `features/plan-review/draft.feature`, `features/server/upload-security.feature`. The annotate-mode round-trip already exists in `features/annotate/round-trip.feature`.
+- **MediaImageKit + composer image-attach.** Add `@platejs/media` to `SymbiotEditorKit` (with the React-19-safe `voidImage.tsx` wrapper). Build `ImageAttachButton` + `ImagePreviewList` in `@symbiot/ui` and extend both composers (`CommentComposer`, `GlobalCommentComposer`) to call `/api/upload` and pass the resulting UUID into the annotation's `images[]`. Render previews in the sidebar entries (when the sidebar lands in Phase 3.2's follow-ups).
+- **End-to-end image-attach E2E.** `features/plan-review/image-attach.feature` covering: drop a comment, click Attach, upload from `fixtures/images/sample.png`, save, Deny, verify the feedback markdown references the image UUID. Pure-server upload security is already covered by `features/server/upload-security.feature`.
