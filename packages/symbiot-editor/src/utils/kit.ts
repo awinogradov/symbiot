@@ -16,17 +16,18 @@ import {
 } from "@platejs/table/react";
 import remarkGfm from "remark-gfm";
 
-import { CodeBlockElement } from "./CodeBlockElement.tsx";
-import { SuggestionMarkPlugin } from "./deletionLeaf.tsx";
-import { SourceLinesPlugin } from "./sourceLines.ts";
+import { CodeBlockElement } from "../components/CodeBlockElement.tsx";
+import { SuggestionMarkPlugin } from "../components/DeletionLeaf.tsx";
 import {
   TableCellElement,
   TableCellHeaderElement,
   TableElement,
   TableRowElement,
-} from "./tableElements.tsx";
-import { HrElement } from "./voidElements.tsx";
-import { VoidImage } from "./voidImage.tsx";
+} from "../components/TableElements.tsx";
+import { HrElement } from "../components/VoidElements.tsx";
+import { VoidImage } from "../components/VoidImage.tsx";
+
+import { SourceLinesPlugin } from "./sourceLines.ts";
 
 const MarkdownWithGfm = MarkdownPlugin.configure({
   options: { remarkPlugins: [remarkGfm] },

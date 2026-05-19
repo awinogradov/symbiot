@@ -2,10 +2,11 @@ import { MarkdownPlugin } from "@platejs/markdown";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Plate, PlateContent, usePlateEditor, type PlateEditor } from "platejs/react";
 
-import { applyDeletion } from "./applyDeletion.ts";
-import { SymbiotEditorKit } from "./kit.ts";
-import { stampBlockLines } from "./sourceLines.ts";
-import { useTypingGuard } from "./typingGuard.ts";
+import { applyDeletion } from "../utils/applyDeletion.ts";
+import { SymbiotEditorKit } from "../utils/kit.ts";
+import { stampBlockLines } from "../utils/sourceLines.ts";
+import { useTypingGuard } from "../utils/typingGuard.ts";
+
 import type { EditorSnapshot, ReviewEditorHandle } from "./ReviewEditor.tsx";
 
 interface RedlineEditorProps {

@@ -8,13 +8,14 @@ import {
   type CommentComposerPayload,
 } from "@symbiot/ui/components/CommentComposer";
 
-import { applyComment, type AppliedComment } from "./applyComment.ts";
-import { applyDeletion } from "./applyDeletion.ts";
-import { SymbiotEditorKit } from "./kit.ts";
+import { applyComment, type AppliedComment } from "../utils/applyComment.ts";
+import { applyDeletion } from "../utils/applyDeletion.ts";
+import { SymbiotEditorKit } from "../utils/kit.ts";
+import { useSelectionRect, type Rect } from "../utils/selectionRect.ts";
+import { stampBlockLines } from "../utils/sourceLines.ts";
+import { useTypingGuard } from "../utils/typingGuard.ts";
+
 import { SelectionToolbar } from "./SelectionToolbar.tsx";
-import { useSelectionRect, type Rect } from "./selectionRect.ts";
-import { stampBlockLines } from "./sourceLines.ts";
-import { useTypingGuard } from "./typingGuard.ts";
 
 /** Imperative handle the host uses to read the current value and comment bodies. */
 export interface ReviewEditorHandle {

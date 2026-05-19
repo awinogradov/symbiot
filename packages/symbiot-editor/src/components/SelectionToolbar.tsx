@@ -1,6 +1,6 @@
 import type { ReactNode, RefObject } from "react";
 
-import { useSelectionRect } from "./selectionRect.ts";
+import { useSelectionRect } from "../utils/selectionRect.ts";
 
 interface SelectionToolbarProps {
   containerRef: RefObject<HTMLElement | null>;

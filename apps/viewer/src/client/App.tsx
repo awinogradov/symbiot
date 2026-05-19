@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  RedlineEditor,
-  ReviewEditor,
   serializeFeedback,
   walkAnnotations,
   type AnnotationEntry,
-  type EditorSnapshot,
   type GlobalCommentEntry,
   type PlateValue,
+} from "@symbiot/annotations";
+import { RedlineEditor } from "@symbiot/editor/components/RedlineEditor";
+import {
+  ReviewEditor,
+  type EditorSnapshot,
   type ReviewEditorHandle,
-} from "@symbiot/editor";
+} from "@symbiot/editor/components/ReviewEditor";
 import {
   AnnotationSidebar,
   type AnnotationSidebarEntry,

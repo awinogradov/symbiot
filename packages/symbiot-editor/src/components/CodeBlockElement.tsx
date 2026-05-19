@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { highlightToHtml } from "./shiki.ts";
+import { highlightToHtml } from "../utils/shiki.ts";
 
 interface CodeLineNode {
   children?: { text?: string }[];
