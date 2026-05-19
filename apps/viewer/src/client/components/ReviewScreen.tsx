@@ -1,4 +1,5 @@
 import { AnnotationSidebar } from "@symbiot/ui/components/AnnotationSidebar";
+import { GlobalCommentFab } from "@symbiot/ui/components/GlobalCommentFab";
 import { SidebarInset, SidebarProvider } from "@symbiot/ui/components/Sidebar";
 import { TopBar } from "@symbiot/ui/components/TopBar";
 
@@ -40,7 +41,6 @@ export const ReviewScreen = ({
         <TopBar
           onApprove={onApprove}
           onDeny={onSubmit}
-          onAddGlobalComment={state.onAddGlobalComment}
           busy={phase === "submitting"}
           mode={plan.mode}
           showSidebarTrigger
@@ -56,6 +56,10 @@ export const ReviewScreen = ({
             onChange={state.onEditorChange}
           />
         </main>
+        <GlobalCommentFab
+          onAddGlobalComment={state.onAddGlobalComment}
+          disabled={phase === "submitting"}
+        />
       </SidebarInset>
       <AnnotationSidebar
         entries={state.sidebarEntries}
