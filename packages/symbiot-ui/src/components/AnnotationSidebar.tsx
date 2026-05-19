@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback } from "react";
 
 import {
   AlertDialog,
@@ -24,7 +24,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "./Sidebar.tsx";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./Tabs.tsx";
 
 /**
  * Sidebar-friendly projection of an annotation. Keeps `kind` + `id` + `text` so
@@ -41,29 +40,11 @@ export interface AnnotationSidebarEntry {
   lines?: { startLine: number; endLine: number };
 }
 
-type Tab = "all" | "comment" | "deletion" | "global";
-
 interface AnnotationSidebarProps {
   entries: AnnotationSidebarEntry[];
   onFocus: (id: string) => void;
   onClearAll: () => void;
 }
-
-const tabFilter = (entries: AnnotationSidebarEntry[], tab: Tab): AnnotationSidebarEntry[] =>
-  tab === "all" ? entries : entries.filter((e) => e.kind === tab);
-
-const tabLabel = (kind: Tab): string => {
-  switch (kind) {
-    case "all":
-      return "All";
-    case "comment":
-      return "Comments";
-    case "deletion":
-      return "Deletions";
-    case "global":
-      return "Global";
-  }
-};
 
 const kindLabel = (kind: AnnotationSidebarEntry["kind"]): string => {
   switch (kind) {
@@ -112,14 +93,6 @@ const EntryRowInner = ({ entry, onFocus }: EntryRowProps): React.ReactElement =>
 const EntryRow = memo(EntryRowInner);
 EntryRow.displayName = "EntryRow";
 
-const countByKind = (entries: AnnotationSidebarEntry[]): Record<Tab, number> => {
-  const out: Record<Tab, number> = { all: entries.length, comment: 0, deletion: 0, global: 0 };
-  for (const e of entries) out[e.kind] += 1;
-  return out;
-};
-
-const TABS: Tab[] = ["all", "comment", "deletion", "global"];
-
 /**
  * Right-aligned `<Sidebar>` listing all annotations on the current plan. Click
  * an entry → `onFocus(id)` (host scrolls to the marked DOM range via
@@ -131,54 +104,28 @@ export const AnnotationSidebar = ({
   onFocus,
   onClearAll,
 }: AnnotationSidebarProps): React.ReactElement => {
-  const [tab, setTab] = useState<Tab>("all");
-  const c = useMemo(() => countByKind(entries), [entries]);
-  const filtered = useMemo(() => tabFilter(entries, tab), [entries, tab]);
-
-  const onTabChange = useCallback((value: string): void => {
-    setTab(value as Tab);
-  }, []);
-
   return (
     <Sidebar side="right" collapsible="offcanvas" data-testid="annotation-sidebar" className="w-80">
       <SidebarHeader>
         <div className="flex items-center justify-between px-2 py-1">
           <h2 className="text-sm font-semibold">Annotations</h2>
           <Badge variant="secondary" data-testid="sidebar-total-count">
-            {c.all}
+            {entries.length}
           </Badge>
         </div>
-        <Tabs value={tab} onValueChange={onTabChange} className="px-2">
-          <TabsList className="w-full">
-            {TABS.map((t) => (
-              <TabsTrigger key={t} value={t} data-testid={`sidebar-tab-${t}`} className="flex-1">
-                {tabLabel(t)}
-                <Badge variant="outline" className="ml-1.5">
-                  {c[t]}
-                </Badge>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
       </SidebarHeader>
       <SidebarContent>
-        <Tabs value={tab} onValueChange={onTabChange} className="flex flex-1 flex-col">
-          <TabsContent value={tab} className="flex-1 px-2">
-            <SidebarGroup>
-              {filtered.length === 0 ? (
-                <p className="text-muted-foreground px-2 text-xs">
-                  No {tabLabel(tab).toLowerCase()} yet.
-                </p>
-              ) : (
-                <SidebarMenu>
-                  {filtered.map((entry) => (
-                    <EntryRow key={entry.id} entry={entry} onFocus={onFocus} />
-                  ))}
-                </SidebarMenu>
-              )}
-            </SidebarGroup>
-          </TabsContent>
-        </Tabs>
+        <SidebarGroup className="px-2">
+          {entries.length === 0 ? (
+            <p className="text-muted-foreground px-2 text-xs">No annotations yet.</p>
+          ) : (
+            <SidebarMenu>
+              {entries.map((entry) => (
+                <EntryRow key={entry.id} entry={entry} onFocus={onFocus} />
+              ))}
+            </SidebarMenu>
+          )}
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <AlertDialog>
@@ -188,7 +135,7 @@ export const AnnotationSidebar = ({
               variant="outline"
               size="sm"
               className="w-full"
-              disabled={c.all === 0}
+              disabled={entries.length === 0}
             >
               <Trash2 />
               Clear all
