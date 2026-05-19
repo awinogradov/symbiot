@@ -5,10 +5,8 @@ import { Button } from "./Button.tsx";
 import { GlobalCommentComposer } from "./GlobalCommentComposer.tsx";
 import { Separator } from "./Separator.tsx";
 import { SidebarTrigger } from "./Sidebar.tsx";
-import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup.tsx";
 
 export type TopBarMode = "plan" | "annotate";
-export type EditorMode = "review" | "redline";
 
 interface TopBarProps {
   onApprove: () => void;
@@ -16,8 +14,6 @@ interface TopBarProps {
   onAddGlobalComment?: (body: string, images: string[]) => void;
   busy?: boolean;
   mode?: TopBarMode;
-  editorMode?: EditorMode;
-  onEditorModeChange?: (next: EditorMode) => void;
   /** When true, renders the annotation-sidebar toggle trigger on the right side. */
   showSidebarTrigger?: boolean;
 }
@@ -68,54 +64,6 @@ const Actions = ({
     )}
   </div>
 );
-
-interface ModeToggleProps {
-  value: EditorMode;
-  onChange: (next: EditorMode) => void;
-  busy: boolean;
-}
-
-const ModeToggle = ({ value, onChange, busy }: ModeToggleProps): React.ReactElement => {
-  const handleValueChange = useCallback(
-    (next: string): void => {
-      if (next === "review" || next === "redline") onChange(next);
-    },
-    [onChange]
-  );
-  return (
-    <ToggleGroup
-      type="single"
-      variant="outline"
-      size="sm"
-      value={value}
-      onValueChange={handleValueChange}
-      disabled={busy}
-      data-testid="top-bar-mode-toggle"
-    >
-      <ToggleGroupItem value="review" data-testid="mode-review">
-        Review
-      </ToggleGroupItem>
-      <ToggleGroupItem value="redline" data-testid="mode-redline">
-        Redline
-      </ToggleGroupItem>
-    </ToggleGroup>
-  );
-};
-
-interface ModeToggleSlotProps {
-  editorMode: EditorMode | undefined;
-  onEditorModeChange: ((next: EditorMode) => void) | undefined;
-  busy: boolean;
-}
-
-const ModeToggleSlot = ({
-  editorMode,
-  onEditorModeChange,
-  busy,
-}: ModeToggleSlotProps): React.ReactElement | null => {
-  if (editorMode === undefined || onEditorModeChange === undefined) return null;
-  return <ModeToggle value={editorMode} onChange={onEditorModeChange} busy={busy} />;
-};
 
 const SidebarTriggerSlot = ({ show }: { show: boolean }): React.ReactElement | null => {
   if (!show) return null;
@@ -174,8 +122,6 @@ export const TopBar = ({
   onAddGlobalComment,
   busy = false,
   mode = "plan",
-  editorMode,
-  onEditorModeChange,
   showSidebarTrigger = false,
 }: TopBarProps): React.ReactElement => {
   const composer = useGlobalComposer(onAddGlobalComment);
@@ -188,12 +134,6 @@ export const TopBar = ({
     >
       <h1 className="text-muted-foreground text-sm font-medium">{headingFor(mode)}</h1>
       <div className="ml-auto flex items-center gap-3">
-        <ModeToggleSlot
-          editorMode={editorMode}
-          onEditorModeChange={onEditorModeChange}
-          busy={busy}
-        />
-        <Separator orientation="vertical" className="h-6" />
         <Actions
           onApprove={onApprove}
           onDeny={onDeny}

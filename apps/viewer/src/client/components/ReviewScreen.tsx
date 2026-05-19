@@ -43,13 +43,10 @@ export const ReviewScreen = ({
           onAddGlobalComment={state.onAddGlobalComment}
           busy={phase === "submitting"}
           mode={plan.mode}
-          editorMode={state.editorMode}
-          onEditorModeChange={state.onEditorModeChange}
           showSidebarTrigger
         />
         <main className="flex-1 overflow-auto px-8 py-6">
           <EditorMount
-            editorMode={state.editorMode}
             reloadKey={state.reloadKey}
             plan={plan}
             initialValue={state.initialValue}

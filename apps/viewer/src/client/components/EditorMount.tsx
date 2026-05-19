@@ -1,15 +1,12 @@
-import { RedlineEditor } from "@symbiot/editor/components/RedlineEditor";
 import {
   ReviewEditor,
   type EditorSnapshot,
   type ReviewEditorHandle,
 } from "@symbiot/editor/components/ReviewEditor";
-import { type EditorMode } from "@symbiot/ui/components/TopBar";
 
 import { type PlanResponse } from "../../shared/apiTypes.ts";
 
 interface EditorMountProps {
-  editorMode: EditorMode;
   reloadKey: number;
   plan: PlanResponse;
   initialValue: unknown[] | undefined;
@@ -20,12 +17,10 @@ interface EditorMountProps {
 }
 
 /**
- * Selects `ReviewEditor` or `RedlineEditor` for the current `editorMode`.
- * Both share the same props surface; the `reloadKey` is folded into `key` so
- * Clear-All can blow away editor state without remounting the parent tree.
+ * Mounts `ReviewEditor` and folds `reloadKey` into `key` so Clear-All can blow
+ * away editor state without remounting the parent tree.
  */
 export const EditorMount = ({
-  editorMode,
   reloadKey,
   plan,
   initialValue,
@@ -33,29 +28,14 @@ export const EditorMount = ({
   initialImages,
   onReady,
   onChange,
-}: EditorMountProps): React.ReactElement => {
-  if (editorMode === "review") {
-    return (
-      <ReviewEditor
-        key={`review-${reloadKey}`}
-        markdown={plan.plan}
-        initialValue={initialValue}
-        initialBodies={initialBodies}
-        initialImages={initialImages}
-        onReady={onReady}
-        onChange={onChange}
-      />
-    );
-  }
-  return (
-    <RedlineEditor
-      key={`redline-${reloadKey}`}
-      markdown={plan.plan}
-      initialValue={initialValue}
-      initialBodies={initialBodies}
-      initialImages={initialImages}
-      onReady={onReady}
-      onChange={onChange}
-    />
-  );
-};
+}: EditorMountProps): React.ReactElement => (
+  <ReviewEditor
+    key={`review-${reloadKey}`}
+    markdown={plan.plan}
+    initialValue={initialValue}
+    initialBodies={initialBodies}
+    initialImages={initialImages}
+    onReady={onReady}
+    onChange={onChange}
+  />
+);
