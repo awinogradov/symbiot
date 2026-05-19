@@ -40,3 +40,15 @@ html.dark .shiki span {
   color: var(--shiki-dark) !important;
   background-color: var(--shiki-dark-bg) !important;
 }
+
+/*
+ * Tailwind typography wraps every inline <code> in literal backtick
+ * characters via ::before / ::after. Plate already renders proper <code>
+ * elements, so the decoration leaks markdown syntax into the rendered
+ * page. Suppress it the same way typography itself suppresses it for
+ * `pre code`.
+ */
+.prose code::before,
+.prose code::after {
+  content: none;
+}

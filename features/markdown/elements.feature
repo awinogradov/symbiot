@@ -15,3 +15,7 @@ Feature: Markdown FR-1.2 element rendering
   Scenario: Fenced code blocks render as native pre/code
     Given I open the viewer
     Then I see a rendered fenced code block
+
+  Scenario: Inline code renders without the markdown backticks leaking through
+    Given I open the viewer
+    Then inline code renders without backticks
