@@ -13,14 +13,8 @@ import {
 import { type AnnotationSidebarEntry } from "@symbiot/ui/components/AnnotationSidebar";
 import { type EditorMode } from "@symbiot/ui/components/TopBar";
 
-import {
-  deleteDraft,
-  postApprove,
-  postDeny,
-  postFeedback,
-  type DraftPayload,
-  type PlanResponse,
-} from "../libs/api.ts";
+import { type DraftPayload, type PlanResponse } from "../../shared/apiTypes.ts";
+import { deleteDraft, postApprove, postDeny, postFeedback } from "../libs/api.ts";
 import { projectEntries, toSidebarEntry } from "../utils/sidebarProjection.ts";
 
 /** Submission lifecycle phase: ready → submitting → done. */

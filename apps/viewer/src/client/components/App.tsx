@@ -6,7 +6,7 @@ import { TopBar } from "@symbiot/ui/components/TopBar";
 import { useDraft } from "../hooks/useDraft.ts";
 import { useLoadedPlan } from "../hooks/useLoadedPlan.ts";
 import { useReviewState, type ReviewProps } from "../hooks/useReviewState.ts";
-import { type PlanResponse } from "../libs/api.ts";
+import { type PlanResponse } from "../../shared/apiTypes.ts";
 import { focusAnnotation } from "../utils/sidebarProjection.ts";
 
 import { EditorMount } from "./EditorMount.tsx";

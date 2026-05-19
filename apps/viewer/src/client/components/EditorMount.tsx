@@ -6,7 +6,7 @@ import {
 } from "@symbiot/editor/components/ReviewEditor";
 import { type EditorMode } from "@symbiot/ui/components/TopBar";
 
-import { type PlanResponse } from "../libs/api.ts";
+import { type PlanResponse } from "../../shared/apiTypes.ts";
 
 interface EditorMountProps {
   editorMode: EditorMode;

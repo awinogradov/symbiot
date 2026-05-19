@@ -6,8 +6,6 @@ import { z } from "zod";
 
 import type { DraftPayload, PlanResponse } from "../../shared/apiTypes.ts";
 
-export type { DraftPayload, PlanResponse } from "../../shared/apiTypes.ts";
-
 const planMetaSchema = z.object({
   project: z.string(),
   slug: z.string(),
