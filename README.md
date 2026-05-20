@@ -31,6 +31,22 @@ bun run viewer:smoke
 bun --filter @symbiot/viewer start --plan fixtures/plans/elements.md
 ```
 
+## Known limitations
+
+When the reviewer clicks **Approve** in the viewer, symbiot's
+`PreToolUse(ExitPlanMode)` hook emits the documented `permissionDecision:
+"allow"` payload, but Claude Code currently ignores that field for the
+`ExitPlanMode` matcher and still surfaces its native "Accept this plan?"
+prompt — so today the reviewer accepts twice (once in symbiot, once in
+Claude Code).
+
+Tracked in [symbiot#1](https://github.com/awinogradov/symbiot/issues/1);
+upstream bug is
+[anthropics/claude-code#50660](https://github.com/anthropics/claude-code/issues/50660).
+The auto-approve payload will start working transparently as soon as the
+upstream fix lands; the **Request changes** path is unaffected and
+already routes feedback back without a second prompt.
+
 ## Local testing
 
 ```sh

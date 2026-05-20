@@ -28,6 +28,9 @@ const planFrom = (input: PreToolUseInput): string | null => {
   return input.tool_input?.plan ?? null;
 };
 
+// TODO(symbiot#1, upstream anthropics/claude-code#50660): permissionDecision
+// is currently silently ignored for ExitPlanMode in Claude Code, so this
+// payload is a no-op at runtime until upstream ships the fix.
 const emitApproveDecision = (): void => {
   const payload = {
     hookSpecificOutput: {
@@ -51,9 +54,12 @@ const emitDenyDecision = (feedback: string): void => {
  * Claude Code `PreToolUse` hook entry point matched against `ExitPlanMode`.
  * Hands the proposed plan to the viewer, blocks until the reviewer decides:
  * Approve → emit `{hookSpecificOutput: {permissionDecision: "allow"}}` so
- * Claude auto-approves ExitPlanMode without re-prompting the user; Request
- * changes → emit `{decision: "block", reason}` so Claude sees the feedback
- * and revises.
+ * Claude will auto-approve ExitPlanMode once anthropics/claude-code#50660 is
+ * fixed; today that field is silently ignored for the ExitPlanMode matcher
+ * and the reviewer still sees Claude Code's native 'Accept this plan?'
+ * prompt. Request changes → emit `{decision: "block", reason}` so Claude
+ * sees the feedback and revises (this path is unaffected by the upstream
+ * bug because it uses the older top-level `decision` field).
  */
 export const runHook = async (): Promise<number> => {
   const input = await readHookInput();
