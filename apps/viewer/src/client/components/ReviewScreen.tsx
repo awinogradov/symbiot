@@ -41,6 +41,7 @@ export const ReviewScreen = ({
         <TopBar
           onApprove={onApprove}
           onDeny={onSubmit}
+          projectName={plan.meta.project}
           busy={phase === "submitting"}
           mode={plan.mode}
           showSidebarTrigger
