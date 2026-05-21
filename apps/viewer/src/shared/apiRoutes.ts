@@ -13,6 +13,8 @@ interface ApiRoute {
 
 export const apiRoutes = {
   plan: { method: "GET", path: "/api/plan" },
+  planVersions: { method: "GET", path: "/api/plan/versions" },
+  planVersion: { method: "GET", path: "/api/plan/version" },
   approve: { method: "POST", path: "/api/approve" },
   deny: { method: "POST", path: "/api/deny" },
   feedback: { method: "POST", path: "/api/feedback" },

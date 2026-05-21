@@ -5,7 +5,9 @@ import type { ViewerMode } from "../shared/apiTypes.ts";
 
 import {
   clearDraft,
+  listVersions,
   loadDraft,
+  loadPlan,
   loadUpload,
   saveDraft,
   saveFeedback,
@@ -56,6 +58,33 @@ const jsonResponse = (body: unknown, status = 200): Response =>
 
 const planRoute = (ctx: RouteContext): Response =>
   jsonResponse({ plan: ctx.plan, mode: ctx.mode, meta: ctx.meta });
+
+const planVersionsRoute = async (ctx: RouteContext): Promise<Response> => {
+  const versions = await listVersions(ctx.meta);
+  return jsonResponse({ versions, current: ctx.meta.version });
+};
+
+const parseVersionParam = (raw: string | null): number | null => {
+  if (raw === null) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isInteger(n) && n >= 1 ? n : null;
+};
+
+const planVersionRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  const url = new URL(req.url);
+  const n = parseVersionParam(url.searchParams.get("n"));
+  if (n === null) return badRequest("invalid version");
+  try {
+    const meta = { ...ctx.meta, version: n };
+    const plan = await loadPlan(meta);
+    return jsonResponse({ plan, meta });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return new Response("Not Found", { status: 404 });
+    }
+    throw error;
+  }
+};
 
 /**
  * Finalize a submission: clear the draft, mark the context resolved so any
@@ -194,6 +223,8 @@ type Handler = (req: Request, ctx: RouteContext) => Response | Promise<Response>
 
 const routes: Record<string, Handler> = {
   [routeKey("plan")]: (_req, ctx) => planRoute(ctx),
+  [routeKey("planVersions")]: (_req, ctx) => planVersionsRoute(ctx),
+  [routeKey("planVersion")]: (req, ctx) => planVersionRoute(req, ctx),
   [routeKey("approve")]: (_req, ctx) => approveRoute(ctx),
   [routeKey("deny")]: (req, ctx) => denyRoute(req, ctx),
   [routeKey("feedback")]: (req, ctx) => feedbackRoute(req, ctx),
