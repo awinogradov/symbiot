@@ -1,5 +1,6 @@
 import { Check, PanelRight, Send } from "lucide-react";
 
+import { AppLogo } from "./AppLogo.tsx";
 import { Button } from "./Button.tsx";
 import { Separator } from "./Separator.tsx";
 import { SidebarTrigger } from "./Sidebar.tsx";
@@ -9,6 +10,8 @@ export type TopBarMode = "plan" | "annotate";
 interface TopBarProps {
   onApprove: () => void;
   onDeny: () => void;
+  /** Name of the project being reviewed; rendered as muted subtitle next to the wordmark. */
+  projectName: string;
   busy?: boolean;
   mode?: TopBarMode;
   /** When true, renders the annotation-sidebar toggle trigger on the right side. */
@@ -19,9 +22,6 @@ interface TopBarProps {
 
 const denyLabel = (mode: TopBarMode): string =>
   mode === "annotate" ? "Submit feedback" : "Request changes";
-
-const headingFor = (mode: TopBarMode): string =>
-  mode === "annotate" ? "symbiot — annotate markdown" : "symbiot — review plan";
 
 interface ActionsProps {
   onApprove: () => void;
@@ -69,6 +69,7 @@ const SidebarTriggerSlot = ({ show }: { show: boolean }): React.ReactElement | n
 export const TopBar = ({
   onApprove,
   onDeny,
+  projectName,
   busy = false,
   mode = "plan",
   showSidebarTrigger = false,
@@ -77,9 +78,15 @@ export const TopBar = ({
   <header
     data-testid="top-bar"
     data-mode={mode}
-    className="border-border bg-background flex h-14 items-center gap-2 border-b px-4"
+    className="border-border bg-background flex h-14 items-center gap-2 border-b px-8"
   >
-    <h1 className="text-muted-foreground text-sm font-medium">{headingFor(mode)}</h1>
+    <div data-testid="top-bar-brand" className="flex items-center gap-2">
+      <AppLogo size={20} className="text-foreground" />
+      <h1 className="text-sm font-medium">
+        Symbiot
+        <span className="text-muted-foreground">{` · ${projectName}`}</span>
+      </h1>
+    </div>
     <div className="ml-auto flex items-center gap-3">
       <Actions
         onApprove={onApprove}
