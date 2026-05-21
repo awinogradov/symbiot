@@ -9,6 +9,7 @@ import { useVersionState } from "../hooks/useVersionState.ts";
 import { type DraftPayload, type PlanResponse } from "../../shared/apiTypes.ts";
 import { focusAnnotation } from "../utils/sidebarProjection.ts";
 
+import { DiffMount } from "./DiffMount.tsx";
 import { EditorMount } from "./EditorMount.tsx";
 import { SubmittedScreen } from "./SubmittedScreen.tsx";
 
@@ -18,6 +19,45 @@ interface ReviewScreenProps {
   saveDraft: Parameters<typeof useReviewState>[0]["saveDraft"];
   cancelDraft: () => void;
 }
+
+interface EditorPaneProps {
+  inDiffMode: boolean;
+  version: ReturnType<typeof useVersionState>;
+  state: ReturnType<typeof useReviewState>;
+  plan: PlanResponse;
+  activePlan: PlanResponse;
+}
+
+const EditorPane = ({
+  inDiffMode,
+  version,
+  state,
+  plan,
+  activePlan,
+}: EditorPaneProps): React.ReactElement => {
+  if (inDiffMode && version.previousPlan !== null) {
+    return (
+      <DiffMount
+        current={version.activePlan}
+        previous={version.previousPlan}
+        mode={version.diffMode}
+      />
+    );
+  }
+  return (
+    <EditorMount
+      reloadKey={state.reloadKey}
+      activeVersion={version.activeVersion}
+      bootVersion={plan.meta.version}
+      plan={activePlan}
+      initialValue={state.initialValue}
+      initialBodies={state.initialBodies}
+      initialImages={state.initialImages}
+      onReady={state.setEditorHandle}
+      onChange={state.onEditorChange}
+    />
+  );
+};
 
 /** Composes the topbar, editor, and annotation sidebar; renders `<SubmittedScreen>` once submitted. */
 export const ReviewScreen = ({
@@ -42,6 +82,8 @@ export const ReviewScreen = ({
     plan: version.activePlan,
     meta: { ...plan.meta, version: version.activeVersion },
   };
+  const isHistorical = version.activeVersion !== plan.meta.version;
+  const inDiffMode = isHistorical && version.previousPlan !== null;
 
   return (
     <SidebarProvider defaultOpen>
@@ -56,22 +98,20 @@ export const ReviewScreen = ({
           hasAnnotations={state.sidebarEntries.length > 0}
         />
         <main className="flex-1 overflow-auto px-8 py-6">
-          <EditorMount
-            reloadKey={state.reloadKey}
-            activeVersion={version.activeVersion}
-            bootVersion={plan.meta.version}
-            plan={activePlan}
-            initialValue={state.initialValue}
-            initialBodies={state.initialBodies}
-            initialImages={state.initialImages}
-            onReady={state.setEditorHandle}
-            onChange={state.onEditorChange}
+          <EditorPane
+            inDiffMode={inDiffMode}
+            version={version}
+            state={state}
+            plan={plan}
+            activePlan={activePlan}
           />
         </main>
-        <GlobalCommentFab
-          onAddGlobalComment={state.onAddGlobalComment}
-          disabled={phase === "submitting"}
-        />
+        {!isHistorical && (
+          <GlobalCommentFab
+            onAddGlobalComment={state.onAddGlobalComment}
+            disabled={phase === "submitting"}
+          />
+        )}
       </SidebarInset>
       <AnnotationSidebar
         entries={state.sidebarEntries}
@@ -81,6 +121,9 @@ export const ReviewScreen = ({
         versions={version.versions}
         activeVersion={version.activeVersion}
         onSelectVersion={version.onSelectVersion}
+        showDiffToggle={inDiffMode}
+        diffMode={version.diffMode}
+        onDiffModeChange={version.onDiffModeChange}
       />
     </SidebarProvider>
   );

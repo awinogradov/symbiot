@@ -1,4 +1,7 @@
 {
   "extends": "@symbiot/typescript-config/react.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
   "include": ["src"]
 }
