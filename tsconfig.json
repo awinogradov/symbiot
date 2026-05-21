@@ -5,7 +5,6 @@
   },
   "include": [
     "eslint.config.ts",
-    "commitlint.config.ts",
     "lint-staged.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
