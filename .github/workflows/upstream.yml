@@ -2,8 +2,10 @@ name: Upstream
 
 on:
   schedule:
-    # Every hour at minute 0 (UTC). Picks up upstream rules/<stack>.md changes
-    # within ~1h and opens a single PR via chore/sync-agents-rules branch.
+    # Every hour at minute 0 (UTC). Picks up upstream agent rules and
+    # contributing/boilerplate file changes within ~1h and opens (or
+    # updates) maintenance PRs on `maintenance-sync-agents-rules` and
+    # `maintenance-sync-contributing`.
     - cron: "0 * * * *"
   workflow_dispatch:
 
@@ -22,5 +24,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: awinogradov/code-assistants/.github/actions/agents-rules-sync@main
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+  sync-contributing:
+    name: Sync contributing files
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: awinogradov/code-assistants/.github/actions/contributing-sync@main
         with:
           token: ${{ secrets.GH_TOKEN }}
