@@ -18,6 +18,24 @@ architectural decision (see `plans/02-mvp.md`).
   or stdin and opens the browser.
 - `bun run typecheck` / `bun run lint` / `bun run test`.
 
-## Phase status
+## HTTP surface
 
-Phase 2 (MVP plan-review loop) — see `plans/02-mvp.md`.
+The registry of every `/api/*` route lives in
+[`src/shared/apiRoutes.ts`](./src/shared/apiRoutes.ts). Both the Bun dispatch
+table and the client `apiClient` key off the same source, so paths and
+methods never drift. Full table and per-route semantics are in
+[`docs/architecture.md`](../../docs/architecture.md#server-contract). The
+version-browsing endpoints (`GET /api/plan/versions`,
+`GET /api/plan/version?n=N`) drive the History sidebar tab; full pipeline in
+[`docs/version-history.md`](../../docs/version-history.md).
+
+## Storage
+
+Filesystem-only state under `~/.symbiot/` — no database. Plan revisions are
+written atomically as `00N.md` under
+`~/.symbiot/history/<project-slug>/<plan-slug>/`; drafts, annotations, and
+image uploads live in sibling directories. Layout details in
+[`docs/version-history.md`](../../docs/version-history.md#on-disk-layout).
+
+Per-phase scope and status live in
+[`../../plans/README.md`](../../plans/README.md).

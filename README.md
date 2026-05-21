@@ -102,8 +102,10 @@ Read this list before touching the code — it's the documentation index CLAUDE.
 
 - [`PRD.md`](./PRD.md) — product requirements (goals, non-goals, annotation model, server contract).
 - [`CLAUDE.md`](./CLAUDE.md) — core principles, naming, lint/style rules, post-task checks.
-- [`plans`](./plans/README.md) — phase table, cross-phase gates, design decisions.
+- [`docs`](./docs/README.md) — cross-cutting architecture, package layering, HTTP surface, architectural specials. Start here when a change spans more than one package.
+- [`plans`](./plans/README.md) — phase table, cross-phase gates, per-phase plans.
 - [`features`](./features/README.md) — Playwright-BDD layout, selector conventions, how to add a scenario.
+- [`fixtures/plans`](./fixtures/plans/README.md) — sample plans + the inline-diff smoke flow.
 
 Apps:
 
