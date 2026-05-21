@@ -314,6 +314,9 @@ Before making any changes:
 - 👤 No useEffect for state sync
 - 👤 No inline functions in loops
 - 👤 No incomplete configurations
+- 👤 No raw `git commit` — use `Skill(autopilot:commits:create)`
+- 👤 No raw `git checkout -b` / `git branch` — use `Skill(autopilot:branch:create)`
+- 👤 No raw `gh pr create` — use `Skill(autopilot:pr:create)`
 
 ## 15. Post-Task Checks
 
@@ -338,6 +341,9 @@ All must pass. Lint-staged enforces ESLint + Prettier on `pre-commit`, and `comm
 - 👤 Use sub-agents for search-heavy or parallelizable investigation to keep the main context focused
 - 👤 Use `gh` CLI for GitHub issues, PRs, comments, and Actions info
 - 👤 Follow Conventional Commits (enforced by commitlint). Branch names: lowercase kebab-case (enforced by `pre-push`). See `CONTRIBUTING.md` for full guidance.
+- 👤 **MANDATORY**: Commit only via `Skill(autopilot:commits:create)` — no raw `git commit`, no `git commit -m`, no `--amend`, no exceptions. If the autopilot plugin is not installed, follow CONTRIBUTING.md
+- 👤 **MANDATORY**: Create branches only via `Skill(autopilot:branch:create)` — no raw `git checkout -b`, `git branch`, or `git switch -c`. If the autopilot plugin is not installed, follow CONTRIBUTING.md
+- 👤 **MANDATORY**: Create PRs only via `Skill(autopilot:pr:create)` — no raw `gh pr create` or web-UI PR creation. If the autopilot plugin is not installed, follow CONTRIBUTING.md
 
 ### 16.2 MCP Servers
 
