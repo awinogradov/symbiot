@@ -81,7 +81,7 @@
   --anno-delete: #dc2626; /* red-600 */
   --anno-insert: #16a34a; /* green-600 */
   --anno-replace: #d97706; /* amber-600 */
-  --anno-comment: #2563eb; /* blue-600 */
+  --anno-comment: #ea580c; /* orange-600 */
 
   /* shadcn sidebar tokens (light) */
   --sidebar: oklch(0.985 0 0);
@@ -119,7 +119,7 @@
   --anno-delete: #ef4444; /* red-500 */
   --anno-insert: #22c55e; /* green-500 */
   --anno-replace: #f59e0b; /* amber-500 */
-  --anno-comment: #3b82f6; /* blue-500 */
+  --anno-comment: #fb923c; /* orange-400 */
 
   /* shadcn sidebar tokens (dark) */
   --sidebar: oklch(0.205 0 0);

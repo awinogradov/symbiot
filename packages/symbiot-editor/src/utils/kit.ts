@@ -18,6 +18,7 @@ import { ParagraphPlugin } from "platejs/react";
 import remarkGfm from "remark-gfm";
 
 import { CodeBlockElement } from "../components/CodeBlockElement.tsx";
+import { CommentLeaf } from "../components/CommentLeaf.tsx";
 import { SuggestionMarkPlugin } from "../components/DeletionLeaf.tsx";
 import {
   TableCellElement,
@@ -72,5 +73,5 @@ export const SymbiotEditorKit = [
   TableCellPlugin.withComponent(TableCellElement),
   TableCellHeaderPlugin.withComponent(TableCellHeaderElement),
   ImagePlugin.withComponent(VoidImage),
-  CommentPlugin,
+  CommentPlugin.withComponent(CommentLeaf),
 ];

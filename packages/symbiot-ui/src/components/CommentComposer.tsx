@@ -37,7 +37,7 @@ export const CommentComposer = ({
         </DialogHeader>
         <blockquote
           data-testid="composer-quote"
-          className="border-muted-foreground/30 text-muted-foreground line-clamp-4 border-l-2 pl-3 text-sm whitespace-pre-wrap italic"
+          className="border-anno-comment text-anno-comment bg-anno-comment/10 line-clamp-4 rounded-sm border-l-2 py-1 pl-3 text-sm whitespace-pre-wrap italic"
         >
           {quote}
         </blockquote>
