@@ -20,7 +20,7 @@ All contributors must adhere to our [Code of Conduct](./CODE_OF_CONDUCT.md). Ple
 
 ## Quick Start
 
-💡 If you are using Claude as code assistant, please use the `autopilot` plugin to get the best experience. It contains all the tools and knowledge to help you follow the standards and guidelines. Read original plugin documentation [here](https://github.com/awinogradov/autopilot/blob/main/plugins/autopilot/README.md).
+💡 If you are using Claude as code assistant, please use the `autopilot` plugin to get the best experience. It contains all the tools and knowledge to help you follow the standards and guidelines. Read original plugin documentation [here](https://github.com/awinogradov/code-assistants/blob/main/claude-plugins/autopilot/README.md).
 
 ### Prerequisites
 
@@ -34,8 +34,8 @@ Use [README.md](./README.md) for development setup instructions.
 
 ### Reporting Bugs
 
-1. Check if the issue already exists in [GitHub Issues](https://github.com/awinogradov/symbiot/issues).
-2. [Open a new issue](https://github.com/awinogradov/symbiot/issues/new?labels=bug) with:
+1. Check if the issue already exists in [GitHub Issues](https://github.com/awinogradov/code-assistants/issues).
+2. [Open a new issue](https://github.com/awinogradov/code-assistants/issues/new?labels=bug) with:
    - Label: `bug`
    - Meaningful title
    - Clear description
@@ -45,7 +45,7 @@ Use [README.md](./README.md) for development setup instructions.
 
 ### Suggesting Features
 
-1. Start a [GitHub Discussion](https://github.com/awinogradov/symbiot/discussions) for open-ended ideas, or [open an issue](https://github.com/awinogradov/symbiot/issues/new?labels=feature) with the `feature` label for a concrete proposal.
+1. Start a [GitHub Discussion](https://github.com/awinogradov/code-assistants/discussions) for open-ended ideas, or [open an issue](https://github.com/awinogradov/code-assistants/issues/new?labels=feature) with the `feature` label for a concrete proposal.
 2. Describe the use case and proposed solution.
 3. Wait for feedback before starting implementation.
 
@@ -567,8 +567,8 @@ See [`CLAUDE.md`](./CLAUDE.md) for the full coding-standards matrix, and the Doc
 
 ## Getting Help
 
-- **Questions** — open a [GitHub Discussion](https://github.com/awinogradov/symbiot/discussions)
-- **Bugs / feature requests** — open a [GitHub Issue](https://github.com/awinogradov/symbiot/issues)
+- **Questions** — open a [GitHub Discussion](https://github.com/awinogradov/code-assistants/discussions)
+- **Bugs / feature requests** — open a [GitHub Issue](https://github.com/awinogradov/code-assistants/issues)
 - **Code of Conduct issues** — see [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
 
 ## FAQ
