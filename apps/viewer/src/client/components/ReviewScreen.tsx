@@ -21,25 +21,44 @@ interface ReviewScreenProps {
 }
 
 interface EditorPaneProps {
-  inDiffMode: boolean;
+  isHistorical: boolean;
   version: ReturnType<typeof useVersionState>;
   state: ReturnType<typeof useReviewState>;
   plan: PlanResponse;
   activePlan: PlanResponse;
 }
 
+const HistoricalPlaceholder = (): React.ReactElement => (
+  <div
+    data-testid="historical-loading"
+    className="text-muted-foreground prose prose-neutral dark:prose-invert max-w-3xl text-sm"
+  >
+    Loading version diff…
+  </div>
+);
+
 const EditorPane = ({
-  inDiffMode,
+  isHistorical,
   version,
   state,
   plan,
   activePlan,
 }: EditorPaneProps): React.ReactElement => {
-  if (inDiffMode && version.previousPlan !== null) {
+  // Historical selection: never mount the editable `EditorMount`. Render the
+  // read-only `DiffEditor` (which surfaces an empty-state banner when there
+  // is no predecessor) or a loading placeholder while `previousPlan` is in
+  // flight. Mounting `EditorMount` here would let its `onChange` persist the
+  // historical markdown into the boot-slug's draft.
+  if (isHistorical) {
+    if (version.previousPlan === null && version.previousVersion !== null) {
+      return <HistoricalPlaceholder />;
+    }
     return (
       <DiffMount
         current={version.activePlan}
-        previous={version.previousPlan}
+        previous={version.previousPlan ?? version.activePlan}
+        currentVersion={version.activeVersion}
+        previousVersion={version.previousVersion}
         mode={version.diffMode}
       />
     );
@@ -99,7 +118,7 @@ export const ReviewScreen = ({
         />
         <main className="flex-1 overflow-auto px-8 py-6">
           <EditorPane
-            inDiffMode={inDiffMode}
+            isHistorical={isHistorical}
             version={version}
             state={state}
             plan={plan}
