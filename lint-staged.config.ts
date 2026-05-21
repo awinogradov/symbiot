@@ -4,7 +4,7 @@ const config: Configuration = {
   "**/*.{ts,tsx}": ["eslint --fix", "prettier --write"],
   "**/*.css": ["prettier --write"],
   "**/*.md": ["prettier --write --parser markdown"],
-  "**/*.json": ["prettier --write --parser json"],
+  "**/*.json": ["prettier --write"],
 };
 
 export default config;
