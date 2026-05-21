@@ -3,10 +3,10 @@
 Architectural reference material. Per-package READMEs live next to their
 sources; cross-cutting design notes live here.
 
-| Doc                                          | What it covers                                                                                                                                            |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`architecture.md`](./architecture.md)       | App composition, package layering, HTTP surface, monorepo invariants, and the "architectural specials" — non-obvious decisions easy to break by accident. |
-| [`version-history.md`](./version-history.md) | On-disk version layout, `/api/plan/version[s]` endpoints, History sidebar tab, read-only `DiffEditor`, Clean / Raw toggle, smoke-test flow.               |
+| Doc                                          | What it covers                                                                                                                                                                                                          |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`architecture.md`](./architecture.md)       | App composition, package layering, HTTP surface, monorepo invariants, and the "architectural specials" — non-obvious decisions easy to break by accident.                                                               |
+| [`version-history.md`](./version-history.md) | On-disk version layout, `/api/plan/version[s]` endpoints, History sidebar tab, read-only `DiffEditor`, Clean / Raw toggle, drift detection sidecars, predecessor-diff overlay, `vscode-diff` endpoint, smoke-test flow. |
 
 Higher-level material lives at the repo root:
 
