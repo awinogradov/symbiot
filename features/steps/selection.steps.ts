@@ -1,6 +1,4 @@
-import { createBdd } from "playwright-bdd";
-
-const { When } = createBdd();
+import { When } from "../support/bdd.ts";
 
 // eslint-disable-next-line complexity -- runs in browser context, must be self-contained for page.evaluate
 const browserSelect = (text: string): void => {

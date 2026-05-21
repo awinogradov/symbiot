@@ -1,8 +1,5 @@
-import { createBdd } from "playwright-bdd";
-
+import { Given } from "../support/bdd.ts";
 import { resetDecisionFile } from "../support/fixtures.ts";
-
-const { Given } = createBdd();
 
 Given("I open the viewer", async ({ page }) => {
   await resetDecisionFile();

@@ -1,7 +1,6 @@
 import { expect } from "@playwright/test";
-import { createBdd } from "playwright-bdd";
 
-const { Then } = createBdd();
+import { Then } from "../support/bdd.ts";
 
 Then("I see at least one rendered table", async ({ page }) => {
   await expect(page.locator('[data-testid="editor-root"] table').first()).toBeVisible();

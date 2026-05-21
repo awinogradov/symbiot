@@ -1,11 +1,9 @@
 import { rm, readFile, stat } from "node:fs/promises";
 
 import { expect } from "@playwright/test";
-import { createBdd } from "playwright-bdd";
 
+import { Given, Then } from "../support/bdd.ts";
 import { annotateBaseUrl, annotateDecisionFile } from "../support/world.ts";
-
-const { Given, Then } = createBdd();
 
 const resetAnnotateDecision = async (): Promise<void> => {
   await rm(annotateDecisionFile, { force: true });

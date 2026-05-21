@@ -41,6 +41,14 @@ SYMBIOT_INSTALL_BROWSER=1 bunx playwright install chromium
 
 (Postinstall pulls Chromium only when `SYMBIOT_INSTALL_BROWSER=1`; CI wiring lands in Phase 8.)
 
+### With coverage
+
+```sh
+bun run test:e2e:coverage
+```
+
+Runs the scenarios with `COVERAGE=1`. The shared fixture in `features/support/bdd.ts` captures Playwright V8 coverage per scenario, dumps it to `coverage/raw/<testId>.json`, then `mcr-generate.ts` aggregates everything through `monocart-coverage-reports` (configured in `mcr.config.ts`) into `coverage/e2e/index.html` (HTML drilldown) and `coverage/e2e/lcov.info` (CI consumption). Source maps emitted by the viewer's Vite build are resolved from disk, so reported paths land on the `.ts` / `.tsx` sources, not the bundled chunks. The generator runs under Node — `monocart-coverage-reports` calls `v8.setFlagsFromString`, which Bun does not implement.
+
 ## Adding a new scenario
 
 1. Pick or create a `features/<area>/<behavior>.feature` file. Add `data-testid` on every new interactive element in the component source.
