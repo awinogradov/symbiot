@@ -37,11 +37,17 @@ export interface PlanVersionResponse {
  * Persisted reviewer draft. `GET /api/draft` returns this (or 204 when no draft
  * exists); `POST /api/draft` accepts the same shape. Maps are serialized as
  * plain objects on the wire and rebuilt client-side.
+ *
+ * `commentOriginalTexts` and `suggestionOriginalTexts` are optional so drafts
+ * persisted before Phase 4.3 still load — older drafts walk without drift
+ * signals (back-compat). New drafts always include them.
  */
 export interface DraftPayload {
   value: unknown[];
   commentBodies: Record<string, string>;
   commentImages?: Record<string, string[]>;
+  commentOriginalTexts?: Record<string, string>;
+  suggestionOriginalTexts?: Record<string, string>;
   globalComments: { id: string; body: string; images?: string[] }[];
   updatedAt: number;
 }

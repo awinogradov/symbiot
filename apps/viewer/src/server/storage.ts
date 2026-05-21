@@ -87,6 +87,15 @@ export const loadPlan = async (meta: PlanMeta): Promise<string> =>
   readFile(planFile(meta.project, meta.slug, meta.version), "utf8");
 
 /**
+ * Resolve the absolute on-disk path of a specific plan version. Used by the
+ * `vscode-diff` route to feed `code --diff` two real file paths. Caller MUST
+ * verify both files exist (e.g. via {@link loadPlan}) before invoking VS Code,
+ * because `code` exits silently on missing inputs.
+ */
+export const planFilePath = (meta: Pick<PlanMeta, "project" | "slug">, version: number): string =>
+  planFile(meta.project, meta.slug, version);
+
+/**
  * List every version number persisted under
  * ~/.symbiot/history/{project}/{slug}/, ascending. Returns `[]` when the plan
  * directory does not exist yet.

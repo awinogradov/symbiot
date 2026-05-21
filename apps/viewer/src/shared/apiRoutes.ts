@@ -15,6 +15,13 @@ export const apiRoutes = {
   plan: { method: "GET", path: "/api/plan" },
   planVersions: { method: "GET", path: "/api/plan/versions" },
   planVersion: { method: "GET", path: "/api/plan/version" },
+  /**
+   * Phase 4.3. Spawns VS Code (`code --diff <from> <to>`) on the host machine
+   * so external agent integrations (VS Code / Obsidian extensions) can open a
+   * native diff for two persisted plan versions. No in-app caller — humans use
+   * the in-viewer diff overlay instead.
+   */
+  planVscodeDiff: { method: "POST", path: "/api/plan/vscode-diff" },
   approve: { method: "POST", path: "/api/approve" },
   deny: { method: "POST", path: "/api/deny" },
   feedback: { method: "POST", path: "/api/feedback" },

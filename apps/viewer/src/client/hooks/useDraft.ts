@@ -8,6 +8,8 @@ export interface DraftSnapshot {
   value: unknown[];
   commentBodies: Map<string, string>;
   commentImages: Map<string, string[]>;
+  commentOriginalTexts: Map<string, string>;
+  suggestionOriginalTexts: Map<string, string>;
   globalComments: { id: string; body: string; images?: string[] }[];
 }
 
@@ -30,6 +32,8 @@ const toPayload = (snapshot: DraftSnapshot): DraftPayload => ({
   value: snapshot.value,
   commentBodies: Object.fromEntries(snapshot.commentBodies),
   commentImages: Object.fromEntries(snapshot.commentImages),
+  commentOriginalTexts: Object.fromEntries(snapshot.commentOriginalTexts),
+  suggestionOriginalTexts: Object.fromEntries(snapshot.suggestionOriginalTexts),
   globalComments: snapshot.globalComments,
   updatedAt: Date.now(),
 });

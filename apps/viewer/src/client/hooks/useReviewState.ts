@@ -21,6 +21,8 @@ export interface ReviewStateProps {
     value: unknown[];
     commentBodies: Map<string, string>;
     commentImages: Map<string, string[]>;
+    commentOriginalTexts: Map<string, string>;
+    suggestionOriginalTexts: Map<string, string>;
     globalComments: GlobalCommentEntry[];
   }) => void;
 }
@@ -32,6 +34,8 @@ export interface ReviewState {
   initialValue: unknown[] | undefined;
   initialBodies: Map<string, string> | undefined;
   initialImages: Map<string, string[]> | undefined;
+  initialCommentOriginalTexts: Map<string, string> | undefined;
+  initialSuggestionOriginalTexts: Map<string, string> | undefined;
   reloadKey: number;
   collectEntries: () => AnnotationEntry[];
   setEditorHandle: (handle: ReviewEditorHandle) => void;
@@ -48,6 +52,30 @@ const draftInitialMap = <V>(
   if (reloadKey !== 0 || source === undefined) return undefined;
   return new Map(Object.entries(source));
 };
+
+interface InitialDraftSlice {
+  initialValue: unknown[] | undefined;
+  initialBodies: Map<string, string> | undefined;
+  initialImages: Map<string, string[]> | undefined;
+  initialCommentOriginalTexts: Map<string, string> | undefined;
+  initialSuggestionOriginalTexts: Map<string, string> | undefined;
+}
+
+const initialValueFromDraft = (
+  draft: DraftPayload | null,
+  reloadKey: number
+): unknown[] | undefined => {
+  if (reloadKey !== 0 || draft === null) return undefined;
+  return draft.value;
+};
+
+const draftInitial = (draft: DraftPayload | null, reloadKey: number): InitialDraftSlice => ({
+  initialValue: initialValueFromDraft(draft, reloadKey),
+  initialBodies: draftInitialMap(draft?.commentBodies, reloadKey),
+  initialImages: draftInitialMap(draft?.commentImages, reloadKey),
+  initialCommentOriginalTexts: draftInitialMap(draft?.commentOriginalTexts, reloadKey),
+  initialSuggestionOriginalTexts: draftInitialMap(draft?.suggestionOriginalTexts, reloadKey),
+});
 
 /**
  * Pure session state for the review screen: editor handle, global comments,
@@ -69,6 +97,8 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
         value: snapshot.value,
         commentBodies: snapshot.commentBodies,
         commentImages: snapshot.commentImages,
+        commentOriginalTexts: snapshot.commentOriginalTexts,
+        suggestionOriginalTexts: snapshot.suggestionOriginalTexts,
         globalComments,
       });
     },
@@ -81,6 +111,8 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
       value: editorHandle.getValue() as PlateValue,
       commentBodies: editorHandle.getCommentBodies(),
       commentImages: editorHandle.getCommentImages(),
+      commentOriginalTexts: editorHandle.getCommentOriginalTexts(),
+      suggestionOriginalTexts: editorHandle.getSuggestionOriginalTexts(),
       globalComments,
     });
   }, [editorHandle, globalComments]);
@@ -104,32 +136,38 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
     setReloadKey((prev) => prev + 1);
   }, []);
 
+  const removeGlobalComment = useCallback(
+    (id: string): void => {
+      const next = globalComments.filter((g) => g.id !== id);
+      setGlobalComments(next);
+      if (latestSnapshot === null) return;
+      saveDraft({
+        value: latestSnapshot.value,
+        commentBodies: latestSnapshot.commentBodies,
+        commentImages: latestSnapshot.commentImages,
+        commentOriginalTexts: latestSnapshot.commentOriginalTexts,
+        suggestionOriginalTexts: latestSnapshot.suggestionOriginalTexts,
+        globalComments: next,
+      });
+    },
+    [globalComments, latestSnapshot, saveDraft]
+  );
+
   const onRemoveAnnotation = useCallback(
     (entry: AnnotationSidebarEntry): void => {
       if (entry.kind === "global") {
-        const next = globalComments.filter((g) => g.id !== entry.id);
-        setGlobalComments(next);
-        if (latestSnapshot !== null) {
-          saveDraft({
-            value: latestSnapshot.value,
-            commentBodies: latestSnapshot.commentBodies,
-            commentImages: latestSnapshot.commentImages,
-            globalComments: next,
-          });
-        }
+        removeGlobalComment(entry.id);
         return;
       }
       editorHandle?.removeAnnotation(entry.kind, entry.id);
     },
-    [editorHandle, globalComments, latestSnapshot, saveDraft]
+    [editorHandle, removeGlobalComment]
   );
 
   return {
     editorHandle,
     sidebarEntries,
-    initialValue: reloadKey === 0 ? draft?.value : undefined,
-    initialBodies: draftInitialMap(draft?.commentBodies, reloadKey),
-    initialImages: draftInitialMap(draft?.commentImages, reloadKey),
+    ...draftInitial(draft, reloadKey),
     reloadKey,
     collectEntries,
     setEditorHandle,

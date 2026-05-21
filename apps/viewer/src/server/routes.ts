@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 
 import { routeKey } from "../shared/apiRoutes.ts";
@@ -9,6 +10,7 @@ import {
   loadDraft,
   loadPlan,
   loadUpload,
+  planFilePath,
   saveDraft,
   saveFeedback,
   saveUpload,
@@ -71,6 +73,11 @@ const parseVersionParam = (raw: string | null): number | null => {
   return Number.parseInt(raw, 10);
 };
 
+const parseVersionNumber = (value: unknown): number | null => {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) return null;
+  return value;
+};
+
 const planVersionRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
   const url = new URL(req.url);
   const n = parseVersionParam(url.searchParams.get("n"));
@@ -86,6 +93,76 @@ const planVersionRoute = async (req: Request, ctx: RouteContext): Promise<Respon
     throw error;
   }
 };
+
+/**
+ * Spawn `code --diff <from> <to>` against two persisted versions. Plannotator-
+ * compatible endpoint for VS Code / Obsidian integrations. Detached + unref so
+ * the viewer process stays independent of the external editor's lifetime.
+ *
+ * Response codes:
+ * - 204 — spawn issued, VS Code is opening the diff
+ * - 400 — invalid body or unknown version numbers
+ * - 404 — at least one of the requested version files is missing on disk
+ * - 503 — `code` is not installed on PATH; body `{ reason: "code-cli-missing" }`
+ */
+interface VscodeDiffInput {
+  from: number;
+  to: number;
+}
+
+const parseVscodeDiffBody = async (req: Request): Promise<VscodeDiffInput | null> => {
+  const body = (await req.json().catch(() => null)) as { from?: unknown; to?: unknown } | null;
+  if (body === null) return null;
+  const from = parseVersionNumber(body.from);
+  const to = parseVersionNumber(body.to);
+  if (from === null || to === null) return null;
+  return { from, to };
+};
+
+const assertVersionsExist = async (
+  ctx: RouteContext,
+  input: VscodeDiffInput
+): Promise<Response | null> => {
+  try {
+    await Promise.all([
+      loadPlan({ ...ctx.meta, version: input.from }),
+      loadPlan({ ...ctx.meta, version: input.to }),
+    ]);
+    return null;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return new Response("Not Found", { status: 404 });
+    }
+    throw error;
+  }
+};
+
+const planVscodeDiffRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  const input = await parseVscodeDiffBody(req);
+  if (input === null) return badRequest("invalid version");
+  const missing = await assertVersionsExist(ctx, input);
+  if (missing !== null) return missing;
+  return spawnVscodeDiff(planFilePath(ctx.meta, input.from), planFilePath(ctx.meta, input.to));
+};
+
+const spawnVscodeDiff = (fromPath: string, toPath: string): Promise<Response> =>
+  new Promise((resolve) => {
+    const child = spawn("code", ["--diff", fromPath, toPath], {
+      detached: true,
+      stdio: "ignore",
+    });
+    child.once("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        resolve(jsonResponse({ reason: "code-cli-missing" }, 503));
+        return;
+      }
+      resolve(jsonResponse({ reason: "spawn-failed", message: error.message }, 500));
+    });
+    child.once("spawn", () => {
+      child.unref();
+      resolve(new Response(null, { status: 204 }));
+    });
+  });
 
 /**
  * Finalize a submission: clear the draft, mark the context resolved so any
@@ -226,6 +303,7 @@ const routes: Record<string, Handler> = {
   [routeKey("plan")]: (_req, ctx) => planRoute(ctx),
   [routeKey("planVersions")]: (_req, ctx) => planVersionsRoute(ctx),
   [routeKey("planVersion")]: (req, ctx) => planVersionRoute(req, ctx),
+  [routeKey("planVscodeDiff")]: (req, ctx) => planVscodeDiffRoute(req, ctx),
   [routeKey("approve")]: (_req, ctx) => approveRoute(ctx),
   [routeKey("deny")]: (req, ctx) => denyRoute(req, ctx),
   [routeKey("feedback")]: (req, ctx) => feedbackRoute(req, ctx),

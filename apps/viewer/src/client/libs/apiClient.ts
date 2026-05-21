@@ -45,6 +45,8 @@ const draftPayloadSchema = z.object({
   value: z.array(z.unknown()),
   commentBodies: z.record(z.string(), z.string()),
   commentImages: z.record(z.string(), z.array(z.string())).optional(),
+  commentOriginalTexts: z.record(z.string(), z.string()).optional(),
+  suggestionOriginalTexts: z.record(z.string(), z.string()).optional(),
   globalComments: z.array(globalCommentSchema),
   updatedAt: z.number(),
 }) satisfies z.ZodType<DraftPayload>;
