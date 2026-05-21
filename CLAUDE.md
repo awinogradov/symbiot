@@ -2,6 +2,8 @@
 alwaysApply: true
 ---
 
+# Bun + React + Tailwind Project Rules
+
 ## Mandatory Context
 
 Before making any changes:
@@ -32,25 +34,24 @@ Before making any changes:
 - 👤 Run tests after any code changes
 - 👤 Do not remove existing code/comments unless necessary
 - 👤 Write plan before changes, not report after
-- 👤 Minimalism. Simple is better. KISS (Keep It Simple, Stupid).
-- 👤 Clean code, easy to read, easy to delete
-- 👤 Touch only what you must. Clean up only your own mess
 
 ## 2. Architecture
 
 ### 2.1 Technology Stack
 
-- Bun (package manager + runtime), Turborepo (task graph & caching)
-- TypeScript (latest stable; 6.0.3 pinned at bootstrap), React 19, Vite
+- Bun, TypeScript 5.x, React 19, Vite
 - Tailwind CSS for styling
 - shadcn/ui + Radix UI for components
 - React Router for routing
 - React Query for data fetching
 - Vitest for testing
+- Storage (choose one):
+  - Prisma (migrations) + Kysely (application ORM) + PostgreSQL
+  - Filesystem only (local-first apps; no database)
 - oRPC or tRPC for API, Zod for validation
+- Authentication (only when using a database): BetterAuth
 - ESLint for linting
 - Prettier for formatting
-- **No database** — symbiot's storage is filesystem only (no Prisma, no Kysely, no Postgres, no BetterAuth)
 
 ## 3. Project Structure
 
@@ -90,14 +91,13 @@ Before making any changes:
 
 ## 5. Development Setup
 
-- Bun 1.x (latest stable), Node 24 (via `.nvmrc` for tooling that reads it)
+- Bun 1.x (latest stable)
 - `bun install` – Install dependencies
-- `bun run <task>` – Cacheable tasks proxy to `turbo run <task>` (build / lint / typecheck / test)
+- `bun run` – Run script
 - `bun run lint` / `bun run lint:fix` – Linting
 - `bun run format` / `bun run format:check` – Formatting
 - `bun run typecheck` – Type checking
-- `bun run test` – Run Vitest (project's chosen runner; works under Bun)
-- Bun is also the JS runtime for `apps/hook` and any CLI tools the project ships
+- `bun test` – Run tests
 
 ## 6. Environment Variables
 
@@ -197,8 +197,22 @@ Before making any changes:
 
 ### 8.2 Storage
 
-- 👤 **No database.** Plans, annotations, and versions are persisted to the filesystem under `~/.symbiot/`.
-- 👤 Use atomic writes (write-to-tmp + rename) for any user-visible state file.
+Choose ONE backend based on the project's needs. Do not mix.
+
+**Option A — Relational database (Prisma + Kysely + PostgreSQL)**
+
+- 👤 Prisma: migrations and type generation ONLY
+- 👤 Kysely: ALL application queries
+- 👤 Never use Prisma Client in application code
+- 👤 Use explicit junction tables
+- 👤 Use `/// @kyselyType()` in schema.prisma for typed Json fields (never edit kysely.ts directly)
+
+**Option B — Filesystem (local-first, single-user apps; no database)**
+
+- 👤 Persist user-visible state to the filesystem under a per-app directory (e.g. `~/.<app>/`)
+- 👤 Use atomic writes (write-to-tmp + rename) for any user-visible state file
+- 👤 Validate file contents on read with Zod schemas — never trust on-disk shape
+- 👤 Handle ENOENT/EACCES explicitly; never swallow filesystem errors
 
 ### 8.3 File Operations
 
@@ -318,18 +332,6 @@ Before making any changes:
 - 👤 No raw `git checkout -b` / `git branch` — use `Skill(autopilot:branch:create)`
 - 👤 No raw `gh pr create` — use `Skill(autopilot:pr:create)`
 
-## 15. Post-Task Checks
-
-After implementation, run the standard verification matrix before opening a PR:
-
-- `bun run typecheck`
-- `bun run lint`
-- `bun run test`
-- `bun run build`
-- `bun run format:check`
-
-All must pass. Lint-staged enforces ESLint + Prettier on `pre-commit`, and `commit-msg` enforces Conventional Commits.
-
 ## 16. AI Assistant Workflow
 
 ### 16.1 Claude Code
@@ -340,18 +342,17 @@ All must pass. Lint-staged enforces ESLint + Prettier on `pre-commit`, and `comm
 - 👤 Gather context before editing
 - 👤 Use sub-agents for search-heavy or parallelizable investigation to keep the main context focused
 - 👤 Use `gh` CLI for GitHub issues, PRs, comments, and Actions info
-- 👤 Follow Conventional Commits (enforced by commitlint). Branch names: lowercase kebab-case (enforced by `pre-push`). See `CONTRIBUTING.md` for full guidance.
 - 👤 **MANDATORY**: Commit only via `Skill(autopilot:commits:create)` — no raw `git commit`, no `git commit -m`, no `--amend`, no exceptions. If the autopilot plugin is not installed, follow CONTRIBUTING.md
 - 👤 **MANDATORY**: Create branches only via `Skill(autopilot:branch:create)` — no raw `git checkout -b`, `git branch`, or `git switch -c`. If the autopilot plugin is not installed, follow CONTRIBUTING.md
 - 👤 **MANDATORY**: Create PRs only via `Skill(autopilot:pr:create)` — no raw `gh pr create` or web-UI PR creation. If the autopilot plugin is not installed, follow CONTRIBUTING.md
 
 ### 16.2 MCP Servers
 
-**context7**, **Ref**, **Exa**: Look up documentation for libraries / frameworks / APIs.
+**context7**, **Ref**, **Exa**: Look up documentation for all technologies
 
-**Playwright**: Verify UI state with browser_snapshot before any UI work.
+**Playwright**: Verify UI state with browser_snapshot
 
-**Chrome DevTools**: Performance analysis, network debugging, console logging.
+**Chrome DevTools**: Performance analysis, network debugging, console logging, etc.
 
 ## 17. Code Review
 
