@@ -25,6 +25,12 @@ export interface CommentEntry {
   author?: string;
   images?: string[];
   lines?: BlockLines;
+  /**
+   * `true` when the captured `originalText` no longer matches the live anchor
+   * AND can't be re-located in the value via text-quote fallback. Set by the
+   * walker when an `originalText` sidecar map is supplied. Phase 4.3.
+   */
+  drifted?: boolean;
 }
 
 /** App-level global comment (not anchored to a Plate range). */
@@ -42,6 +48,8 @@ export interface DeletionEntry {
   author?: string;
   images?: string[];
   lines?: BlockLines;
+  /** See {@link CommentEntry.drifted}. Phase 4.3. */
+  drifted?: boolean;
 }
 
 /** Per-anchor or global, tagged with its kind so a single walker can return all three. */

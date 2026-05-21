@@ -47,3 +47,99 @@ describe("walkAnnotations", () => {
     expect(onlyDeletions(entries)).toEqual([{ id: "y", originalText: "b" }]);
   });
 });
+
+describe("walkAnnotations drift detection", () => {
+  it("emits no `drifted` field when no sidecar map is supplied (back-compat)", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [{ text: "anchor", comment: true, comment_c1: true }],
+      },
+    ];
+    const [entry] = onlyComments(
+      walkAnnotations({
+        value,
+        commentBodies: new Map([["c1", "body"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.drifted).toBeUndefined();
+  });
+
+  it("does not mark drift when stored text matches the live fragment", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [{ text: "anchor", comment: true, comment_c1: true }],
+      },
+    ];
+    const [entry] = onlyComments(
+      walkAnnotations({
+        value,
+        commentBodies: new Map([["c1", "body"]]),
+        commentOriginalTexts: new Map([["c1", "anchor"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.drifted).toBeUndefined();
+    expect(entry?.originalText).toBe("anchor");
+  });
+
+  it("does not mark drift when stored text re-locates via text-quote fallback", () => {
+    const value: PlateValue = [
+      { type: "p", children: [{ text: "lead" }] },
+      {
+        type: "p",
+        children: [{ text: "moved-anchor", comment: true, comment_c1: true }],
+      },
+    ];
+    const [entry] = onlyComments(
+      walkAnnotations({
+        value,
+        commentBodies: new Map([["c1", "body"]]),
+        commentOriginalTexts: new Map([["c1", "moved-anchor"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.drifted).toBeUndefined();
+    expect(entry?.originalText).toBe("moved-anchor");
+  });
+
+  it("marks drift when stored text is absent from the live value", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [{ text: "garbled", comment: true, comment_c1: true }],
+      },
+    ];
+    const [entry] = onlyComments(
+      walkAnnotations({
+        value,
+        commentBodies: new Map([["c1", "body"]]),
+        commentOriginalTexts: new Map([["c1", "deleted-anchor"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.drifted).toBe(true);
+    expect(entry?.originalText).toBe("deleted-anchor");
+  });
+
+  it("marks drift on deletions whose stored text is gone", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [{ text: "garbled", suggestion: true, suggestion_d1: true }],
+      },
+    ];
+    const [entry] = onlyDeletions(
+      walkAnnotations({
+        value,
+        commentBodies: new Map(),
+        suggestionOriginalTexts: new Map([["d1", "deleted-anchor"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.drifted).toBe(true);
+    expect(entry?.originalText).toBe("deleted-anchor");
+  });
+});
