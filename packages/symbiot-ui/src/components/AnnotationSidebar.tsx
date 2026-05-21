@@ -28,6 +28,7 @@ import {
   SidebarMenuItem,
 } from "./Sidebar.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./Tabs.tsx";
+import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup.tsx";
 import { VersionBrowser } from "./VersionBrowser.tsx";
 
 /**
@@ -51,6 +52,9 @@ export interface AnnotationSidebarEntry {
   drifted?: boolean;
 }
 
+/** Diff render mode controlled by the Clean/Raw toggle inside the History tab. */
+export type SidebarDiffMode = "clean" | "raw";
+
 interface AnnotationSidebarProps {
   entries: AnnotationSidebarEntry[];
   onFocus: (id: string) => void;
@@ -62,6 +66,17 @@ interface AnnotationSidebarProps {
   activeVersion: number;
   /** Called when the reviewer picks a different version from the History tab. */
   onSelectVersion: (version: number) => void;
+  /**
+   * When `true`, render the Clean/Raw toggle above the version list. The host
+   * derives this from "active version is not the boot version AND a
+   * predecessor exists" so the toggle only shows when a diff is actually
+   * being rendered.
+   */
+  showDiffToggle: boolean;
+  /** Current Clean/Raw selection. */
+  diffMode: SidebarDiffMode;
+  /** Called when the reviewer flips Clean ↔ Raw. */
+  onDiffModeChange: (mode: SidebarDiffMode) => void;
 }
 
 const kindLabel = (kind: AnnotationSidebarEntry["kind"]): string => {
@@ -230,6 +245,63 @@ const ClearAllFooter = ({ onClearAll }: ClearAllFooterProps): React.ReactElement
 
 type TabValue = "annotations" | "history";
 
+interface DiffToggleProps {
+  diffMode: SidebarDiffMode;
+  onChange: (next: string) => void;
+}
+
+const DiffModeToggle = ({ diffMode, onChange }: DiffToggleProps): React.ReactElement => (
+  <ToggleGroup
+    type="single"
+    value={diffMode}
+    onValueChange={onChange}
+    variant="outline"
+    size="sm"
+    data-testid="diff-mode-toggle"
+    className="w-full"
+  >
+    <ToggleGroupItem
+      value="clean"
+      data-testid="diff-mode-clean"
+      aria-label="Show only changed blocks"
+      className="flex-1"
+    >
+      Clean
+    </ToggleGroupItem>
+    <ToggleGroupItem
+      value="raw"
+      data-testid="diff-mode-raw"
+      aria-label="Show the full diff"
+      className="flex-1"
+    >
+      Raw
+    </ToggleGroupItem>
+  </ToggleGroup>
+);
+
+interface HistoryPanelProps {
+  versions: number[];
+  activeVersion: number;
+  onSelectVersion: (version: number) => void;
+  showDiffToggle: boolean;
+  diffMode: SidebarDiffMode;
+  onDiffModeChange: (next: string) => void;
+}
+
+const HistoryPanel = ({
+  versions,
+  activeVersion,
+  onSelectVersion,
+  showDiffToggle,
+  diffMode,
+  onDiffModeChange,
+}: HistoryPanelProps): React.ReactElement => (
+  <SidebarGroup className="flex flex-col gap-2 px-2">
+    {showDiffToggle && <DiffModeToggle diffMode={diffMode} onChange={onDiffModeChange} />}
+    <VersionBrowser versions={versions} active={activeVersion} onSelect={onSelectVersion} />
+  </SidebarGroup>
+);
+
 /**
  * Right-aligned `<Sidebar>` with two tabs: Annotations (the existing entry
  * list) and History (a `VersionBrowser` listing every persisted plan version).
@@ -247,12 +319,21 @@ export const AnnotationSidebar = ({
   versions,
   activeVersion,
   onSelectVersion,
+  showDiffToggle,
+  diffMode,
+  onDiffModeChange,
 }: AnnotationSidebarProps): React.ReactElement => {
   const hasHistory = versions.length >= 2;
   const [tab, setTab] = useState<TabValue>("annotations");
   const handleTabChange = useCallback((next: string): void => {
     if (next === "annotations" || next === "history") setTab(next);
   }, []);
+  const handleDiffModeChange = useCallback(
+    (next: string): void => {
+      if (next === "clean" || next === "raw") onDiffModeChange(next);
+    },
+    [onDiffModeChange]
+  );
   const showClearAll = entries.length > 0 && (!hasHistory || tab === "annotations");
   return (
     <Sidebar side="right" collapsible="offcanvas" data-testid="annotation-sidebar" className="w-80">
@@ -283,13 +364,14 @@ export const AnnotationSidebar = ({
               </SidebarGroup>
             </TabsContent>
             <TabsContent value="history">
-              <SidebarGroup className="px-2">
-                <VersionBrowser
-                  versions={versions}
-                  active={activeVersion}
-                  onSelect={onSelectVersion}
-                />
-              </SidebarGroup>
+              <HistoryPanel
+                versions={versions}
+                activeVersion={activeVersion}
+                onSelectVersion={onSelectVersion}
+                showDiffToggle={showDiffToggle}
+                diffMode={diffMode}
+                onDiffModeChange={handleDiffModeChange}
+              />
             </TabsContent>
           </Tabs>
         ) : (
