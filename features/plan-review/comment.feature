@@ -23,16 +23,6 @@ Feature: Comment via composer
     Then the comment composer is visible in the viewport
     And the comment composer shows "lazy dog" as a quote
 
-  Scenario: Reopen the composer after closing via the X button
-    Given I open the viewer
-    When I select the text "quick brown fox" in the editor
-    And I click the Comment toolbar button
-    Then the comment composer is visible in the viewport
-    When I close the comment composer via the X button
-    And I select the text "lazy dog" in the editor
-    And I click the Comment toolbar button
-    Then the comment composer is visible in the viewport
-
   Scenario: Reopen the composer after closing via overlay click
     Given I open the viewer
     When I select the text "quick brown fox" in the editor

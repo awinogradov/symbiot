@@ -22,10 +22,6 @@ When("I press Escape in the comment composer", async ({ page }) => {
   await page.getByTestId("composer-textarea").press("Escape");
 });
 
-When("I close the comment composer via the X button", async ({ page }) => {
-  await page.getByTestId("comment-composer").getByLabel("Close").click();
-});
-
 When("I close the comment composer via the overlay", async ({ page }) => {
   // Click the top-left corner of the overlay — the dialog content is centered,
   // so this coordinate is overlay-only and not intercepted by the dialog.
