@@ -1,7 +1,6 @@
 import { expect } from "@playwright/test";
-import { createBdd } from "playwright-bdd";
 
-const { Then, When } = createBdd();
+import { Then, When } from "../support/bdd.ts";
 
 When("I click the Comment toolbar button", async ({ page }) => {
   await page.getByTestId("toolbar-comment").click();

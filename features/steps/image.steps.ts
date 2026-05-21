@@ -1,7 +1,6 @@
 import { expect } from "@playwright/test";
-import { createBdd } from "playwright-bdd";
 
-const { When, Then } = createBdd();
+import { When, Then } from "../support/bdd.ts";
 
 const pngBytes = Buffer.from(
   // 1x1 transparent PNG (mirrors `upload.steps.ts::buildPng`).

@@ -1,9 +1,7 @@
 import { expect } from "@playwright/test";
-import { createBdd } from "playwright-bdd";
 
+import { Then } from "../support/bdd.ts";
 import { waitForDecision } from "../support/fixtures.ts";
-
-const { Then } = createBdd();
 
 Then(
   "the recorded feedback contains {string}",

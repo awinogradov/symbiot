@@ -1,9 +1,7 @@
 import { expect } from "@playwright/test";
-import { createBdd } from "playwright-bdd";
 
+import { When, Then } from "../support/bdd.ts";
 import { waitForDecision } from "../support/fixtures.ts";
-
-const { When, Then } = createBdd();
 
 When("I click Approve", async ({ page }) => {
   await page.getByTestId("top-bar-approve").click();

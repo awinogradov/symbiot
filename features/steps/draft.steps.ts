@@ -1,7 +1,6 @@
 import { expect } from "@playwright/test";
-import { createBdd } from "playwright-bdd";
 
-const { When, Then } = createBdd();
+import { When, Then } from "../support/bdd.ts";
 
 When("I reload the page", async ({ page }) => {
   await page.reload();
