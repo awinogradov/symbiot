@@ -1,6 +1,6 @@
 import { MarkdownPlugin } from "@platejs/markdown";
 import { MessageSquare, Strikethrough } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plate, PlateContent, usePlateEditor, type PlateEditor } from "platejs/react";
 import type { PlateValue } from "@symbiot/annotations";
 import { Button } from "@symbiot/ui/components/Button";
@@ -23,6 +23,10 @@ export interface ReviewEditorHandle {
   getValue: () => unknown[];
   getCommentBodies: () => Map<string, string>;
   getCommentImages: () => Map<string, string[]>;
+  /** `originalText` captured at comment creation; drives drift detection. Phase 4.3. */
+  getCommentOriginalTexts: () => Map<string, string>;
+  /** `originalText` captured at deletion creation; drives drift detection. Phase 4.3. */
+  getSuggestionOriginalTexts: () => Map<string, string>;
   removeAnnotation: (kind: "comment" | "deletion", id: string) => void;
 }
 
@@ -31,6 +35,8 @@ export interface EditorSnapshot {
   value: PlateValue;
   commentBodies: Map<string, string>;
   commentImages: Map<string, string[]>;
+  commentOriginalTexts: Map<string, string>;
+  suggestionOriginalTexts: Map<string, string>;
 }
 
 interface ReviewEditorProps {
@@ -41,6 +47,10 @@ interface ReviewEditorProps {
   initialBodies?: Map<string, string>;
   /** Optional saved comment images, keyed by comment id. */
   initialImages?: Map<string, string[]>;
+  /** Optional saved per-comment `originalText` snapshots (Phase 4.3 drift). */
+  initialCommentOriginalTexts?: Map<string, string>;
+  /** Optional saved per-deletion `originalText` snapshots (Phase 4.3 drift). */
+  initialSuggestionOriginalTexts?: Map<string, string>;
   onReady?: (handle: ReviewEditorHandle) => void;
   onChange?: (snapshot: EditorSnapshot) => void;
 }
@@ -55,38 +65,87 @@ function withoutKey<V>(map: Map<string, V>, key: string): Map<string, V> {
 interface CommentMaps {
   bodies: Map<string, string>;
   images: Map<string, string[]>;
+  commentOriginalTexts: Map<string, string>;
+  suggestionOriginalTexts: Map<string, string>;
 }
 
-const pruneRemovedComment = (
+interface PruneSetters {
+  setBodies: (next: Map<string, string>) => void;
+  setImages: (next: Map<string, string[]>) => void;
+  setCommentOriginalTexts: (next: Map<string, string>) => void;
+  setSuggestionOriginalTexts: (next: Map<string, string>) => void;
+}
+
+const pruneComment = (id: string, current: CommentMaps, setters: PruneSetters): CommentMaps => {
+  const bodies = withoutKey(current.bodies, id);
+  const images = withoutKey(current.images, id);
+  const commentOriginalTexts = withoutKey(current.commentOriginalTexts, id);
+  if (bodies !== current.bodies) setters.setBodies(bodies);
+  if (images !== current.images) setters.setImages(images);
+  if (commentOriginalTexts !== current.commentOriginalTexts) {
+    setters.setCommentOriginalTexts(commentOriginalTexts);
+  }
+  return { ...current, bodies, images, commentOriginalTexts };
+};
+
+const pruneDeletion = (id: string, current: CommentMaps, setters: PruneSetters): CommentMaps => {
+  const suggestionOriginalTexts = withoutKey(current.suggestionOriginalTexts, id);
+  if (suggestionOriginalTexts !== current.suggestionOriginalTexts) {
+    setters.setSuggestionOriginalTexts(suggestionOriginalTexts);
+  }
+  return { ...current, suggestionOriginalTexts };
+};
+
+const pruneRemovedAnnotation = (
   kind: "comment" | "deletion",
   id: string,
   current: CommentMaps,
-  setBodies: (next: Map<string, string>) => void,
-  setImages: (next: Map<string, string[]>) => void
-): CommentMaps => {
-  if (kind !== "comment") return current;
-  const bodies = withoutKey(current.bodies, id);
-  const images = withoutKey(current.images, id);
-  if (bodies !== current.bodies) setBodies(bodies);
-  if (images !== current.images) setImages(images);
-  return { bodies, images };
-};
+  setters: PruneSetters
+): CommentMaps =>
+  kind === "comment" ? pruneComment(id, current, setters) : pruneDeletion(id, current, setters);
+
+const snapshotOf = (editor: PlateEditor, maps: CommentMaps): EditorSnapshot => ({
+  value: editor.children,
+  commentBodies: new Map(maps.bodies),
+  commentImages: new Map(maps.images),
+  commentOriginalTexts: new Map(maps.commentOriginalTexts),
+  suggestionOriginalTexts: new Map(maps.suggestionOriginalTexts),
+});
+
+interface ToolbarButtonsProps {
+  onComment: () => void;
+  onDelete: () => void;
+}
+
+const ToolbarButtons = ({ onComment, onDelete }: ToolbarButtonsProps): React.ReactElement => (
+  <FloatingToolbar>
+    <Button data-testid="toolbar-comment" variant="ghost" size="sm" onClick={onComment}>
+      <MessageSquare />
+      Comment
+    </Button>
+    <Button data-testid="toolbar-delete" variant="ghost" size="sm" onClick={onDelete}>
+      <Strikethrough />
+      Delete
+    </Button>
+  </FloatingToolbar>
+);
 
 const useReadyHandle = (
   editor: PlateEditor,
-  bodies: Map<string, string>,
-  images: Map<string, string[]>,
+  maps: CommentMaps,
   removeAnnotation: ReviewEditorHandle["removeAnnotation"],
   onReady?: (h: ReviewEditorHandle) => void
 ): void => {
   useEffect(() => {
     onReady?.({
       getValue: () => editor.children,
-      getCommentBodies: () => new Map(bodies),
-      getCommentImages: () => new Map(images),
+      getCommentBodies: () => new Map(maps.bodies),
+      getCommentImages: () => new Map(maps.images),
+      getCommentOriginalTexts: () => new Map(maps.commentOriginalTexts),
+      getSuggestionOriginalTexts: () => new Map(maps.suggestionOriginalTexts),
       removeAnnotation,
     });
-  }, [editor, bodies, images, removeAnnotation, onReady]);
+  }, [editor, maps, removeAnnotation, onReady]);
 };
 
 /**
@@ -102,6 +161,8 @@ export const ReviewEditor = ({
   initialValue,
   initialBodies,
   initialImages,
+  initialCommentOriginalTexts,
+  initialSuggestionOriginalTexts,
   onReady,
   onChange,
 }: ReviewEditorProps): React.ReactElement => {
@@ -111,6 +172,12 @@ export const ReviewEditor = ({
   );
   const [images, setImages] = useState<Map<string, string[]>>(
     () => new Map(initialImages ?? new Map())
+  );
+  const [commentOriginalTexts, setCommentOriginalTexts] = useState<Map<string, string>>(
+    () => new Map(initialCommentOriginalTexts ?? new Map())
+  );
+  const [suggestionOriginalTexts, setSuggestionOriginalTexts] = useState<Map<string, string>>(
+    () => new Map(initialSuggestionOriginalTexts ?? new Map())
   );
   const [pending, setPending] = useState<AppliedComment | null>(null);
 
@@ -125,28 +192,30 @@ export const ReviewEditor = ({
 
   useTypingGuard(containerRef);
 
+  const maps = useMemo<CommentMaps>(
+    () => ({ bodies, images, commentOriginalTexts, suggestionOriginalTexts }),
+    [bodies, images, commentOriginalTexts, suggestionOriginalTexts]
+  );
+
+  const setters = useMemo<PruneSetters>(
+    () => ({ setBodies, setImages, setCommentOriginalTexts, setSuggestionOriginalTexts }),
+    []
+  );
+
   const onRemoveAnnotation = useCallback(
     (kind: "comment" | "deletion", id: string): void => {
       removeAnnotationMark(editor, kind, id);
-      const next = pruneRemovedComment(kind, id, { bodies, images }, setBodies, setImages);
-      onChange?.({
-        value: editor.children,
-        commentBodies: new Map(next.bodies),
-        commentImages: new Map(next.images),
-      });
+      const next = pruneRemovedAnnotation(kind, id, maps, setters);
+      onChange?.(snapshotOf(editor, next));
     },
-    [bodies, editor, images, onChange]
+    [editor, maps, onChange, setters]
   );
 
-  useReadyHandle(editor, bodies, images, onRemoveAnnotation, onReady);
+  useReadyHandle(editor, maps, onRemoveAnnotation, onReady);
 
   useEffect(() => {
-    onChange?.({
-      value: editor.children,
-      commentBodies: new Map(bodies),
-      commentImages: new Map(images),
-    });
-  }, [editor, bodies, images, onChange]);
+    onChange?.(snapshotOf(editor, maps));
+  }, [editor, maps, onChange]);
 
   const onCommentClick = useCallback((): void => {
     const applied = applyComment(editor);
@@ -155,13 +224,14 @@ export const ReviewEditor = ({
   }, [editor]);
 
   const onDeleteClick = useCallback((): void => {
-    applyDeletion(editor);
-    onChange?.({
-      value: editor.children,
-      commentBodies: new Map(bodies),
-      commentImages: new Map(images),
-    });
-  }, [bodies, editor, images, onChange]);
+    const applied = applyDeletion(editor);
+    if (applied === null) {
+      onChange?.(snapshotOf(editor, maps));
+      return;
+    }
+    setSuggestionOriginalTexts((prev) => new Map(prev).set(applied.id, applied.originalText));
+    // onChange fires via the effect above once the state lands.
+  }, [editor, maps, onChange]);
 
   const onComposerSave = useCallback(
     (payload: CommentComposerPayload): void => {
@@ -170,6 +240,7 @@ export const ReviewEditor = ({
       if (payload.images.length > 0) {
         setImages((prev) => new Map(prev).set(pending.id, payload.images));
       }
+      setCommentOriginalTexts((prev) => new Map(prev).set(pending.id, pending.originalText));
       setPending(null);
     },
     [pending]
@@ -185,16 +256,7 @@ export const ReviewEditor = ({
     >
       <Plate editor={editor}>
         <PlateContent readOnly className="outline-none" />
-        <FloatingToolbar>
-          <Button data-testid="toolbar-comment" variant="ghost" size="sm" onClick={onCommentClick}>
-            <MessageSquare />
-            Comment
-          </Button>
-          <Button data-testid="toolbar-delete" variant="ghost" size="sm" onClick={onDeleteClick}>
-            <Strikethrough />
-            Delete
-          </Button>
-        </FloatingToolbar>
+        <ToolbarButtons onComment={onCommentClick} onDelete={onDeleteClick} />
       </Plate>
       <CommentComposer
         open={pending !== null}

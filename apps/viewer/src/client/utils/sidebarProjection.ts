@@ -12,14 +12,12 @@ export interface SourceWindow {
   commentBodies: Map<string, string>;
   commentImages: Map<string, string[]>;
   globalComments: GlobalCommentEntry[];
+  /** Sidecar maps captured at annotation creation; drive drift detection in the walker. Phase 4.3. */
+  commentOriginalTexts?: Map<string, string>;
+  suggestionOriginalTexts?: Map<string, string>;
 }
 
-/**
- * Convert a single walker entry into the projection the sidebar component
- * consumes. The `drifted` flag is reserved for Phase 4.2 — anchors currently
- * walked from the live Plate value are by definition present, so 4.1 always
- * emits `false`.
- */
+/** Convert a single walker entry into the projection the sidebar component consumes. */
 export const toSidebarEntry = (entry: AnnotationEntry): AnnotationSidebarEntry => {
   if (entry.kind === "global") {
     return { id: entry.id, kind: "global", primary: entry.body };
@@ -31,6 +29,7 @@ export const toSidebarEntry = (entry: AnnotationEntry): AnnotationSidebarEntry =
   };
   if (entry.kind === "comment") base.body = entry.body;
   if (entry.lines !== undefined) base.lines = entry.lines;
+  if (entry.drifted === true) base.drifted = true;
   return base;
 };
 
@@ -41,6 +40,8 @@ export const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] 
     commentBodies: sources.commentBodies,
     commentImages: sources.commentImages,
     globalComments: sources.globalComments,
+    commentOriginalTexts: sources.commentOriginalTexts,
+    suggestionOriginalTexts: sources.suggestionOriginalTexts,
   }).map(toSidebarEntry);
 
 /** Scroll the DOM range tagged with `data-anno-id` into view. No-op when missing. */

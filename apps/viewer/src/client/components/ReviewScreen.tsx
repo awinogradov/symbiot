@@ -22,11 +22,33 @@ interface ReviewScreenProps {
 
 interface EditorPaneProps {
   isHistorical: boolean;
+  inCompareOverlay: boolean;
   version: ReturnType<typeof useVersionState>;
   state: ReturnType<typeof useReviewState>;
   plan: PlanResponse;
   activePlan: PlanResponse;
 }
+
+interface ReviewFlags {
+  isHistorical: boolean;
+  inCompareOverlay: boolean;
+  inDiffMode: boolean;
+  canCompareWithPredecessor: boolean;
+}
+
+const deriveReviewFlags = (
+  version: ReturnType<typeof useVersionState>,
+  bootVersion: number
+): ReviewFlags => {
+  const isHistorical = version.activeVersion !== bootVersion;
+  const onBoot = !isHistorical;
+  const hasPredecessor = version.previousVersion !== null;
+  const canCompareWithPredecessor = onBoot && hasPredecessor;
+  const inCompareOverlay = canCompareWithPredecessor && version.compareWithPredecessor;
+  const showsDiff = isHistorical || inCompareOverlay;
+  const inDiffMode = showsDiff && version.previousPlan !== null;
+  return { isHistorical, inCompareOverlay, inDiffMode, canCompareWithPredecessor };
+};
 
 const HistoricalPlaceholder = (): React.ReactElement => (
   <div
@@ -37,32 +59,43 @@ const HistoricalPlaceholder = (): React.ReactElement => (
   </div>
 );
 
+interface DiffOverlayProps {
+  version: ReturnType<typeof useVersionState>;
+}
+
+// Historical selection: never mount the editable `EditorMount`. Render the
+// read-only `DiffEditor` (which surfaces an empty-state banner when there is
+// no predecessor) or a loading placeholder while `previousPlan` is in flight.
+// Mounting `EditorMount` here would let its `onChange` persist the historical
+// markdown into the boot-slug's draft.
+//
+// Phase 4.3 — `inCompareOverlay` lifts the same diff render onto the boot
+// version so reviewers can see "what changed in this revision" without
+// remounting against an older boot.
+const DiffOverlay = ({ version }: DiffOverlayProps): React.ReactElement => {
+  if (version.previousPlan === null && version.previousVersion !== null) {
+    return <HistoricalPlaceholder />;
+  }
+  return (
+    <DiffMount
+      current={version.activePlan}
+      previous={version.previousPlan ?? version.activePlan}
+      currentVersion={version.activeVersion}
+      previousVersion={version.previousVersion}
+      mode={version.diffMode}
+    />
+  );
+};
+
 const EditorPane = ({
   isHistorical,
+  inCompareOverlay,
   version,
   state,
   plan,
   activePlan,
 }: EditorPaneProps): React.ReactElement => {
-  // Historical selection: never mount the editable `EditorMount`. Render the
-  // read-only `DiffEditor` (which surfaces an empty-state banner when there
-  // is no predecessor) or a loading placeholder while `previousPlan` is in
-  // flight. Mounting `EditorMount` here would let its `onChange` persist the
-  // historical markdown into the boot-slug's draft.
-  if (isHistorical) {
-    if (version.previousPlan === null && version.previousVersion !== null) {
-      return <HistoricalPlaceholder />;
-    }
-    return (
-      <DiffMount
-        current={version.activePlan}
-        previous={version.previousPlan ?? version.activePlan}
-        currentVersion={version.activeVersion}
-        previousVersion={version.previousVersion}
-        mode={version.diffMode}
-      />
-    );
-  }
+  if (isHistorical || inCompareOverlay) return <DiffOverlay version={version} />;
   return (
     <EditorMount
       reloadKey={state.reloadKey}
@@ -72,6 +105,8 @@ const EditorPane = ({
       initialValue={state.initialValue}
       initialBodies={state.initialBodies}
       initialImages={state.initialImages}
+      initialCommentOriginalTexts={state.initialCommentOriginalTexts}
+      initialSuggestionOriginalTexts={state.initialSuggestionOriginalTexts}
       onReady={state.setEditorHandle}
       onChange={state.onEditorChange}
     />
@@ -101,8 +136,8 @@ export const ReviewScreen = ({
     plan: version.activePlan,
     meta: { ...plan.meta, version: version.activeVersion },
   };
-  const isHistorical = version.activeVersion !== plan.meta.version;
-  const inDiffMode = isHistorical && version.previousPlan !== null;
+  const flags = deriveReviewFlags(version, plan.meta.version);
+  const { isHistorical, inCompareOverlay, inDiffMode, canCompareWithPredecessor } = flags;
 
   return (
     <SidebarProvider defaultOpen>
@@ -119,13 +154,14 @@ export const ReviewScreen = ({
         <main className="flex-1 overflow-auto px-8 py-6">
           <EditorPane
             isHistorical={isHistorical}
+            inCompareOverlay={inCompareOverlay}
             version={version}
             state={state}
             plan={plan}
             activePlan={activePlan}
           />
         </main>
-        {!isHistorical && (
+        {!isHistorical && !inCompareOverlay && (
           <GlobalCommentFab
             onAddGlobalComment={state.onAddGlobalComment}
             disabled={phase === "submitting"}
@@ -143,6 +179,9 @@ export const ReviewScreen = ({
         showDiffToggle={inDiffMode}
         diffMode={version.diffMode}
         onDiffModeChange={version.onDiffModeChange}
+        canCompareWithPredecessor={canCompareWithPredecessor}
+        comparingWithPredecessor={version.compareWithPredecessor}
+        onToggleCompare={version.onToggleCompare}
       />
     </SidebarProvider>
   );

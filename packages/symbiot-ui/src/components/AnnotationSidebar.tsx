@@ -77,6 +77,16 @@ interface AnnotationSidebarProps {
   diffMode: SidebarDiffMode;
   /** Called when the reviewer flips Clean ↔ Raw. */
   onDiffModeChange: (mode: SidebarDiffMode) => void;
+  /**
+   * Phase 4.3. When `true`, render a button that flips the editor pane into
+   * a read-only diff overlay of "current vs predecessor". Host gates this on
+   * "active version is the boot version AND a predecessor exists".
+   */
+  canCompareWithPredecessor: boolean;
+  /** Whether the predecessor-diff overlay is currently active. */
+  comparingWithPredecessor: boolean;
+  /** Flip the predecessor-diff overlay. */
+  onToggleCompare: () => void;
 }
 
 const kindLabel = (kind: AnnotationSidebarEntry["kind"]): string => {
@@ -279,6 +289,23 @@ const DiffModeToggle = ({ diffMode, onChange }: DiffToggleProps): React.ReactEle
   </ToggleGroup>
 );
 
+interface CompareButtonProps {
+  active: boolean;
+  onToggle: () => void;
+}
+
+const CompareButton = ({ active, onToggle }: CompareButtonProps): React.ReactElement => (
+  <Button
+    data-testid={active ? "compare-back-to-editing" : "compare-with-previous"}
+    variant={active ? "secondary" : "outline"}
+    size="sm"
+    className="w-full"
+    onClick={onToggle}
+  >
+    {active ? "Back to editing" : "Compare with previous"}
+  </Button>
+);
+
 interface HistoryPanelProps {
   versions: number[];
   activeVersion: number;
@@ -286,6 +313,9 @@ interface HistoryPanelProps {
   showDiffToggle: boolean;
   diffMode: SidebarDiffMode;
   onDiffModeChange: (next: string) => void;
+  canCompareWithPredecessor: boolean;
+  comparingWithPredecessor: boolean;
+  onToggleCompare: () => void;
 }
 
 const HistoryPanel = ({
@@ -295,8 +325,14 @@ const HistoryPanel = ({
   showDiffToggle,
   diffMode,
   onDiffModeChange,
+  canCompareWithPredecessor,
+  comparingWithPredecessor,
+  onToggleCompare,
 }: HistoryPanelProps): React.ReactElement => (
   <SidebarGroup className="flex flex-col gap-2 px-2">
+    {canCompareWithPredecessor && (
+      <CompareButton active={comparingWithPredecessor} onToggle={onToggleCompare} />
+    )}
     {showDiffToggle && <DiffModeToggle diffMode={diffMode} onChange={onDiffModeChange} />}
     <VersionBrowser versions={versions} active={activeVersion} onSelect={onSelectVersion} />
   </SidebarGroup>
@@ -322,6 +358,9 @@ export const AnnotationSidebar = ({
   showDiffToggle,
   diffMode,
   onDiffModeChange,
+  canCompareWithPredecessor,
+  comparingWithPredecessor,
+  onToggleCompare,
 }: AnnotationSidebarProps): React.ReactElement => {
   const hasHistory = versions.length >= 2;
   const [tab, setTab] = useState<TabValue>("annotations");
@@ -371,6 +410,9 @@ export const AnnotationSidebar = ({
                 showDiffToggle={showDiffToggle}
                 diffMode={diffMode}
                 onDiffModeChange={handleDiffModeChange}
+                canCompareWithPredecessor={canCompareWithPredecessor}
+                comparingWithPredecessor={comparingWithPredecessor}
+                onToggleCompare={onToggleCompare}
               />
             </TabsContent>
           </Tabs>

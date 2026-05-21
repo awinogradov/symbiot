@@ -31,10 +31,19 @@ export interface VersionState {
   previousPlan: string | null;
   /** Diff render mode for the History tab toggle. Persisted per browser. */
   diffMode: DiffMode;
+  /**
+   * Phase 4.3. When true AND the reviewer is on the boot version with a
+   * predecessor available, the editor pane renders a read-only diff overlay
+   * (current vs predecessor) instead of the editable editor. Auto-resets on
+   * version switch so a stale `true` can't bleed across selections.
+   */
+  compareWithPredecessor: boolean;
   /** Switch the editor to a previously persisted version. */
   onSelectVersion: (version: number) => void;
   /** Update the Clean/Raw toggle for diff rendering. */
   onDiffModeChange: (mode: DiffMode) => void;
+  /** Flip the "compare current with predecessor" overlay on the boot version. */
+  onToggleCompare: () => void;
 }
 
 const findPredecessor = (versions: number[], active: number): number | null => {
@@ -62,6 +71,7 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
     plan: string;
   } | null>(null);
   const [diffMode, setDiffMode] = useState<DiffMode>(readDiffMode);
+  const [compareWithPredecessor, setCompareWithPredecessor] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +117,10 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
   const onSelectVersion = useCallback(
     (version: number): void => {
       if (version === activeVersion) return;
+      // Switching off the boot version implicitly exits the predecessor-diff
+      // overlay so the new selection's natural Historical / Editable rendering
+      // takes over.
+      setCompareWithPredecessor(false);
       latestActiveRequestRef.current += 1;
       const requestId = latestActiveRequestRef.current;
       fetchPlanVersion(version)
@@ -125,6 +139,10 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
     writeDiffMode(mode);
   }, []);
 
+  const onToggleCompare = useCallback((): void => {
+    setCompareWithPredecessor((prev) => !prev);
+  }, []);
+
   return {
     versions,
     activeVersion,
@@ -132,7 +150,9 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
     previousVersion,
     previousPlan,
     diffMode,
+    compareWithPredecessor,
     onSelectVersion,
     onDiffModeChange,
+    onToggleCompare,
   };
 };
