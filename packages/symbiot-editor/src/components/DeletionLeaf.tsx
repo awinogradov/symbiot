@@ -13,7 +13,10 @@ interface DeletionLeafProps {
  * deletion can also carry a comment if a future flow needs it.
  */
 export const DeletionLeaf = ({ attributes, children }: DeletionLeafProps): React.ReactElement => (
-  <s {...attributes} className="text-anno-deletion line-through decoration-2">
+  <s
+    {...attributes}
+    className="text-anno-delete bg-anno-delete/10 rounded-sm px-0.5 line-through decoration-2"
+  >
     {children}
   </s>
 );

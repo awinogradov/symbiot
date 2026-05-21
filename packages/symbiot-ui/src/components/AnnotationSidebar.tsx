@@ -1,6 +1,8 @@
 import { Trash2 } from "lucide-react";
 import { memo, useCallback } from "react";
 
+import { cn } from "../utils/cn.ts";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +59,16 @@ const kindLabel = (kind: AnnotationSidebarEntry["kind"]): string => {
   }
 };
 
+const kindClass = (kind: AnnotationSidebarEntry["kind"]): string => {
+  switch (kind) {
+    case "comment":
+    case "global":
+      return "text-anno-comment";
+    case "deletion":
+      return "text-anno-delete";
+  }
+};
+
 interface EntryRowProps {
   entry: AnnotationSidebarEntry;
   onFocus: (id: string) => void;
@@ -74,7 +86,7 @@ const EntryRowInner = ({ entry, onFocus }: EntryRowProps): React.ReactElement =>
         className="flex h-auto flex-col items-start gap-1 py-2"
       >
         <div className="text-muted-foreground flex w-full items-center justify-between text-xs">
-          <span>{kindLabel(entry.kind)}</span>
+          <span className={cn("font-medium", kindClass(entry.kind))}>{kindLabel(entry.kind)}</span>
           {entry.lines !== undefined && (
             <span>
               lines {entry.lines.startLine}–{entry.lines.endLine}
