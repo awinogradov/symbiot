@@ -1,4 +1,3 @@
-import { Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { Button } from "./Button.tsx";
@@ -98,7 +97,6 @@ export const ComposerForm = ({
             onClick={save}
             disabled={body.trim().length === 0 && images.length === 0}
           >
-            <Send />
             Save
           </Button>
         </div>

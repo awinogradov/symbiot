@@ -1,7 +1,9 @@
-import { Check, PanelRight, Send } from "lucide-react";
+import { PanelRight } from "lucide-react";
 
 import { AppLogo } from "./AppLogo.tsx";
 import { Button } from "./Button.tsx";
+import { CheckIcon } from "./CheckIcon.tsx";
+import { SendIcon } from "./SendIcon.tsx";
 import { Separator } from "./Separator.tsx";
 import { SidebarTrigger } from "./Sidebar.tsx";
 
@@ -41,14 +43,14 @@ const Actions = ({
   if (mode === "plan" && !hasAnnotations) {
     return (
       <Button data-testid="top-bar-approve" size="sm" onClick={onApprove} disabled={busy}>
-        <Check />
+        <CheckIcon />
         Approve
       </Button>
     );
   }
   return (
     <Button data-testid="top-bar-deny" size="sm" onClick={onDeny} disabled={busy}>
-      <Send />
+      <SendIcon />
       {denyLabel(mode)}
     </Button>
   );
