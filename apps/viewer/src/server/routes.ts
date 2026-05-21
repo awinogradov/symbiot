@@ -64,10 +64,11 @@ const planVersionsRoute = async (ctx: RouteContext): Promise<Response> => {
   return jsonResponse({ versions, current: ctx.meta.version });
 };
 
+const versionParamPattern = /^[1-9]\d*$/;
+
 const parseVersionParam = (raw: string | null): number | null => {
-  if (raw === null) return null;
-  const n = Number.parseInt(raw, 10);
-  return Number.isInteger(n) && n >= 1 ? n : null;
+  if (raw === null || !versionParamPattern.test(raw)) return null;
+  return Number.parseInt(raw, 10);
 };
 
 const planVersionRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
