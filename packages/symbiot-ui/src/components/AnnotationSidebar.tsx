@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { memo, useCallback } from "react";
 
 import { cn } from "../utils/cn.ts";
@@ -23,6 +23,7 @@ import {
   SidebarGroup,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "./Sidebar.tsx";
@@ -45,6 +46,7 @@ export interface AnnotationSidebarEntry {
 interface AnnotationSidebarProps {
   entries: AnnotationSidebarEntry[];
   onFocus: (id: string) => void;
+  onRemove: (entry: AnnotationSidebarEntry) => void;
   onClearAll: () => void;
 }
 
@@ -69,13 +71,30 @@ const kindClass = (kind: AnnotationSidebarEntry["kind"]): string => {
   }
 };
 
+const removalDescription = (kind: AnnotationSidebarEntry["kind"]): string => {
+  switch (kind) {
+    case "comment":
+      return "This removes the comment from the plan. It can't be undone.";
+    case "deletion":
+      return "This removes the deletion suggestion from the plan. It can't be undone.";
+    case "global":
+      return "This removes the global comment from the plan. It can't be undone.";
+  }
+};
+
 interface EntryRowProps {
   entry: AnnotationSidebarEntry;
   onFocus: (id: string) => void;
+  onRemove: (entry: AnnotationSidebarEntry) => void;
 }
 
-const EntryRowInner = ({ entry, onFocus }: EntryRowProps): React.ReactElement => {
+const stopPointerPropagation = (event: React.PointerEvent<HTMLButtonElement>): void => {
+  event.stopPropagation();
+};
+
+const EntryRowInner = ({ entry, onFocus, onRemove }: EntryRowProps): React.ReactElement => {
   const handleClick = useCallback((): void => onFocus(entry.id), [entry.id, onFocus]);
+  const handleConfirm = useCallback((): void => onRemove(entry), [entry, onRemove]);
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -83,7 +102,7 @@ const EntryRowInner = ({ entry, onFocus }: EntryRowProps): React.ReactElement =>
         data-kind={entry.kind}
         onClick={handleClick}
         size="lg"
-        className="flex h-auto flex-col items-start gap-1 py-2"
+        className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground flex h-auto flex-col items-start gap-1 py-2 pr-9"
       >
         <div className="text-muted-foreground flex w-full items-center justify-between text-xs">
           <span className={cn("font-medium", kindClass(entry.kind))}>{kindLabel(entry.kind)}</span>
@@ -98,6 +117,30 @@ const EntryRowInner = ({ entry, onFocus }: EntryRowProps): React.ReactElement =>
           <span className="text-muted-foreground line-clamp-2 w-full text-xs">{entry.body}</span>
         )}
       </SidebarMenuButton>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <SidebarMenuAction
+            data-testid={`sidebar-entry-${entry.id}-remove`}
+            aria-label="Remove annotation"
+            showOnHover
+            onPointerDown={stopPointerPropagation}
+          >
+            <X />
+          </SidebarMenuAction>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this annotation?</AlertDialogTitle>
+            <AlertDialogDescription>{removalDescription(entry.kind)}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="sidebar-entry-remove-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction data-testid="sidebar-entry-remove-confirm" onClick={handleConfirm}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarMenuItem>
   );
 };
@@ -114,6 +157,7 @@ EntryRow.displayName = "EntryRow";
 export const AnnotationSidebar = ({
   entries,
   onFocus,
+  onRemove,
   onClearAll,
 }: AnnotationSidebarProps): React.ReactElement => {
   return (
@@ -133,7 +177,7 @@ export const AnnotationSidebar = ({
           ) : (
             <SidebarMenu>
               {entries.map((entry) => (
-                <EntryRow key={entry.id} entry={entry} onFocus={onFocus} />
+                <EntryRow key={entry.id} entry={entry} onFocus={onFocus} onRemove={onRemove} />
               ))}
             </SidebarMenu>
           )}

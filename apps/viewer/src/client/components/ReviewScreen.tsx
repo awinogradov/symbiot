@@ -65,6 +65,7 @@ export const ReviewScreen = ({
       <AnnotationSidebar
         entries={state.sidebarEntries}
         onFocus={focusAnnotation}
+        onRemove={state.onRemoveAnnotation}
         onClearAll={state.onClearAll}
       />
     </SidebarProvider>
