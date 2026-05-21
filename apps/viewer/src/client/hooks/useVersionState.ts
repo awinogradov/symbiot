@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { fetchPlanVersion, fetchPlanVersions } from "../libs/apiClient.ts";
 import type { PlanResponse } from "../../shared/apiTypes.ts";
@@ -42,11 +42,16 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
     };
   }, [plan.meta.version]);
 
+  const latestRequestRef = useRef(0);
+
   const onSelectVersion = useCallback(
     (version: number): void => {
       if (version === activeVersion) return;
+      latestRequestRef.current += 1;
+      const requestId = latestRequestRef.current;
       fetchPlanVersion(version)
         .then((res) => {
+          if (requestId !== latestRequestRef.current) return;
           setActivePlan(res.plan);
           setActiveVersion(res.meta.version);
         })
