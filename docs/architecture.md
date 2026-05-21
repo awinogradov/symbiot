@@ -61,6 +61,7 @@ into the same registry, so route paths and methods never drift.
 | GET    | `/api/plan`             | Plan markdown + viewer mode for the session. |
 | GET    | `/api/plan/versions`    | Every persisted version + the current one.   |
 | GET    | `/api/plan/version?n=N` | Markdown of a specific version.              |
+| POST   | `/api/plan/vscode-diff` | Spawn `code --diff <from> <to>` on the host. |
 | POST   | `/api/approve`          | Reviewer approved the plan.                  |
 | POST   | `/api/deny`             | Reviewer denied with free-text feedback.     |
 | POST   | `/api/feedback`         | Annotate-mode reviewer submitted feedback.   |
@@ -135,8 +136,20 @@ obsolete, delete the bullet rather than hedging it.
   this is by design (the diff smoke flow depends on it).
 - **Annotation anchors are dual-mode.** `packages/symbiot-annotations`
   resolves anchors first by Plate path, then by text-quote match on
-  `originalText`. The third state — `missing` — is the hook for drift
-  surfacing.
+  `originalText`. The third state — `missing` — surfaces as
+  `drifted: true` on the walker entry and renders the destructive
+  `drifted` badge in the sidebar.
+- **Drift detection is sidecar-driven, not codec-driven.** The walker
+  receives two optional maps — `commentOriginalTexts` and
+  `suggestionOriginalTexts` — and only invokes `resolveAnchor()` when
+  they're supplied. `originalText` is captured at annotation creation
+  (`applyComment.ts`, `applyDeletion.ts` already returned it; the values
+  are now persisted) and threaded through `EditorSnapshot` →
+  `DraftPayload` (optional fields for back-compat) → walker. Legacy
+  drafts without the maps walk with no drift signal, so the draft wire
+  format stays backward-compatible. The codec (C / G / D tuple
+  serializer) never sees the drift flag — only the sidebar UI consumes
+  it.
 
 ### Hook semantics
 
