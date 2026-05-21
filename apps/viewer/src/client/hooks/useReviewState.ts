@@ -107,23 +107,21 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
   const onRemoveAnnotation = useCallback(
     (entry: AnnotationSidebarEntry): void => {
       if (entry.kind === "global") {
-        setGlobalComments((prev) => {
-          const next = prev.filter((g) => g.id !== entry.id);
-          if (latestSnapshot !== null) {
-            saveDraft({
-              value: latestSnapshot.value,
-              commentBodies: latestSnapshot.commentBodies,
-              commentImages: latestSnapshot.commentImages,
-              globalComments: next,
-            });
-          }
-          return next;
-        });
+        const next = globalComments.filter((g) => g.id !== entry.id);
+        setGlobalComments(next);
+        if (latestSnapshot !== null) {
+          saveDraft({
+            value: latestSnapshot.value,
+            commentBodies: latestSnapshot.commentBodies,
+            commentImages: latestSnapshot.commentImages,
+            globalComments: next,
+          });
+        }
         return;
       }
       editorHandle?.removeAnnotation(entry.kind, entry.id);
     },
-    [editorHandle, latestSnapshot, saveDraft]
+    [editorHandle, globalComments, latestSnapshot, saveDraft]
   );
 
   return {

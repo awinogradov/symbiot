@@ -45,6 +45,33 @@ interface ReviewEditorProps {
   onChange?: (snapshot: EditorSnapshot) => void;
 }
 
+function withoutKey<V>(map: Map<string, V>, key: string): Map<string, V> {
+  if (!map.has(key)) return map;
+  const next = new Map(map);
+  next.delete(key);
+  return next;
+}
+
+interface CommentMaps {
+  bodies: Map<string, string>;
+  images: Map<string, string[]>;
+}
+
+const pruneRemovedComment = (
+  kind: "comment" | "deletion",
+  id: string,
+  current: CommentMaps,
+  setBodies: (next: Map<string, string>) => void,
+  setImages: (next: Map<string, string[]>) => void
+): CommentMaps => {
+  if (kind !== "comment") return current;
+  const bodies = withoutKey(current.bodies, id);
+  const images = withoutKey(current.images, id);
+  if (bodies !== current.bodies) setBodies(bodies);
+  if (images !== current.images) setImages(images);
+  return { bodies, images };
+};
+
 const useReadyHandle = (
   editor: PlateEditor,
   bodies: Map<string, string>,
@@ -101,10 +128,11 @@ export const ReviewEditor = ({
   const onRemoveAnnotation = useCallback(
     (kind: "comment" | "deletion", id: string): void => {
       removeAnnotationMark(editor, kind, id);
+      const next = pruneRemovedComment(kind, id, { bodies, images }, setBodies, setImages);
       onChange?.({
         value: editor.children,
-        commentBodies: new Map(bodies),
-        commentImages: new Map(images),
+        commentBodies: new Map(next.bodies),
+        commentImages: new Map(next.images),
       });
     },
     [bodies, editor, images, onChange]
