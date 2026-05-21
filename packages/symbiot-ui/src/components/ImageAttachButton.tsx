@@ -1,6 +1,8 @@
-import { useCallback, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { Loader2, Paperclip } from "lucide-react";
+import { useCallback, useRef, useState, type ChangeEvent } from "react";
 
 import { Button } from "./Button.tsx";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip.tsx";
 
 interface UploadResponse {
   id: string;
@@ -24,7 +26,6 @@ export const buildImageUrl = (ref: ImageRef): string => {
 interface ImageAttachButtonProps {
   onAttach: (ref: ImageRef) => void;
   disabled?: boolean;
-  icon?: ReactNode;
 }
 
 const uploadFile = async (file: File): Promise<ImageRef> => {
@@ -41,7 +42,6 @@ const uploadFile = async (file: File): Promise<ImageRef> => {
 export const ImageAttachButton = ({
   onAttach,
   disabled = false,
-  icon,
 }: ImageAttachButtonProps): React.ReactElement => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -68,6 +68,9 @@ export const ImageAttachButton = ({
     [onAttach]
   );
 
+  const label = uploading ? "Uploading…" : "Attach image";
+  const icon = uploading ? <Loader2 className="animate-spin" /> : <Paperclip />;
+
   return (
     <>
       <input
@@ -78,16 +81,21 @@ export const ImageAttachButton = ({
         hidden
         onChange={onChange}
       />
-      <Button
-        data-testid="image-attach-button"
-        variant="ghost"
-        size="sm"
-        onClick={onPick}
-        disabled={disabled || uploading}
-      >
-        {icon}
-        {uploading ? "Uploading…" : "Attach image"}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            data-testid="image-attach-button"
+            variant="ghost"
+            size="icon"
+            onClick={onPick}
+            disabled={disabled || uploading}
+            aria-label={label}
+          >
+            {icon}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
     </>
   );
 };
