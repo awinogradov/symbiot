@@ -22,3 +22,5 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: awinogradov/code-assistants/.github/actions/agents-rules-sync@main
+        with:
+          token: ${{ secrets.GH_TOKEN }}
