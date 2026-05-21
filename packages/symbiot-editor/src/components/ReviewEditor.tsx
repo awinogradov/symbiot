@@ -12,6 +12,7 @@ import {
 import { applyComment, type AppliedComment } from "../utils/applyComment.ts";
 import { applyDeletion } from "../utils/applyDeletion.ts";
 import { SymbiotEditorKit } from "../utils/kit.ts";
+import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 import { stampBlockLines } from "../utils/sourceLines.ts";
 import { useTypingGuard } from "../utils/typingGuard.ts";
 
@@ -22,6 +23,7 @@ export interface ReviewEditorHandle {
   getValue: () => unknown[];
   getCommentBodies: () => Map<string, string>;
   getCommentImages: () => Map<string, string[]>;
+  removeAnnotation: (kind: "comment" | "deletion", id: string) => void;
 }
 
 /** Snapshot of the editor state surfaced via the onChange callback. */
@@ -47,6 +49,7 @@ const useReadyHandle = (
   editor: PlateEditor,
   bodies: Map<string, string>,
   images: Map<string, string[]>,
+  removeAnnotation: ReviewEditorHandle["removeAnnotation"],
   onReady?: (h: ReviewEditorHandle) => void
 ): void => {
   useEffect(() => {
@@ -54,8 +57,9 @@ const useReadyHandle = (
       getValue: () => editor.children,
       getCommentBodies: () => new Map(bodies),
       getCommentImages: () => new Map(images),
+      removeAnnotation,
     });
-  }, [editor, bodies, images, onReady]);
+  }, [editor, bodies, images, removeAnnotation, onReady]);
 };
 
 /**
@@ -93,7 +97,20 @@ export const ReviewEditor = ({
   });
 
   useTypingGuard(containerRef);
-  useReadyHandle(editor, bodies, images, onReady);
+
+  const onRemoveAnnotation = useCallback(
+    (kind: "comment" | "deletion", id: string): void => {
+      removeAnnotationMark(editor, kind, id);
+      onChange?.({
+        value: editor.children,
+        commentBodies: new Map(bodies),
+        commentImages: new Map(images),
+      });
+    },
+    [bodies, editor, images, onChange]
+  );
+
+  useReadyHandle(editor, bodies, images, onRemoveAnnotation, onReady);
 
   useEffect(() => {
     onChange?.({

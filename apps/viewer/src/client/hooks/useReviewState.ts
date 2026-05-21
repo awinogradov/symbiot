@@ -37,6 +37,7 @@ export interface ReviewState {
   setEditorHandle: (handle: ReviewEditorHandle) => void;
   onEditorChange: (snapshot: EditorSnapshot) => void;
   onAddGlobalComment: (body: string, images: string[]) => void;
+  onRemoveAnnotation: (entry: AnnotationSidebarEntry) => void;
   onClearAll: () => void;
 }
 
@@ -103,6 +104,28 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
     setReloadKey((prev) => prev + 1);
   }, []);
 
+  const onRemoveAnnotation = useCallback(
+    (entry: AnnotationSidebarEntry): void => {
+      if (entry.kind === "global") {
+        setGlobalComments((prev) => {
+          const next = prev.filter((g) => g.id !== entry.id);
+          if (latestSnapshot !== null) {
+            saveDraft({
+              value: latestSnapshot.value,
+              commentBodies: latestSnapshot.commentBodies,
+              commentImages: latestSnapshot.commentImages,
+              globalComments: next,
+            });
+          }
+          return next;
+        });
+        return;
+      }
+      editorHandle?.removeAnnotation(entry.kind, entry.id);
+    },
+    [editorHandle, latestSnapshot, saveDraft]
+  );
+
   return {
     editorHandle,
     sidebarEntries,
@@ -114,6 +137,7 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
     setEditorHandle,
     onEditorChange,
     onAddGlobalComment,
+    onRemoveAnnotation,
     onClearAll,
   };
 };

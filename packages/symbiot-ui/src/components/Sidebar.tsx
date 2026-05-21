@@ -539,6 +539,41 @@ export const SidebarMenuButton = ({
   );
 };
 
+interface SidebarMenuActionProps extends HTMLAttributes<HTMLButtonElement> {
+  asChild?: boolean;
+  showOnHover?: boolean;
+  ref?: Ref<HTMLButtonElement>;
+}
+
+const sidebarMenuActionBaseClass =
+  "text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer-hover/menu-button:text-sidebar-accent-foreground absolute top-2 right-2 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-none transition-opacity focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0";
+
+const sidebarMenuActionHoverClass =
+  "opacity-0 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100";
+
+const composeSidebarMenuActionClass = (showOnHover: boolean, className?: string): string =>
+  cn(sidebarMenuActionBaseClass, showOnHover && sidebarMenuActionHoverClass, className);
+
+export const SidebarMenuAction = ({
+  asChild = false,
+  showOnHover = false,
+  className,
+  ref,
+  ...rest
+}: SidebarMenuActionProps): React.ReactElement => {
+  const Comp = asChild ? Slot : "button";
+  return (
+    <Comp
+      ref={ref}
+      type={asChild ? undefined : "button"}
+      data-sidebar="menu-action"
+      data-slot="sidebar-menu-action"
+      className={composeSidebarMenuActionClass(showOnHover, className)}
+      {...rest}
+    />
+  );
+};
+
 export const SidebarMenuSkeleton = ({
   className,
   showIcon = false,
