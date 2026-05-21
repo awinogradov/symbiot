@@ -6,17 +6,17 @@ When the agent emits a revised plan, surface a clean inline diff between version
 
 ## Exit criteria
 
-- [ ] Server returns version history (`/api/plan/version`, `/api/plan/versions`, `/api/plan/history`) and per-version markdown from `~/.symbiot/history/{project}/{slug}/00N.md`.
-- [ ] Sidebar shows a **Version Browser** section listing `001.md`, `002.md`, … with the current version highlighted.
-- [ ] When a previous version exists, the editor renders an inline diff between selected version and its predecessor using `computeDiff()` from `@platejs/diff`, additions/removals as suggestion-style marks (UC2).
-- [ ] **Two diff views:**
+- [x] Server returns version history (`/api/plan/version`, `/api/plan/versions`, `/api/plan/history`) and per-version markdown from `~/.symbiot/history/{project}/{slug}/00N.md`.
+- [x] Sidebar shows a **Version Browser** section listing `001.md`, `002.md`, … with the current version highlighted.
+- [x] When a previous version exists, the editor renders an inline diff between selected version and its predecessor using `computeDiff()` from `@platejs/diff`, additions/removals as suggestion-style marks (UC2).
+- [x] **Two diff views:**
   - **Clean** (default): changes only with surrounding context.
   - **Raw**: full unified markdown.
   - Toggled via shadcn `Tabs` or `ToggleGroup`.
-- [ ] **Diff nodes are namespaced** distinctly from reviewer-authored suggestions (e.g. `data-source="diff"`) — diff nodes cannot be "accepted" as feedback (R-5).
-- [ ] Annotations created in version N **remain attached** when navigating to version N+1 where the anchored text still exists. When it doesn't, the codec falls back to text-quote on `originalText` and surfaces "drifted" status in the sidebar.
-- [ ] symbiot's diff implementation is **inline-only** (no line-level fallback engine) — `@platejs/diff` is the sole diff source.
-- [ ] `POST /api/plan/vscode-diff` available for VS Code / Obsidian "open the diff externally" integration (plannotator-compatible endpoint name).
+- [x] **Diff nodes are namespaced** distinctly from reviewer-authored suggestions (e.g. `data-source="diff"`) — diff nodes cannot be "accepted" as feedback (R-5).
+- [x] Annotations created in version N **remain attached** when navigating to version N+1 where the anchored text still exists. When it doesn't, the codec falls back to text-quote on `originalText` and surfaces "drifted" status in the sidebar.
+- [x] symbiot's diff implementation is **inline-only** (no line-level fallback engine) — `@platejs/diff` is the sole diff source.
+- [x] `POST /api/plan/vscode-diff` available for VS Code / Obsidian "open the diff externally" integration (plannotator-compatible endpoint name).
 
 ## Scope
 

@@ -157,6 +157,73 @@ reviewer isn't staring at a blank pane wondering whether the renderer
 broke. The flag is `data-diff-empty="true"` on the editor root for BDD
 selectors.
 
+## Compare current with predecessor (Phase 4.3)
+
+The reviewer can also view the diff between the current (boot) version and
+its predecessor without first navigating to a historical row. The History
+tab renders a `Compare with previous` button when the active version is
+the boot version and a predecessor exists; clicking it flips the editor
+pane into the same read-only `DiffEditor` overlay used for historical
+selections, and `Back to editing` exits.
+
+- State: `useVersionState.compareWithPredecessor: boolean` plus
+  `onToggleCompare()`. The flag is auto-reset when the reviewer switches
+  versions so a stale `true` can't bleed across selections.
+- Gate: `ReviewScreen` derives
+  `inCompareOverlay = isBootVersion && hasPredecessor && compareWithPredecessor`
+  and passes it next to `isHistorical` into the `EditorPane`. Both
+  paths render `DiffMount`; the historical path is the only one a
+  predecessor selection can take, the overlay is the only one the boot
+  version with a predecessor can take.
+- Sidebar testids: `compare-with-previous` (off) and
+  `compare-back-to-editing` (on).
+
+## Drift detection (Phase 4.3)
+
+When a draft authored against version N is re-hydrated against a newer
+boot version, the captured anchor text may no longer match the current
+plan. The walker now detects this:
+
+- The editor captures `originalText` at annotation creation
+  (`applyComment.ts`, `applyDeletion.ts` — both already returned it; the
+  values are now persisted) and threads two sidecar maps through the
+  draft payload:
+  - `commentOriginalTexts: Record<string, string>`
+  - `suggestionOriginalTexts: Record<string, string>`
+- `walkAnnotations` accepts the same maps. For each fragment, when a
+  sidecar entry is present and its stored text differs from the live
+  text, the walker calls `resolveAnchor(value, { pathAnchor, originalText })`
+  against the current value. If the resolution strategy is `"missing"`,
+  the entry's `drifted: true` flag is set; the sidebar projection
+  surfaces a destructive `drifted` badge
+  (`sidebar-entry-<id>-drift`).
+- Back-compat: drafts persisted before Phase 4.3 lack the sidecar maps;
+  the walker emits no drift signal for them and `originalText` is
+  reconstructed from the live leaves (the prior behavior).
+- Drift never affects serialization — only the sidebar UI — because
+  `originalText` is still emitted as the second tuple element in the
+  C / D tuples. Drifted entries serialize identically; the reviewer just
+  knows their snapshot diverged from what's on screen.
+
+## `POST /api/plan/vscode-diff` (Phase 4.3)
+
+Plannotator-compatible endpoint that spawns `code --diff <from> <to>` on
+the host. No in-app caller (the in-viewer diff is sufficient for human
+reviewers); the route exists for third-party agent integrations (VS Code
+/ Obsidian extensions that target symbiot's HTTP surface).
+
+```
+POST /api/plan/vscode-diff
+{ "from": 1, "to": 2 }
+→ 204 — `code --diff` was spawned
+→ 400 — missing/invalid body or unknown version numbers
+→ 404 — at least one requested version file does not exist on disk
+→ 503 — `code` is not on PATH; body `{ "reason": "code-cli-missing" }`
+```
+
+Spawn is detached + `unref` so the viewer process is independent of the
+external editor's lifetime — same pattern as `openBrowser.ts`.
+
 ## Smoke flow
 
 See [`fixtures/plans/README.md`](../fixtures/plans/README.md) for the
@@ -180,9 +247,18 @@ authoring keeps working.
     version row selection, current-row marker.
   - `features/plan-review/version-history-diff.feature` — toggle visibility,
     historical version reveals the diff editor, Clean ↔ Raw flip.
+  - `features/plan-review/predecessor-diff.feature` — `Compare with
+previous` button appears on the current version with a predecessor,
+    overlay reveals the diff editor, `Back to editing` restores the
+    editor.
+  - `features/plan-review/drift-detection.feature` — seeded draft with a
+    stored anchor missing from the plan triggers the drift badge;
+    matching anchor does not.
 
-Both BDD scenario files share the `Given a second version of the plan
-exists on disk` step from `features/steps/versionHistory.steps.ts`.
+Version-history scenarios share the `Given a second version of the plan
+exists on disk` step from `features/steps/versionHistory.steps.ts`. Drift
+scenarios seed a draft directly under `~/.symbiot/drafts/...` in
+`features/steps/driftDetection.steps.ts`.
 
 ## Cross-references
 
