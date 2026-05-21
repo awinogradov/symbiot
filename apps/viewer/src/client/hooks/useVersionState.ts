@@ -25,6 +25,8 @@ export interface VersionState {
   activeVersion: number;
   /** Markdown for the currently rendered version (overrides `plan.plan` after a switch). */
   activePlan: string;
+  /** Version number immediately preceding `activeVersion`. `null` when none exists. */
+  previousVersion: number | null;
   /** Markdown for the version immediately preceding `activeVersion`. `null` when none exists. */
   previousPlan: string | null;
   /** Diff render mode for the History tab toggle. Persisted per browser. */
@@ -127,6 +129,7 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
     versions,
     activeVersion,
     activePlan,
+    previousVersion,
     previousPlan,
     diffMode,
     onSelectVersion,
