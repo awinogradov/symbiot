@@ -4,19 +4,17 @@ Feature: Compare current with predecessor
   the editor pane into a read-only diff overlay of current vs predecessor.
   "Back to editing" exits the overlay and restores the editable editor.
 
-  Scenario: Compare button is hidden when no predecessor exists
+  Scenario: Compare button is hidden on the Annotations tab
     Given I open the viewer
     Then the compare with previous button is not visible
 
-  Scenario: Compare button appears on the current version with a predecessor
-    Given a second version of the plan exists on disk
-    And I open the viewer
+  Scenario: Compare button appears on the History tab when a predecessor exists
+    Given I open the viewer
     When I click the sidebar history tab
     Then the compare with previous button is visible
 
   Scenario: Clicking compare reveals the diff editor and lets the reviewer exit
-    Given a second version of the plan exists on disk
-    And I open the viewer
+    Given I open the viewer
     When I click the sidebar history tab
     And I click the compare with previous button
     Then the diff editor is visible

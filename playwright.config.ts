@@ -18,8 +18,19 @@ const testDir = defineBddConfig({
   outputDir: ".features-generated",
 });
 
+// Seed `001.md` so the viewer boots as version `002.md` with a real
+// predecessor on disk. This is what `predecessor-diff.feature` asserts
+// against — the "Compare with previous" button is by-design only visible
+// when the boot version has a predecessor. CI starts from an empty
+// `~/.symbiot/` and would otherwise boot as version 1, no predecessor,
+// button correctly hidden, test incorrectly fails. `globalSetup` doesn't
+// help because Playwright starts `webServer` before `globalSetup`; doing
+// the seed inline in the command guarantees it runs first.
+const historyDir =
+  "$HOME/.symbiot/history/symbiot/example-plan-with-every-supported-markdown-element";
+
 const viewerCommand = (port: number, decisionFile: string, mode: "plan" | "annotate"): string =>
-  `bun apps/viewer/src/bin.ts --plan ${planPath} --port ${port} --no-open --keep-alive --decision-file ${decisionFile} --mode ${mode}`;
+  `mkdir -p "${historyDir}" && cp "${planPath}" "${historyDir}/001.md" && bun apps/viewer/src/bin.ts --plan ${planPath} --port ${port} --no-open --keep-alive --decision-file ${decisionFile} --mode ${mode}`;
 
 export default defineConfig({
   testDir,
