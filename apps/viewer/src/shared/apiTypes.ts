@@ -21,6 +21,18 @@ export interface PlanResponse {
   meta: PlanMeta;
 }
 
+/** Response payload of `GET /api/plan/versions`. */
+export interface PlanVersionsResponse {
+  versions: number[];
+  current: number;
+}
+
+/** Response payload of `GET /api/plan/version?n=N`. */
+export interface PlanVersionResponse {
+  plan: string;
+  meta: PlanMeta;
+}
+
 /**
  * Persisted reviewer draft. `GET /api/draft` returns this (or 204 when no draft
  * exists); `POST /api/draft` accepts the same shape. Maps are serialized as

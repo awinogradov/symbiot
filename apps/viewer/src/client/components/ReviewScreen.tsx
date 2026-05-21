@@ -5,6 +5,7 @@ import { TopBar } from "@symbiot/ui/components/TopBar";
 
 import { useReviewState } from "../hooks/useReviewState.ts";
 import { useReviewSubmit } from "../hooks/useReviewSubmit.ts";
+import { useVersionState } from "../hooks/useVersionState.ts";
 import { type DraftPayload, type PlanResponse } from "../../shared/apiTypes.ts";
 import { focusAnnotation } from "../utils/sidebarProjection.ts";
 
@@ -26,6 +27,7 @@ export const ReviewScreen = ({
   cancelDraft,
 }: ReviewScreenProps): React.ReactElement => {
   const state = useReviewState({ draft, saveDraft });
+  const version = useVersionState(plan);
   const { phase, onApprove, onSubmit } = useReviewSubmit({
     planMode: plan.mode,
     editorHandle: state.editorHandle,
@@ -34,6 +36,12 @@ export const ReviewScreen = ({
   });
 
   if (phase === "done") return <SubmittedScreen mode={plan.mode} />;
+
+  const activePlan: PlanResponse = {
+    ...plan,
+    plan: version.activePlan,
+    meta: { ...plan.meta, version: version.activeVersion },
+  };
 
   return (
     <SidebarProvider defaultOpen>
@@ -50,7 +58,9 @@ export const ReviewScreen = ({
         <main className="flex-1 overflow-auto px-8 py-6">
           <EditorMount
             reloadKey={state.reloadKey}
-            plan={plan}
+            activeVersion={version.activeVersion}
+            bootVersion={plan.meta.version}
+            plan={activePlan}
             initialValue={state.initialValue}
             initialBodies={state.initialBodies}
             initialImages={state.initialImages}
@@ -68,6 +78,9 @@ export const ReviewScreen = ({
         onFocus={focusAnnotation}
         onRemove={state.onRemoveAnnotation}
         onClearAll={state.onClearAll}
+        versions={version.versions}
+        activeVersion={version.activeVersion}
+        onSelectVersion={version.onSelectVersion}
       />
     </SidebarProvider>
   );

@@ -14,7 +14,12 @@ export interface SourceWindow {
   globalComments: GlobalCommentEntry[];
 }
 
-/** Convert a single walker entry into the projection the sidebar component consumes. */
+/**
+ * Convert a single walker entry into the projection the sidebar component
+ * consumes. The `drifted` flag is reserved for Phase 4.2 — anchors currently
+ * walked from the live Plate value are by definition present, so 4.1 always
+ * emits `false`.
+ */
 export const toSidebarEntry = (entry: AnnotationEntry): AnnotationSidebarEntry => {
   if (entry.kind === "global") {
     return { id: entry.id, kind: "global", primary: entry.body };

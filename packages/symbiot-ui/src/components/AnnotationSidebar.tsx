@@ -1,5 +1,5 @@
 import { Trash2, X } from "lucide-react";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState } from "react";
 
 import { cn } from "../utils/cn.ts";
 
@@ -27,6 +27,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "./Sidebar.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./Tabs.tsx";
+import { VersionBrowser } from "./VersionBrowser.tsx";
 
 /**
  * Sidebar-friendly projection of an annotation. Keeps `kind` + `id` + `text` so
@@ -41,6 +43,12 @@ export interface AnnotationSidebarEntry {
   /** Comment body for C; undefined for G/D. */
   body?: string;
   lines?: { startLine: number; endLine: number };
+  /**
+   * `true` when the annotation's anchor could not be resolved against the
+   * current plan version (path + text-quote both failed). Surfaced as a
+   * "drifted" badge in the sidebar.
+   */
+  drifted?: boolean;
 }
 
 interface AnnotationSidebarProps {
@@ -48,6 +56,12 @@ interface AnnotationSidebarProps {
   onFocus: (id: string) => void;
   onRemove: (entry: AnnotationSidebarEntry) => void;
   onClearAll: () => void;
+  /** Versions persisted on disk for this plan, ascending. */
+  versions: number[];
+  /** Currently rendered version. */
+  activeVersion: number;
+  /** Called when the reviewer picks a different version from the History tab. */
+  onSelectVersion: (version: number) => void;
 }
 
 const kindLabel = (kind: AnnotationSidebarEntry["kind"]): string => {
@@ -104,13 +118,24 @@ const EntryRowInner = ({ entry, onFocus, onRemove }: EntryRowProps): React.React
         size="lg"
         className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground flex h-auto flex-col items-start gap-1 py-2 pr-9"
       >
-        <div className="text-muted-foreground flex w-full items-center justify-between text-xs">
+        <div className="text-muted-foreground flex w-full items-center justify-between gap-2 text-xs">
           <span className={cn("font-medium", kindClass(entry.kind))}>{kindLabel(entry.kind)}</span>
-          {entry.lines !== undefined && (
-            <span>
-              lines {entry.lines.startLine}–{entry.lines.endLine}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {entry.drifted === true && (
+              <Badge
+                variant="destructive"
+                data-testid={`sidebar-entry-${entry.id}-drift`}
+                className="px-1.5 py-0 text-[10px]"
+              >
+                drifted
+              </Badge>
+            )}
+            {entry.lines !== undefined && (
+              <span>
+                lines {entry.lines.startLine}–{entry.lines.endLine}
+              </span>
+            )}
+          </div>
         </div>
         <span className="line-clamp-2 w-full text-sm font-medium">{entry.primary}</span>
         {entry.body !== undefined && (
@@ -148,18 +173,87 @@ const EntryRowInner = ({ entry, onFocus, onRemove }: EntryRowProps): React.React
 const EntryRow = memo(EntryRowInner);
 EntryRow.displayName = "EntryRow";
 
+interface AnnotationListProps {
+  entries: AnnotationSidebarEntry[];
+  onFocus: (id: string) => void;
+  onRemove: (entry: AnnotationSidebarEntry) => void;
+}
+
+const AnnotationList = ({
+  entries,
+  onFocus,
+  onRemove,
+}: AnnotationListProps): React.ReactElement => {
+  if (entries.length === 0) {
+    return <p className="text-muted-foreground px-2 text-xs">No annotations yet.</p>;
+  }
+  return (
+    <SidebarMenu>
+      {entries.map((entry) => (
+        <EntryRow key={entry.id} entry={entry} onFocus={onFocus} onRemove={onRemove} />
+      ))}
+    </SidebarMenu>
+  );
+};
+
+interface ClearAllFooterProps {
+  onClearAll: () => void;
+}
+
+const ClearAllFooter = ({ onClearAll }: ClearAllFooterProps): React.ReactElement => (
+  <SidebarFooter>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button data-testid="sidebar-clear-all" variant="outline" size="sm" className="w-full">
+          <Trash2 />
+          Clear all
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Clear all annotations?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This removes every comment, deletion, and global comment from the current plan. It
+            can&apos;t be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel data-testid="sidebar-clear-cancel">Cancel</AlertDialogCancel>
+          <AlertDialogAction data-testid="sidebar-clear-confirm" onClick={onClearAll}>
+            Clear all
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </SidebarFooter>
+);
+
+type TabValue = "annotations" | "history";
+
 /**
- * Right-aligned `<Sidebar>` listing all annotations on the current plan. Click
- * an entry → `onFocus(id)` (host scrolls to the marked DOM range via
- * `data-anno-id`). "Clear all" gates behind an AlertDialog so a stray click
- * can't lose work.
+ * Right-aligned `<Sidebar>` with two tabs: Annotations (the existing entry
+ * list) and History (a `VersionBrowser` listing every persisted plan version).
+ * The tab bar is hidden when only a single version exists so a fresh plan
+ * keeps the single-purpose UX.
+ *
+ * "Clear all" only renders on the Annotations tab so a stray click can't lose
+ * work while the reviewer is browsing history.
  */
 export const AnnotationSidebar = ({
   entries,
   onFocus,
   onRemove,
   onClearAll,
+  versions,
+  activeVersion,
+  onSelectVersion,
 }: AnnotationSidebarProps): React.ReactElement => {
+  const hasHistory = versions.length >= 2;
+  const [tab, setTab] = useState<TabValue>("annotations");
+  const handleTabChange = useCallback((next: string): void => {
+    if (next === "annotations" || next === "history") setTab(next);
+  }, []);
+  const showClearAll = entries.length > 0 && (!hasHistory || tab === "annotations");
   return (
     <Sidebar side="right" collapsible="offcanvas" data-testid="annotation-sidebar" className="w-80">
       <SidebarHeader>
@@ -171,50 +265,40 @@ export const AnnotationSidebar = ({
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup className="px-2">
-          {entries.length === 0 ? (
-            <p className="text-muted-foreground px-2 text-xs">No annotations yet.</p>
-          ) : (
-            <SidebarMenu>
-              {entries.map((entry) => (
-                <EntryRow key={entry.id} entry={entry} onFocus={onFocus} onRemove={onRemove} />
-              ))}
-            </SidebarMenu>
-          )}
-        </SidebarGroup>
+        {hasHistory ? (
+          <Tabs value={tab} onValueChange={handleTabChange} className="flex w-full flex-col gap-2">
+            <div className="px-2">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger data-testid="sidebar-tab-annotations" value="annotations">
+                  Annotations
+                </TabsTrigger>
+                <TabsTrigger data-testid="sidebar-tab-history" value="history">
+                  History
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="annotations">
+              <SidebarGroup className="px-2">
+                <AnnotationList entries={entries} onFocus={onFocus} onRemove={onRemove} />
+              </SidebarGroup>
+            </TabsContent>
+            <TabsContent value="history">
+              <SidebarGroup className="px-2">
+                <VersionBrowser
+                  versions={versions}
+                  active={activeVersion}
+                  onSelect={onSelectVersion}
+                />
+              </SidebarGroup>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <SidebarGroup className="px-2">
+            <AnnotationList entries={entries} onFocus={onFocus} onRemove={onRemove} />
+          </SidebarGroup>
+        )}
       </SidebarContent>
-      {entries.length > 0 && (
-        <SidebarFooter>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                data-testid="sidebar-clear-all"
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                <Trash2 />
-                Clear all
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clear all annotations?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This removes every comment, deletion, and global comment from the current plan. It
-                  can&apos;t be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel data-testid="sidebar-clear-cancel">Cancel</AlertDialogCancel>
-                <AlertDialogAction data-testid="sidebar-clear-confirm" onClick={onClearAll}>
-                  Clear all
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </SidebarFooter>
-      )}
+      {showClearAll && <ClearAllFooter onClearAll={onClearAll} />}
     </Sidebar>
   );
 };

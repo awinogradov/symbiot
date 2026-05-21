@@ -86,6 +86,25 @@ export const savePlan = async (plan: string, cwd: string = process.cwd()): Promi
 export const loadPlan = async (meta: PlanMeta): Promise<string> =>
   readFile(planFile(meta.project, meta.slug, meta.version), "utf8");
 
+/**
+ * List every version number persisted under
+ * ~/.symbiot/history/{project}/{slug}/, ascending. Returns `[]` when the plan
+ * directory does not exist yet.
+ */
+export const listVersions = async (meta: Pick<PlanMeta, "project" | "slug">): Promise<number[]> => {
+  try {
+    const entries = await readdir(planDir(meta.project, meta.slug));
+    return entries
+      .map((name) => /^(\d{3})\.md$/.exec(name)?.[1])
+      .filter((v): v is string => v !== undefined)
+      .map((v) => Number.parseInt(v, 10))
+      .sort((a, b) => a - b);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+};
+
 const annotationDir = (project: string, slug: string): string =>
   join(annotationsDir, project, slug);
 

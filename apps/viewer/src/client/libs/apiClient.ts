@@ -6,7 +6,12 @@
 import { z } from "zod";
 
 import { apiRoutes, type ApiRouteId } from "../../shared/apiRoutes.ts";
-import type { DraftPayload, PlanResponse } from "../../shared/apiTypes.ts";
+import type {
+  DraftPayload,
+  PlanResponse,
+  PlanVersionResponse,
+  PlanVersionsResponse,
+} from "../../shared/apiTypes.ts";
 
 const planMetaSchema = z.object({
   project: z.string(),
@@ -19,6 +24,16 @@ const planResponseSchema = z.object({
   mode: z.enum(["plan", "annotate"]),
   meta: planMetaSchema,
 }) satisfies z.ZodType<PlanResponse>;
+
+const planVersionsResponseSchema = z.object({
+  versions: z.array(z.number().int()),
+  current: z.number().int(),
+}) satisfies z.ZodType<PlanVersionsResponse>;
+
+const planVersionResponseSchema = z.object({
+  plan: z.string(),
+  meta: planMetaSchema,
+}) satisfies z.ZodType<PlanVersionResponse>;
 
 const globalCommentSchema = z.object({
   id: z.string(),
@@ -38,7 +53,15 @@ interface RequestOptions<T> {
   /** Zod schema to parse the response with. `null` means: ignore the body. */
   schema: z.ZodType<T> | null;
   body?: unknown;
+  query?: Record<string, string>;
 }
+
+const buildUrl = (path: string, query?: Record<string, string>): string => {
+  if (query === undefined) return path;
+  const params = new URLSearchParams(query);
+  const qs = params.toString();
+  return qs.length > 0 ? `${path}?${qs}` : path;
+};
 
 const request = async <T>(id: ApiRouteId, opts: RequestOptions<T>): Promise<T> => {
   const { method, path } = apiRoutes[id];
@@ -47,7 +70,7 @@ const request = async <T>(id: ApiRouteId, opts: RequestOptions<T>): Promise<T> =
     init.headers = { "Content-Type": "application/json" };
     init.body = JSON.stringify(opts.body);
   }
-  const res = await fetch(path, init);
+  const res = await fetch(buildUrl(path, opts.query), init);
   if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`);
   if (opts.schema === null) return undefined as T;
   // 204 No Content is a valid "absent" signal for nullable schemas (e.g. draft).
@@ -58,6 +81,17 @@ const request = async <T>(id: ApiRouteId, opts: RequestOptions<T>): Promise<T> =
 /** Fetch the plan + viewer mode for the current session. */
 export const fetchPlan = (): Promise<PlanResponse> =>
   request("plan", { schema: planResponseSchema });
+
+/** List every plan version persisted on disk, plus the version currently in session. */
+export const fetchPlanVersions = (): Promise<PlanVersionsResponse> =>
+  request("planVersions", { schema: planVersionsResponseSchema });
+
+/** Load a specific plan version's markdown by version number. */
+export const fetchPlanVersion = (version: number): Promise<PlanVersionResponse> =>
+  request("planVersion", {
+    schema: planVersionResponseSchema,
+    query: { n: String(version) },
+  });
 
 /** Approve the plan. Server records the decision and shuts down. */
 export const postApprove = (): Promise<void> => request("approve", { schema: null });
