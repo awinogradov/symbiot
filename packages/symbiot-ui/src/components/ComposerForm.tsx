@@ -1,4 +1,4 @@
-import { Paperclip, Send, X } from "lucide-react";
+import { Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { Button } from "./Button.tsx";
@@ -21,10 +21,9 @@ interface ComposerFormProps {
 }
 
 /**
- * Shared body/images/Save/Cancel block used by both the selection-anchored
- * `CommentComposer` (Popover) and the global `GlobalCommentComposer` (Dialog).
- * Auto-focuses the textarea on `open`; Enter saves, Shift+Enter newlines,
- * Esc cancels.
+ * Shared body/images/Save/Cancel block used by both the inline `CommentComposer`
+ * and the global `GlobalCommentComposer` dialogs. Auto-focuses the textarea on
+ * `open`; Enter saves, Shift+Enter newlines, Esc cancels.
  */
 export const ComposerForm = ({
   open,
@@ -84,13 +83,13 @@ export const ComposerForm = ({
         onChange={(e) => setBody(e.target.value)}
         placeholder={placeholder}
         onKeyDown={onKeyDown}
+        className="min-h-40 sm:min-h-48"
       />
       <ImagePreviewList images={images} onRemove={onRemove} />
       <div className="flex items-center justify-between gap-2">
-        <ImageAttachButton onAttach={onAttach} icon={<Paperclip />} />
+        <ImageAttachButton onAttach={onAttach} />
         <div className="flex gap-2">
           <Button data-testid={testId?.cancel} variant="ghost" size="sm" onClick={cancel}>
-            <X />
             Cancel
           </Button>
           <Button

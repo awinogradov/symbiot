@@ -1,22 +1,23 @@
-import { useCallback, type ReactNode } from "react";
+import { useCallback } from "react";
 
 import { ComposerForm, type ComposerPayload } from "./ComposerForm.tsx";
-import { Popover, PopoverAnchor, PopoverContent } from "./Popover.tsx";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./Dialog.tsx";
 
 /** Payload the host receives when the composer saves. */
 export type CommentComposerPayload = ComposerPayload;
 
 interface CommentComposerProps {
   open: boolean;
-  anchor: ReactNode;
+  /** Selected text rendered as a quote above the textarea. */
+  quote: string;
   onSave: (payload: CommentComposerPayload) => void;
   onCancel: () => void;
 }
 
-/** Selection-anchored Popover that captures a comment body + optional images. */
+/** Modal Dialog that captures a comment body + optional images for a text selection. */
 export const CommentComposer = ({
   open,
-  anchor,
+  quote,
   onSave,
   onCancel,
 }: CommentComposerProps): React.ReactElement => {
@@ -28,9 +29,18 @@ export const CommentComposer = ({
   );
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverAnchor asChild>{anchor}</PopoverAnchor>
-      <PopoverContent data-testid="comment-composer" align="start" className="w-80">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid="comment-composer" className="sm:max-w-md">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Comment on selection</DialogTitle>
+          <DialogDescription>Add a comment to the selected text.</DialogDescription>
+        </DialogHeader>
+        <blockquote
+          data-testid="composer-quote"
+          className="border-muted-foreground/30 text-muted-foreground line-clamp-4 border-l-2 pl-3 text-sm whitespace-pre-wrap italic"
+        >
+          {quote}
+        </blockquote>
         <ComposerForm
           open={open}
           placeholder="Comment on this selection… (Enter to save, Esc to cancel)"
@@ -42,7 +52,7 @@ export const CommentComposer = ({
             save: "composer-save",
           }}
         />
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 };
