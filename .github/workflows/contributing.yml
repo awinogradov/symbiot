@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: deepakputhraya/action-branch-name@master
+      - uses: deepakputhraya/action-branch-name@v1.0.0
         with:
           regex: '^(issue-\d+-[a-z0-9]+(-[a-z0-9]+)*|(hotfix|trivial|maintenance|proposal)-[a-z0-9]+(-[a-z0-9]+)*|release-\d+\.\d+\.\d+)$'
           min_length: 5
