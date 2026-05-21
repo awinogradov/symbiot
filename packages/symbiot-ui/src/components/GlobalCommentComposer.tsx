@@ -27,7 +27,7 @@ export const GlobalCommentComposer = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="global-comment-composer" className="sm:max-w-md">
+      <DialogContent data-testid="global-comment-composer" className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Global comment</DialogTitle>
           <DialogDescription>Leave feedback that isn&apos;t tied to a selection.</DialogDescription>

@@ -30,7 +30,7 @@ export const CommentComposer = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="comment-composer" className="sm:max-w-md">
+      <DialogContent data-testid="comment-composer" className="sm:max-w-2xl">
         <DialogHeader className="sr-only">
           <DialogTitle>Comment on selection</DialogTitle>
           <DialogDescription>Add a comment to the selected text.</DialogDescription>
