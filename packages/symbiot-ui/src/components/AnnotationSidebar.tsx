@@ -4,7 +4,8 @@ import { AnnotationList, ClearAllFooter } from "./AnnotationSidebarList.tsx";
 import { HistoryPanel } from "./AnnotationSidebarHistory.tsx";
 import { type AnnotationSidebarEntry, type SidebarDiffMode } from "./AnnotationSidebarTypes.tsx";
 import { Badge } from "./Badge.tsx";
-import { Sidebar, SidebarContent, SidebarGroup, SidebarHeader } from "./Sidebar.tsx";
+import { Sidebar } from "./Sidebar.tsx";
+import { SidebarContent, SidebarGroup, SidebarHeader } from "./SidebarSection.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./Tabs.tsx";
 
 /** Props driving the annotation sidebar shell. */

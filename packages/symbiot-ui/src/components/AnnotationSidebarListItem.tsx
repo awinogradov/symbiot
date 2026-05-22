@@ -21,7 +21,7 @@ import {
   removalDescription,
 } from "./AnnotationSidebarTypes.tsx";
 import { Badge } from "./Badge.tsx";
-import { SidebarMenuAction, SidebarMenuButton, SidebarMenuItem } from "./Sidebar.tsx";
+import { SidebarMenuAction, SidebarMenuButton, SidebarMenuItem } from "./SidebarMenu.tsx";
 
 /** Props for the memoized row inside the annotation list. */
 interface EntryRowProps {

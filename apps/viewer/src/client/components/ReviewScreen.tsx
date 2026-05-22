@@ -1,6 +1,7 @@
 import { AnnotationSidebar } from "@symbiot/ui/components/AnnotationSidebar";
 import { GlobalCommentFab } from "@symbiot/ui/components/GlobalCommentFab";
-import { SidebarInset, SidebarProvider } from "@symbiot/ui/components/Sidebar";
+import { SidebarInset } from "@symbiot/ui/components/SidebarChrome";
+import { SidebarProvider } from "@symbiot/ui/components/SidebarProvider";
 import { TopBar } from "@symbiot/ui/components/TopBar";
 
 import { useReviewState } from "../hooks/useReviewState.ts";

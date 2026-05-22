@@ -14,7 +14,8 @@ import {
 import { EntryRow } from "./AnnotationSidebarListItem.tsx";
 import { type AnnotationSidebarEntry } from "./AnnotationSidebarTypes.tsx";
 import { Button } from "./Button.tsx";
-import { SidebarFooter, SidebarMenu } from "./Sidebar.tsx";
+import { SidebarFooter } from "./SidebarSection.tsx";
+import { SidebarMenu } from "./SidebarMenu.tsx";
 
 /** Props for the annotation entry list. */
 interface AnnotationListProps {
