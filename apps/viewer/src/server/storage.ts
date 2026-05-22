@@ -7,18 +7,28 @@ import type { PlanMeta } from "../shared/apiTypes.ts";
 
 /**
  * symbiot's on-disk storage root. All plan history and drafts live under here.
+ * Computed per call from `process.env.HOME` so tests can redirect to a tmpdir
+ * by mutating `HOME` and re-importing — necessary under Bun, where
+ * `os.homedir()` is captured once at runtime startup.
  *
  * @see plans/02-mvp.md — storage layout for the MVP plan-review loop.
  */
-export const storageRoot = join(homedir(), ".symbiot");
+export const getStorageRoot = (): string => join(process.env.HOME ?? homedir(), ".symbiot");
 
-const historyDir = join(storageRoot, "history");
-const annotationsDir = join(storageRoot, "annotations");
-const draftsDir = join(storageRoot, "drafts");
-const uploadsDir = join(storageRoot, "uploads");
+/**
+ * Static snapshot of {@link getStorageRoot} captured at module load. Use only
+ * where a stable value is acceptable (currently the path-traversal guard for
+ * `/api/upload`); prefer {@link getStorageRoot} elsewhere.
+ */
+export const storageRoot = getStorageRoot();
+
+const historyDir = (): string => join(getStorageRoot(), "history");
+const annotationsDir = (): string => join(getStorageRoot(), "annotations");
+const draftsDir = (): string => join(getStorageRoot(), "drafts");
+const uploadsDir = (): string => join(getStorageRoot(), "uploads");
 
 /** Root directory for `/api/upload` writes. Exposed for security guards. */
-export const uploadsRoot = uploadsDir;
+export const uploadsRoot = uploadsDir();
 
 export type { PlanMeta };
 
@@ -45,7 +55,7 @@ export const derivePlanSlug = (plan: string): string =>
 
 const padVersion = (n: number): string => String(n).padStart(3, "0");
 
-const planDir = (project: string, slug: string): string => join(historyDir, project, slug);
+const planDir = (project: string, slug: string): string => join(historyDir(), project, slug);
 
 const planFile = (project: string, slug: string, version: number): string =>
   join(planDir(project, slug), `${padVersion(version)}.md`);
@@ -115,7 +125,7 @@ export const listVersions = async (meta: Pick<PlanMeta, "project" | "slug">): Pr
 };
 
 const annotationDir = (project: string, slug: string): string =>
-  join(annotationsDir, project, slug);
+  join(annotationsDir(), project, slug);
 
 const annotationFile = (project: string, slug: string, version: number): string =>
   join(annotationDir(project, slug), `${padVersion(version)}.md`);
@@ -134,7 +144,7 @@ export const saveFeedback = async (
 };
 
 const draftFile = (project: string, slug: string): string =>
-  join(draftsDir, project, slug, "draft.json");
+  join(draftsDir(), project, slug, "draft.json");
 
 /** Persist the reviewer's in-progress annotations for restoration across reloads. */
 export const saveDraft = async (meta: PlanMeta, draft: string): Promise<void> => {
@@ -156,7 +166,7 @@ export const clearDraft = async (meta: PlanMeta): Promise<void> => {
   await rm(draftFile(meta.project, meta.slug), { force: true });
 };
 
-const uploadDir = (project: string, slug: string): string => join(uploadsDir, project, slug);
+const uploadDir = (project: string, slug: string): string => join(uploadsDir(), project, slug);
 
 /** Resolve the on-disk path for an uploaded image. Caller MUST validate the filename. */
 export const uploadPath = (meta: PlanMeta, filename: string): string =>
