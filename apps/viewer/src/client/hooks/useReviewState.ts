@@ -9,7 +9,7 @@ import {
   type EditorSnapshot,
   type ReviewEditorHandle,
 } from "@symbiot/editor/components/ReviewEditor";
-import { type AnnotationSidebarEntry } from "@symbiot/ui/components/AnnotationSidebar";
+import { type AnnotationSidebarEntry } from "@symbiot/ui/components/AnnotationSidebarTypes";
 
 import { type DraftPayload } from "../../shared/apiTypes.ts";
 import {
