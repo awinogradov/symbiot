@@ -1,0 +1,45 @@
+name: Licenses
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "apps/*/package.json"
+      - "packages/*/package.json"
+      - "bun.lock"
+      - "licenses-report.ts"
+      - "LICENSES.md"
+      - ".github/workflows/licenses.yml"
+
+concurrency:
+  group: licenses-${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: "true"
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Licenses audit
+        run: bun run licenses:audit && git diff --exit-code -- LICENSES.md
