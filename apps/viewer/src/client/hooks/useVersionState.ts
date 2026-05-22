@@ -48,9 +48,13 @@ export interface VersionState {
   onToggleCompare: () => void;
 }
 
-const findPredecessor = (versions: number[], active: number): number | null => {
-  const idx = versions.indexOf(active);
-  if (idx <= 0) return null;
+const findPredecessorInIndex = (
+  versions: number[],
+  index: Map<number, number>,
+  active: number
+): number | null => {
+  const idx = index.get(active);
+  if (idx === undefined || idx <= 0) return null;
   return versions[idx - 1] ?? null;
 };
 
@@ -85,9 +89,14 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
   const latestActiveRequestRef = useRef(0);
   const latestPreviousRequestRef = useRef(0);
 
+  const versionIndex = useMemo(
+    () => new Map(versions.map((value, index) => [value, index])),
+    [versions]
+  );
+
   const previousVersion = useMemo(
-    () => findPredecessor(versions, activeVersion),
-    [versions, activeVersion]
+    () => findPredecessorInIndex(versions, versionIndex, activeVersion),
+    [versions, versionIndex, activeVersion]
   );
 
   useEffect(() => {
