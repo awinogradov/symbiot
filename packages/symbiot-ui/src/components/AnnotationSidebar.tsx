@@ -85,7 +85,7 @@ export const AnnotationSidebar = ({
     <Sidebar side="right" collapsible="offcanvas" data-testid="annotation-sidebar" className="w-80">
       <SidebarContent>
         <Tabs value={tab} onValueChange={handleTabChange} className="flex w-full flex-col gap-2">
-          <div className="px-2 pt-2">
+          <div className="flex h-14 items-center px-2">
             <TabsList className="flex w-full">
               <TabsTrigger
                 data-testid="sidebar-tab-annotations"
