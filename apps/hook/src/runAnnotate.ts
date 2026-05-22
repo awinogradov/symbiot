@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 
 import { startServer } from "@symbiot/viewer";
 
+import { bundledStaticRoot } from "./bundledStaticRoot.ts";
+
 /**
  * `symbiot annotate <file.md>` — boot the viewer in annotate mode against
  * the given markdown file. Blocks until the reviewer submits feedback,
@@ -15,7 +17,11 @@ export const runAnnotate = async (filePath: string | undefined): Promise<number>
     return 64;
   }
   const plan = await readFile(filePath, "utf8");
-  const server = await startServer({ plan, mode: "annotate" });
+  const server = await startServer({
+    plan,
+    mode: "annotate",
+    staticRoot: await bundledStaticRoot(import.meta.url),
+  });
   process.stderr.write(`symbiot: annotate ${filePath} at ${server.url}\n`);
   const decision = await server.resolved;
   await server.stop();

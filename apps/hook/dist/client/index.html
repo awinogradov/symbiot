@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/x-icon" href="/favicon.ico" sizes="16x16 32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <title>symbiot — review plan</title>
+    <!--
+      Pre-paint theme resolution. Must stay inline and synchronous (no defer/async/type=module)
+      so the first painted frame already reflects the resolved theme — prevents FOUC on dark OS.
+      The `symbiot.theme` localStorage key contract is owned by Phase 7.1 (#49).
+    -->
+    <script>try{var t=localStorage.getItem('symbiot.theme');var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}</script>
+    <script type="module" crossorigin src="/assets/index-C96upsbZ.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DlmXi2oh.css">
+  </head>
+  <body class="bg-background text-foreground">
+    <div id="root"></div>
+  </body>
+</html>

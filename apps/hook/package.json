@@ -5,10 +5,10 @@
   "type": "module",
   "main": "src/cli.ts",
   "bin": {
-    "symbiot": "./src/cli.ts"
+    "symbiot": "./dist/cli.js"
   },
   "scripts": {
-    "build": "bun build src/cli.ts --target=bun --outfile dist/cli.js",
+    "build": "bun build src/cli.ts --target=bun --outfile dist/cli.js && rm -rf dist/client && cp -r ../viewer/dist/client dist/client",
     "install-hook": "bun src/cli.ts install-hook",
     "uninstall-hook": "bun src/cli.ts uninstall-hook",
     "run-hook": "bun src/cli.ts run-hook",

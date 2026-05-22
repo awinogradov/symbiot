@@ -15,7 +15,19 @@ Review and annotate the plans your AI coding agents produce, then send structure
 - Playwright-BDD — end-to-end tests
 - Filesystem-only storage under `~/.symbiot/` (no database)
 
-## Quick start
+## Install (Claude Code plugin)
+
+```
+/plugin marketplace add awinogradov/symbiot
+/plugin install symbiot
+```
+
+Claude Code clones the repo, registers the `PreToolUse(ExitPlanMode)` and
+`PermissionRequest(ExitPlanMode)` hooks, and invokes the bundled
+`apps/hook/dist/cli.js` whenever an agent presents a plan. Requires `bun` on
+your PATH.
+
+## Quick start (development)
 
 ```sh
 bun install
@@ -29,6 +41,14 @@ Smoke-run the viewer against a fixture plan:
 bun run viewer:smoke
 # or, explicitly:
 bun --filter @symbiot/viewer start --plan fixtures/plans/elements.md
+```
+
+For contributors who want to wire the dev tree into `~/.claude/settings.json`
+without packaging the plugin, the legacy installer still works:
+
+```sh
+bun run hook:install     # writes settings.json entries pointing at apps/hook/src/cli.ts
+bun run hook:uninstall   # removes them
 ```
 
 ## Auto-approve
