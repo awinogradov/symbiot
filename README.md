@@ -31,21 +31,29 @@ bun run viewer:smoke
 bun --filter @symbiot/viewer start --plan fixtures/plans/elements.md
 ```
 
-## Known limitations
+## Auto-approve
 
-When the reviewer clicks **Approve** in the viewer, symbiot's
-`PreToolUse(ExitPlanMode)` hook emits the documented `permissionDecision:
-"allow"` payload, but Claude Code currently ignores that field for the
-`ExitPlanMode` matcher and still surfaces its native "Accept this plan?"
-prompt — so today the reviewer accepts twice (once in symbiot, once in
-Claude Code).
+Reviewer Approve in the viewer auto-confirms the plan in Claude Code —
+no second "Accept this plan?" prompt. The installer registers two
+hooks under the `ExitPlanMode` matcher:
 
-Tracked in [symbiot#1](https://github.com/awinogradov/symbiot/issues/1);
-upstream bug is
+- `PreToolUse(ExitPlanMode)` drives the viewer, persists the approval
+  verdict to `~/.symbiot/hook-state/last-approve.json`, and emits the
+  documented `permissionDecision: "allow"` payload.
+- `PermissionRequest(ExitPlanMode)` reads that marker and, on a
+  plan-hash + freshness match, emits the nested
+  `{decision: {behavior: "allow"}}` schema that Claude Code honors for
+  this event — suppressing the native prompt.
+
+If the marker is stale, missing, or for a different plan, the
+PermissionRequest hook writes nothing and Claude Code falls through to
+its native prompt — graceful degradation. Request-changes (deny) is
+routed via the bulletproof `{decision: "block", reason}` field on
+`PreToolUse` and is unaffected by either schema.
+
+Background and the upstream PreToolUse bug are tracked in
+[symbiot#1](https://github.com/awinogradov/symbiot/issues/1) /
 [anthropics/claude-code#50660](https://github.com/anthropics/claude-code/issues/50660).
-The auto-approve payload will start working transparently as soon as the
-upstream fix lands; the **Request changes** path is unaffected and
-already routes feedback back without a second prompt.
 
 ## Local testing
 
