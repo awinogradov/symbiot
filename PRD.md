@@ -1,10 +1,15 @@
 # symbiot — Product Requirements Document
 
 **Project / repo:** `symbiot`
-**Status:** Draft v1.1
+**Status:** Draft v1.2
 **Type:** Rewrite of [plannotator](https://github.com/backnotprop/plannotator) on PlateJS
 **Owner:** _TBD_
-**Last updated:** 2026-05-17
+**Last updated:** 2026-05-22
+
+> **Changelog v1.1 → v1.2**
+> - Insertion (§6.5) and Replacement (§6.6) authored end-to-end as net-new symbiot extensions beyond the plannotator-compatible 3-tuple set (Appendix A).
+> - §8.4 OQ-1 resolved: Pattern A confirmed in Phase 0 — `editor.tf.*` transforms bypass `contenteditable=false`, no transient readOnly toggle needed.
+> - Phase 5 closed (§11).
 
 > **Changelog v1.0 → v1.1**
 > - Code review mode removed entirely (out of scope).
@@ -327,12 +332,12 @@ Agent exits plan mode
 
 ### 8.4 Read-only vs. suggestion authoring — key technical decision
 
-Plate's docs confirm comment popovers work inside `<Plate readOnly>`. **Suggestion *authoring*, however, issues Slate transactions that require a writable editor.** Two viable patterns; the PRD mandates **Pattern A** unless prototyping shows otherwise:
+Plate's docs confirm comment popovers work inside `<Plate readOnly>`. **Suggestion *authoring*, however, was assumed to require a writable editor.** Phase 0 disproved that assumption: `editor.tf.*` transforms bypass the DOM `contenteditable=false` set by `<PlateContent readOnly />` entirely.
 
-- **Pattern A — transient editability (required default).** The editor stays mounted as `<Plate>` with `readOnly={true}` and **free typing disabled at the event layer** (intercept and drop text-input/paste/formatting commands). Annotation actions programmatically toggle `readOnly` off only for the duration of applying a suggestion/comment transaction, then immediately restore it. The reader never has an editable caret experience; the document model is only mutated by annotation APIs.
-- **Pattern B — always editable, locked UI.** Keep the editor writable but suppress all editing UI. Higher risk of stray edits; rejected as the default.
+- **Pattern A — confirmed.** The editor stays mounted as `<Plate>` with `readOnly={true}` for the entire session. Annotation helpers (`applyAnnotation`, `removeAnnotationMark`) call `editor.tf.addMarks(...)` / `editor.tf.unsetNodes(...)` directly with no readOnly cycling. The reader never has an editable caret experience; the document model is only mutated by annotation APIs.
+- **Pattern B — superseded.** "Always editable, locked UI" is unnecessary given Pattern A works without toggling.
 
-**Open item OQ-1** (see §12) tracks confirming Pattern A against the current Plate release during the Phase 0 spike.
+OQ-1 resolved by Phase 0 spike (see `plans/00-spike.md` and `plans/README.md` Phase 0 findings).
 
 ### 8.5 Annotation data model
 
@@ -418,7 +423,7 @@ symbiot does **not** copy Plannotator's look. It defines its own minimal design 
 
 | ID | Risk / Question | Mitigation |
 |---|---|---|
-| **OQ-1** | Plate Suggestion authoring inside `readOnly` is not explicitly documented. | Phase 0 spike validates Pattern A (transient editability); fall back to Pattern B if needed. **Blocks Phase 1.** |
+| **OQ-1** ✅ | Plate Suggestion authoring inside `readOnly` is not explicitly documented. | **Resolved (Phase 0 spike):** Pattern A works without `readOnly` toggling — `editor.tf.*` transforms bypass DOM `contenteditable=false`. See `plans/00-spike.md`. |
 | **R-1** | Bundle size regression vs. the lean custom editor; single-file HTML constraint. | Lazy-load editor, code-split highlight languages, measure in Phase 0, budget in NFR-1. |
 | **R-2** | Anchor drift: annotations created on version N may not resolve on version N+1. | Dual anchoring (path + `originalText` text-quote fallback) in the codec; tested in Phase 3. |
 | **R-3** | Markdown round-trip lossiness for exotic content (HTML blocks, footnotes, frontmatter). | Define a supported-markdown subset (FR-1.2); pass through unknown blocks verbatim; round-trip test suite. |

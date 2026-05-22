@@ -6,24 +6,24 @@ Complete the **5-type annotation set** claimed by the PRD. Insertion and Replace
 
 ## Exit criteria
 
-- [ ] **Insertion** (`SuggestionKit` insert suggestion):
+- [x] **Insertion** (`SuggestionKit` insert suggestion):
   - Reviewer selects a short context span as an anchor.
   - Reviewer supplies new text to insert after it.
   - Suggestion renders with insertion-colored highlight (`--anno-insert`), visually distinct from deletions (PRD §6.5).
-- [ ] **Replacement** (`SuggestionKit` delete+insert pair tracked as one unit):
+- [x] **Replacement** (`SuggestionKit` delete+insert pair tracked as one unit):
   - Reviewer selects text and supplies replacement.
   - Original text and proposed text are both visible and visually paired (PRD §6.6).
-- [ ] Selection toolbar in Review mode offers all four actions: **Comment**, **Delete**, **Insert**, **Replace** (PRD §6.8).
-- [ ] Both types support image attachments, `author`, `createdAt`.
-- [ ] Codec extended with:
+- [x] Selection toolbar in Review mode offers all four actions: **Comment**, **Delete**, **Insert**, **Replace** (PRD §6.8).
+- [x] Both types support image attachments, `author`, `createdAt`.
+- [x] Codec extended with:
   - `['I', contextText, newText, author?, images?]`
   - `['R', originalText, replacementText, author?, images?]`
-- [ ] Feedback markdown export:
+- [x] Feedback markdown export:
   - Insertion → `"Insert after <context>: …"` form (PRD Appendix A).
   - Replacement → `"Replace with: …"` form.
-- [ ] Sidebar entries render correctly for both types; type-filterable groups updated.
-- [ ] Golden-file tests cover both types end-to-end.
-- [ ] **PRD updated to v1.2** with a changelog note that Insertion + Replacement are net-new symbiot extensions beyond the plannotator-compatible tuple set.
+- [x] Sidebar entries render correctly for both types; type-filterable groups updated.
+- [x] Golden-file tests cover both types end-to-end.
+- [x] **PRD updated to v1.2** with a changelog note that Insertion + Replacement are net-new symbiot extensions beyond the plannotator-compatible tuple set.
 
 ## Scope
 
@@ -36,7 +36,7 @@ Complete the **5-type annotation set** claimed by the PRD. Insertion and Replace
 
 - Extend codec with the two new tuples.
 - Update the feedback-markdown serializer to emit the spec format strings for I and R.
-- Extend the dual-anchor resolution (from Phase 4) to the new types: Insertion anchors on `contextText`; Replacement on `originalText`.
+- Extend the dual-anchor resolution (from Phase 4) to the new types: Insertion anchors on `contextText`; Replacement on `originalText`. _Implemented per Phase 4.3 — sidecar `insertionOriginalTexts` / `replacementOriginalTexts` maps flow through `walkAnnotations`; `resolveAnchor` fires when the stored snapshot diverges from the live leaf text._
 
 ### `packages/symbiot-ui`
 
@@ -50,7 +50,7 @@ Complete the **5-type annotation set** claimed by the PRD. Insertion and Replace
 
 ## Tasks
 
-1. Extend `symbiot-editor`: add insert + replace authoring helpers (`applyInsertion`, `applyReplacement`) wrapping the Pattern A unlock-and-relock.
+1. Extend `symbiot-editor`: add insert + replace authoring helpers (`applyInsertion`, `applyReplacement`) wrapping the Pattern A unlock-and-relock. _Implemented as the polymorphic `applyAnnotation(editor, kind)` helper (Phase 5.2 generalization); Pattern A confirmed in Phase 0 with no unlock/relock — `editor.tf.*` bypasses `contenteditable=false`._
 2. Extend `symbiot-annotations`: codec tuples + serializer + dual-anchor extension.
 3. Extend `symbiot-ui`: toolbar icons + composer popovers.
 4. Sidebar: ensure new types render with correct icons, badges, and filter groups.
