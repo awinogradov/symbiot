@@ -28,11 +28,9 @@ export interface SourceWindow {
 type SidebarKind = AnnotationSidebarEntry["kind"];
 type SupportedEntry = Extract<AnnotationEntry, { kind: SidebarKind }>;
 
-/**
- * Narrows a walked entry to the five sidebar-renderable kinds: Comment,
- * Deletion, Global (Phase 3), Insertion (Phase 5.2), Replacement (Phase 5.3).
- */
-export const isSupportedSidebarEntry = (entry: AnnotationEntry): entry is SupportedEntry =>
+// Narrows a walked entry to the five sidebar-renderable kinds: Comment,
+// Deletion, Global (Phase 3), Insertion (Phase 5.2), Replacement (Phase 5.3).
+const isSupportedSidebarEntry = (entry: AnnotationEntry): entry is SupportedEntry =>
   entry.kind === "comment" ||
   entry.kind === "deletion" ||
   entry.kind === "global" ||
@@ -62,8 +60,8 @@ const decorateOptional = (
   return base;
 };
 
-/** Convert a single walker entry into the projection the sidebar component consumes. */
-export const toSidebarEntry = (entry: SupportedEntry): AnnotationSidebarEntry => {
+// Convert a single walker entry into the projection the sidebar component consumes.
+const toSidebarEntry = (entry: SupportedEntry): AnnotationSidebarEntry => {
   if (entry.kind === "global") {
     return { id: entry.id, kind: "global", primary: entry.body };
   }
@@ -77,24 +75,28 @@ export const toSidebarEntry = (entry: SupportedEntry): AnnotationSidebarEntry =>
   return decorateOptional(base, entry);
 };
 
+/** Filter + map an already-walked entry list to the sidebar-renderable projection. */
+export const projectWalkerEntries = (entries: AnnotationEntry[]): AnnotationSidebarEntry[] =>
+  entries.filter(isSupportedSidebarEntry).map(toSidebarEntry);
+
 /** Walk a source window and project to sidebar entries across all five kinds. */
 export const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] =>
-  walkAnnotations({
-    value: sources.value as PlateValue,
-    commentBodies: sources.commentBodies,
-    commentImages: sources.commentImages,
-    globalComments: sources.globalComments,
-    commentOriginalTexts: sources.commentOriginalTexts,
-    suggestionOriginalTexts: sources.suggestionOriginalTexts,
-    insertionNewTexts: sources.insertionNewTexts,
-    insertionImages: sources.insertionImages,
-    insertionOriginalTexts: sources.insertionOriginalTexts,
-    replacementTexts: sources.replacementTexts,
-    replacementImages: sources.replacementImages,
-    replacementOriginalTexts: sources.replacementOriginalTexts,
-  })
-    .filter(isSupportedSidebarEntry)
-    .map(toSidebarEntry);
+  projectWalkerEntries(
+    walkAnnotations({
+      value: sources.value as PlateValue,
+      commentBodies: sources.commentBodies,
+      commentImages: sources.commentImages,
+      globalComments: sources.globalComments,
+      commentOriginalTexts: sources.commentOriginalTexts,
+      suggestionOriginalTexts: sources.suggestionOriginalTexts,
+      insertionNewTexts: sources.insertionNewTexts,
+      insertionImages: sources.insertionImages,
+      insertionOriginalTexts: sources.insertionOriginalTexts,
+      replacementTexts: sources.replacementTexts,
+      replacementImages: sources.replacementImages,
+      replacementOriginalTexts: sources.replacementOriginalTexts,
+    })
+  );
 
 /** Scroll the DOM range tagged with `data-anno-id` into view. No-op when missing. */
 export const focusAnnotation = (id: string): void => {
