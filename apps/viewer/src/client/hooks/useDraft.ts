@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type DraftPayload } from "../../shared/apiTypes.ts";
 import { getDraft, putDraft } from "../libs/apiClient.ts";
 
+import { useCancelledFetch } from "./useCancelledFetch.ts";
+
 /** Captured editor state passed in on each change. */
 export interface DraftSnapshot {
   value: unknown[];
@@ -63,22 +65,18 @@ export const useDraft = (): DraftHook => {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disabledRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    getDraft()
-      .then((draft) => {
-        if (cancelled) return;
-        setLoaded(draft);
-        setIsLoading(false);
-      })
-      .catch((error: unknown) => {
-        console.error("failed to load draft", error);
-        if (!cancelled) setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useCancelledFetch(
+    getDraft,
+    (draft) => {
+      setLoaded(draft);
+      setIsLoading(false);
+    },
+    (error) => {
+      console.error("failed to load draft", error);
+      setIsLoading(false);
+    },
+    []
+  );
 
   const save = useCallback((snapshot: DraftSnapshot): void => {
     if (disabledRef.current) return;

@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { type PlanResponse } from "../../shared/apiTypes.ts";
 import { fetchPlan } from "../libs/apiClient.ts";
+
+import { useCancelledFetch } from "./useCancelledFetch.ts";
 
 /**
  * Fetch the plan + viewer mode once on mount. Returns `null` while the request
@@ -10,18 +12,11 @@ import { fetchPlan } from "../libs/apiClient.ts";
  */
 export const useLoadedPlan = (): PlanResponse | null => {
   const [plan, setPlan] = useState<PlanResponse | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetchPlan()
-      .then((next) => {
-        if (!cancelled) setPlan(next);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) console.error("failed to load plan", error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useCancelledFetch(
+    fetchPlan,
+    (next) => setPlan(next),
+    (error) => console.error("failed to load plan", error),
+    []
+  );
   return plan;
 };
