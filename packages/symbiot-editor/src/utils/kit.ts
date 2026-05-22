@@ -21,6 +21,7 @@ import { CodeBlockElement } from "../components/CodeBlockElement.tsx";
 import { CommentLeaf } from "../components/CommentLeaf.tsx";
 import { SuggestionMarkPlugin } from "../components/DeletionLeaf.tsx";
 import { InsertionMarkPlugin } from "../components/InsertionLeaf.tsx";
+import { ReplacementMarkPlugin } from "../components/ReplacementLeaf.tsx";
 import {
   TableCellElement,
   TableCellHeaderElement,
@@ -67,6 +68,7 @@ export const SymbiotEditorKit = [
   BasicMarksPlugin,
   SuggestionMarkPlugin,
   InsertionMarkPlugin,
+  ReplacementMarkPlugin,
   HorizontalRulePlugin.withComponent(HrElement),
   CodeBlockPlugin.withComponent(CodeBlockElement),
   ListPlugin,

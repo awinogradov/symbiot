@@ -110,6 +110,9 @@ const EditorPane = ({
       initialInsertionNewTexts={state.initialInsertionNewTexts}
       initialInsertionImages={state.initialInsertionImages}
       initialInsertionOriginalTexts={state.initialInsertionOriginalTexts}
+      initialReplacementTexts={state.initialReplacementTexts}
+      initialReplacementImages={state.initialReplacementImages}
+      initialReplacementOriginalTexts={state.initialReplacementOriginalTexts}
       onReady={state.setEditorHandle}
       onChange={state.onEditorChange}
     />

@@ -13,6 +13,9 @@ export interface DraftSnapshot {
   insertionNewTexts: Map<string, string>;
   insertionImages: Map<string, string[]>;
   insertionOriginalTexts: Map<string, string>;
+  replacementTexts: Map<string, string>;
+  replacementImages: Map<string, string[]>;
+  replacementOriginalTexts: Map<string, string>;
   globalComments: { id: string; body: string; images?: string[] }[];
 }
 
@@ -40,6 +43,9 @@ const toPayload = (snapshot: DraftSnapshot): DraftPayload => ({
   insertionNewTexts: Object.fromEntries(snapshot.insertionNewTexts),
   insertionImages: Object.fromEntries(snapshot.insertionImages),
   insertionOriginalTexts: Object.fromEntries(snapshot.insertionOriginalTexts),
+  replacementTexts: Object.fromEntries(snapshot.replacementTexts),
+  replacementImages: Object.fromEntries(snapshot.replacementImages),
+  replacementOriginalTexts: Object.fromEntries(snapshot.replacementOriginalTexts),
   globalComments: snapshot.globalComments,
   updatedAt: Date.now(),
 });
