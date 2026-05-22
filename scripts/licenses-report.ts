@@ -59,13 +59,25 @@ const renderMarkdown = (report: Record<string, LicenseEntry>, workspaceCount: nu
   ].join("\n");
 };
 
+const isMissingPathError = (err: unknown): boolean =>
+  err instanceof Error && "code" in err && (err.code === "ENOENT" || err.code === "ENOTDIR");
+
+const readdirIfPresent = async (path: string): Promise<string[]> => {
+  try {
+    return await readdir(path);
+  } catch (err) {
+    if (isMissingPathError(err)) return [];
+    throw err;
+  }
+};
+
 const expandWorkspaceCandidates = async (patterns: string[]): Promise<string[]> => {
   const candidates: string[] = [];
   for (const pattern of patterns) {
     const match = pattern.match(/^(.+)\/\*$/);
     if (!match) continue;
     const [, root] = match;
-    const entries = await readdir(root).catch(() => [] as string[]);
+    const entries = await readdirIfPresent(root);
     for (const entry of entries) candidates.push(join(root, entry));
   }
   return candidates;
@@ -77,8 +89,9 @@ const hasProductionDeps = async (dir: string): Promise<boolean> => {
       dependencies?: Record<string, string>;
     };
     return Boolean(pkg.dependencies && Object.keys(pkg.dependencies).length > 0);
-  } catch {
-    return false;
+  } catch (err) {
+    if (isMissingPathError(err)) return false;
+    throw err;
   }
 };
 
