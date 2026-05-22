@@ -26,7 +26,7 @@ Land the non-functional requirements:
 - [ ] Test coverage per NFR-8 met:
   - **Unit:** markdown round-trip, annotation codec, share codec, diff computation.
   - **Integration:** all 5 annotation flows.
-- [ ] **Licensing audit** confirms every editor + UI dep is MIT/Apache/BSD (NFR-7, M6).
+- [x] **Licensing audit** confirms every editor + UI dep is MIT/Apache/BSD (NFR-7, M6) — `bun run licenses:audit` enforces the policy and regenerates `LICENSES.md`; wired into `pr.yml`.
 
 ## Scope
 
@@ -60,7 +60,7 @@ Land the non-functional requirements:
 
 ### Licensing audit
 
-- Run a license-listing tool (e.g. `bunx license-checker --production`) — flag any non-MIT/Apache/BSD packages; replace or vendor.
+- `bun run licenses:audit` invokes `license-checker-rseidelsohn` per workspace, enforces a permissive-only allowlist (`MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;0BSD;Unlicense`), and regenerates `LICENSES.md`. Pinned via root devDependencies; orchestrated by `licenses-report.ts`. CI runs it via `.github/workflows/pr.yml` before format/typecheck/test for fast-fail; the same step checks `git diff --exit-code -- LICENSES.md` so dep changes that don't regenerate the file fail CI.
 
 ## Out of scope
 
@@ -78,7 +78,7 @@ Land the non-functional requirements:
 7. CI: write `.github/workflows/ci.yml`; verify a sample PR runs green.
 8. Optional CI: write golden-file enforcement workflow.
 9. Run Lighthouse on the reference plan; record interactive time. If >1.5s, profile and tune.
-10. `pnpm licenses list` → audit → resolve any non-permissive deps.
+10. `bun run licenses:audit` → audit → resolve any non-permissive deps; commit the regenerated `LICENSES.md`.
 11. Expand test coverage to NFR-8 targets.
 
 ## Dependencies

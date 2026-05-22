@@ -10,6 +10,7 @@
     "playwright.config.ts",
     "mcr.config.ts",
     "mcr-generate.ts",
+    "licenses-report.ts",
     "features/**/*.ts"
   ],
   "references": [
