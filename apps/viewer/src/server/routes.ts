@@ -282,8 +282,11 @@ const imageRoute = async (req: Request, ctx: RouteContext): Promise<Response> =>
   if ("error" in resolved) return badRequest(resolved.error);
   const bytes = await loadUpload(resolved.target);
   if (bytes === null) return new Response("Not Found", { status: 404 });
-  const body = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  return new Response(body, {
+  // See staticAssets.ts: bun-types' Buffer/Uint8Array don't unify with
+  // Bun's Response body type across all our tsconfigs. Cast via
+  // ConstructorParameters avoids the BodyInit name (not always in scope).
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  return new Response(bytes as unknown as ConstructorParameters<typeof Response>[0], {
     status: 200,
     headers: { "Content-Type": guessMimeType(extension) },
   });

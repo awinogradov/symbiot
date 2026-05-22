@@ -22,10 +22,17 @@ Review and annotate the plans your AI coding agents produce, then send structure
 /plugin install symbiot
 ```
 
-Claude Code clones the repo, registers the `PreToolUse(ExitPlanMode)` and
-`PermissionRequest(ExitPlanMode)` hooks, and invokes the bundled
-`apps/hook/dist/cli.js` whenever an agent presents a plan. Requires `bun` on
-your PATH.
+Claude Code clones the repo and registers three hooks: `SessionStart`
+(pre-warms the binary cache), `PreToolUse(ExitPlanMode)`, and
+`PermissionRequest(ExitPlanMode)`. The first session after install
+downloads a ~60 MB platform binary into `${CLAUDE_PLUGIN_DATA}/bin/`
+(verified by SHA256 against the manifest shipped with the plugin).
+Subsequent sessions exec the cached binary directly — no Bun, no Node,
+no other runtime required.
+
+Supported platforms: **macOS arm64**, **macOS x64**, **Linux x64**,
+**Windows x64**. See [`docs/release.md`](docs/release.md) for the
+release flow and the offline-install path.
 
 ## Quick start (development)
 
@@ -131,6 +138,7 @@ Read this list before touching the code — it's the documentation index CLAUDE.
 - [`PRD.md`](./PRD.md) — product requirements (goals, non-goals, annotation model, server contract).
 - [`CLAUDE.md`](./CLAUDE.md) — core principles, naming, lint/style rules, post-task checks.
 - [`docs`](./docs/README.md) — cross-cutting architecture, package layering, HTTP surface, architectural specials. Start here when a change spans more than one package.
+- [`docs/release.md`](./docs/release.md) — release pipeline + shim/binary contract; cut and roll back releases here.
 - [`plans`](./plans/README.md) — phase table, cross-phase gates, per-phase plans.
 - [`features`](./features/README.md) — Playwright-BDD layout, selector conventions, how to add a scenario.
 - [`fixtures/plans`](./fixtures/plans/README.md) — sample plans + the inline-diff smoke flow.

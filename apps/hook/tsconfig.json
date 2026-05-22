@@ -4,5 +4,5 @@
     "allowImportingTsExtensions": true,
     "types": ["bun"]
   },
-  "include": ["src"]
+  "include": ["src", "vitest.config.ts"]
 }

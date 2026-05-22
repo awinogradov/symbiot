@@ -5,11 +5,12 @@
   "type": "module",
   "main": "src/server/startServer.ts",
   "exports": {
-    ".": "./src/server/startServer.ts"
+    ".": "./src/server/startServer.ts",
+    "./dist/client/index.html.gz": "./dist/client/index.html.gz"
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && bun build src/bin.ts --target=bun --outfile dist/bin.js",
+    "build": "vite build && gzip -9 -f -k dist/client/index.html && bun build src/bin.ts --target=bun --outfile dist/bin.js",
     "start": "bun src/bin.ts",
     "start:prod": "bun dist/bin.js",
     "smoke": "bun src/bin.ts --plan ../../fixtures/plans/elements.md",
@@ -42,6 +43,7 @@
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3",
     "vite": "8.0.13",
+    "vite-plugin-singlefile": "2.3.3",
     "vitest": "4.1.6"
   }
 }

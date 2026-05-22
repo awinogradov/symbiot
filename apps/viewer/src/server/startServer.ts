@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,7 +8,7 @@ import { corsHeaders, isOriginAllowed } from "./cors.ts";
 import { handleApi, type Decision } from "./routes.ts";
 import { openBrowser } from "./openBrowser.ts";
 import { savePlan, type PlanMeta } from "./storage.ts";
-import { serveStatic } from "./staticAssets.ts";
+import { serveEmbeddedHtml, serveStatic } from "./staticAssets.ts";
 
 /** Options for {@link startServer}. */
 export interface StartServerOptions {
@@ -15,6 +16,13 @@ export interface StartServerOptions {
   cwd?: string;
   openInBrowser?: boolean;
   staticRoot?: string;
+  /**
+   * Path to a pre-gzipped single-file `index.html` produced by the viewer's
+   * Vite build. When set, takes precedence over `staticRoot` — used by the
+   * compiled hook binary, which embeds the file via
+   * `import x from "./client/index.html.gz" with { type: "file" }`.
+   */
+  indexHtmlGz?: string;
   /** Path to write each decision to as JSON. Enables out-of-band readers (Playwright). */
   decisionFile?: string | null;
   /** Bind to this port instead of an OS-assigned one. */
@@ -48,13 +56,20 @@ interface RequestContext {
   markResolved: () => void;
   origin: string;
   staticRoot: string;
+  indexHtmlGz: Uint8Array | null;
   decisionFile: string | null;
 }
+
+const loadIndexHtmlGz = async (path: string | undefined): Promise<Uint8Array | null> => {
+  if (!path) return null;
+  return new Uint8Array(await readFile(path));
+};
 
 const buildResponse = async (req: Request, ctx: RequestContext): Promise<Response> => {
   const url = new URL(req.url);
   const apiResponse = await handleApi(req, url, ctx);
   if (apiResponse !== null) return apiResponse;
+  if (ctx.indexHtmlGz !== null) return serveEmbeddedHtml(req, ctx.indexHtmlGz);
   const staticResponse = await serveStatic(ctx.staticRoot, url.pathname);
   return staticResponse ?? new Response("Not Found", { status: 404 });
 };
@@ -93,6 +108,7 @@ export const startServer = async (options: StartServerOptions): Promise<RunningS
     resolvedFlag = true;
   };
   const staticRoot = options.staticRoot ?? defaultStaticRoot;
+  const indexHtmlGz = await loadIndexHtmlGz(options.indexHtmlGz);
   let port = 0;
   const server = Bun.serve({
     hostname: "127.0.0.1",
@@ -107,6 +123,7 @@ export const startServer = async (options: StartServerOptions): Promise<RunningS
         markResolved,
         origin: `http://127.0.0.1:${port}`,
         staticRoot,
+        indexHtmlGz,
         decisionFile: options.decisionFile ?? null,
       }),
   });

@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises";
 
 import { startServer } from "@symbiot/viewer";
-
-import { bundledStaticRoot } from "./bundledStaticRoot.ts";
+// Bun's compile mode embeds this file into the binary; the import resolves to
+// a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
+import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
 
 /**
  * `symbiot annotate <file.md>` — boot the viewer in annotate mode against
@@ -20,7 +21,7 @@ export const runAnnotate = async (filePath: string | undefined): Promise<number>
   const server = await startServer({
     plan,
     mode: "annotate",
-    staticRoot: await bundledStaticRoot(import.meta.url),
+    indexHtmlGz: viewerHtmlGz,
   });
   process.stderr.write(`symbiot: annotate ${filePath} at ${server.url}\n`);
   const decision = await server.resolved;
