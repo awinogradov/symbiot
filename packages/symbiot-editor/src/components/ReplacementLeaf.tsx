@@ -1,10 +1,6 @@
-import type { ReactNode } from "react";
 import { createPlatePlugin } from "platejs/react";
 
-interface ReplacementLeafProps {
-  attributes: Record<string, unknown>;
-  children: ReactNode;
-}
+import { createAnnotationLeaf } from "./createAnnotationLeaf.tsx";
 
 /**
  * Leaf renderer for the `replacement` mark applied by `applyAnnotation(editor,
@@ -15,13 +11,10 @@ interface ReplacementLeafProps {
  * anchor stays readable in-context (`<mark>`, not `<del>`), and the sidebar
  * entry pairs the original primary line with the replacement body below it.
  */
-export const ReplacementLeaf = ({
-  attributes,
-  children,
-}: ReplacementLeafProps): React.ReactElement => (
-  <mark {...attributes} className="text-anno-replace bg-anno-replace/10 rounded-sm px-0.5">
-    {children}
-  </mark>
+export const ReplacementLeaf = createAnnotationLeaf(
+  "mark",
+  "text-anno-replace bg-anno-replace/10 rounded-sm px-0.5",
+  "ReplacementLeaf"
 );
 
 /**
