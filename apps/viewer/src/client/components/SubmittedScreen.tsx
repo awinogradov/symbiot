@@ -9,7 +9,9 @@ import {
 
 import { type ViewerMode } from "../../shared/apiTypes.ts";
 
+/** Props for the post-submit confirmation screen. */
 interface SubmittedScreenProps {
+  /** Viewer mode — drives whether the heading reads "feedback submitted" or "sent to the agent". */
   mode: ViewerMode;
 }
 

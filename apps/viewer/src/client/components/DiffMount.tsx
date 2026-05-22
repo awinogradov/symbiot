@@ -1,12 +1,16 @@
 import { DiffEditor, type DiffMode } from "@symbiot/editor/components/DiffEditor";
 
+/** Props for the read-only inline-diff viewer. */
 interface DiffMountProps {
+  /** Markdown of the currently selected version. */
   current: string;
+  /** Markdown of the version immediately preceding `current`. */
   previous: string;
   /** Version number of `current` — folded into the editor key so version switches force a remount. */
   currentVersion: number;
   /** Version number of `previous` (or `null` when no predecessor exists). */
   previousVersion: number | null;
+  /** Clean / Raw diff render mode owned by `useVersionState`. */
   mode: DiffMode;
 }
 

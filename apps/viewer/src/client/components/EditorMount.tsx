@@ -6,12 +6,15 @@ import {
 
 import { type PlanResponse } from "../../shared/apiTypes.ts";
 
+/** Props passed to {@link EditorMount} from `ReviewScreen`. */
 interface EditorMountProps {
+  /** Bumped by Clear-All to force a fresh Plate editor mount. */
   reloadKey: number;
   /** Version number currently rendered; folded into the editor key so a switch remounts. */
   activeVersion: number;
   /** Version the session booted with — draft hydration is gated on this matching `activeVersion`. */
   bootVersion: number;
+  /** Plan response whose markdown drives the editor's initial value. */
   plan: PlanResponse;
   initialValue: unknown[] | undefined;
   initialBodies: Map<string, string> | undefined;
@@ -24,11 +27,15 @@ interface EditorMountProps {
   initialReplacementTexts: Map<string, string> | undefined;
   initialReplacementImages: Map<string, string[]> | undefined;
   initialReplacementOriginalTexts: Map<string, string> | undefined;
+  /** Receives the editor handle once Plate is constructed. */
   onReady: (handle: ReviewEditorHandle) => void;
+  /** Fires on every Plate editor change with a serializable snapshot. */
   onChange: (snapshot: EditorSnapshot) => void;
 }
 
+/** Input to {@link gatedHydration}: full hydration slice + the gate flag. */
 interface GatedHydrationInput {
+  /** When `false`, every hydration field collapses to `undefined`. */
   isBootVersion: boolean;
   initialValue: unknown[] | undefined;
   initialBodies: Map<string, string> | undefined;
@@ -43,6 +50,7 @@ interface GatedHydrationInput {
   initialReplacementOriginalTexts: Map<string, string> | undefined;
 }
 
+/** Hydration slice forwarded to `ReviewEditor` — same shape as the input, minus the gate flag. */
 interface GatedHydrationOutput {
   initialValue: unknown[] | undefined;
   initialBodies: Map<string, string> | undefined;

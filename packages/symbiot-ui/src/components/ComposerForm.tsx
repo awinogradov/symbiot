@@ -11,11 +11,17 @@ export interface ComposerPayload {
   images: ImageRef[];
 }
 
+/** Props for the shared body / images / Save / Cancel block. */
 interface ComposerFormProps {
+  /** Auto-focuses the textarea when this flips from false → true. */
   open: boolean;
+  /** Textarea placeholder. */
   placeholder: string;
+  /** Invoked with the trimmed body + images when Enter / Save fires. */
   onSave: (payload: ComposerPayload) => void;
+  /** Invoked on Esc / Cancel; clears local state. */
   onCancel: () => void;
+  /** Per-host testid overrides so multiple composers stay individually selectable. */
   testId?: { textarea: string; cancel: string; save: string };
 }
 

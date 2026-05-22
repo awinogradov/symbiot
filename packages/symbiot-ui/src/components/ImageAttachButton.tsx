@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, type ChangeEvent } from "react";
 import { Button } from "./Button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip.tsx";
 
+/** Shape returned by `POST /api/upload` for an accepted image. */
 interface UploadResponse {
   id: string;
   extension: string;
@@ -23,8 +24,11 @@ export const buildImageUrl = (ref: ImageRef): string => {
   return `/api/image?id=${encodeURIComponent(id)}&ext=${encodeURIComponent(extension)}`;
 };
 
+/** Props for the composer's image attach button. */
 interface ImageAttachButtonProps {
+  /** Called with the uploaded image's `ImageRef` once `/api/upload` resolves. */
   onAttach: (ref: ImageRef) => void;
+  /** Disables the trigger while another upload is in flight or the host is busy. */
   disabled?: boolean;
 }
 

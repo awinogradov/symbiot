@@ -1,10 +1,21 @@
+/**
+ * Selection-anchored floating toolbar used by `ReviewEditor` to host
+ * "Comment" / "Insert" / "Replace" / "Delete" triggers. Built on Radix
+ * `Popover` so accessibility and dismiss behavior come for free; positioning
+ * is driven by `selectionRect` rather than Plate's own floating toolbar (which
+ * doesn't fire on `contenteditable=false` content — Pattern A is read-only).
+ *
+ * @see ../utils/selectionRect.ts
+ */
 import { useEditorRef, useEditorSelection } from "platejs/react";
 import { useMemo, type MouseEvent, type ReactNode } from "react";
 import { Popover, PopoverAnchor, PopoverContent } from "@symbiot/ui/components/Popover";
 
 import { selectionRect, type Rect } from "../utils/selectionRect.ts";
 
+/** Props for the selection-anchored floating toolbar. */
 interface FloatingToolbarProps {
+  /** Toolbar buttons rendered inside the Popover content. */
   children: ReactNode;
 }
 

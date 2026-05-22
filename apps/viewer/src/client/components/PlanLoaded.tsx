@@ -4,7 +4,9 @@ import { type PlanResponse } from "../../shared/apiTypes.ts";
 import { LoadingFallback } from "./LoadingFallback.tsx";
 import { ReviewScreen } from "./ReviewScreen.tsx";
 
+/** Props for the draft-aware gate around `ReviewScreen`. */
 interface PlanLoadedProps {
+  /** Plan response returned from `GET /api/plan` on mount. */
   plan: PlanResponse;
 }
 

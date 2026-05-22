@@ -7,9 +7,13 @@ import { AnnotationComposer, type AnnotationComposerPayload } from "./Annotation
 import { Button } from "./Button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip.tsx";
 
+/** Props for the floating action button that opens the global-comment composer. */
 interface GlobalCommentFabProps {
+  /** Invoked once the composer Save is pressed with a non-empty body or images. */
   onAddGlobalComment: (body: string, images: string[]) => void;
+  /** Disables the trigger while a submission is in flight. */
   disabled?: boolean;
+  /** Extra Tailwind classes applied to the trigger button. */
   className?: string;
 }
 

@@ -10,11 +10,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useTheme, type Theme } from "./ThemeProvider.tsx";
 import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup.tsx";
 
+/** Props for the controlled settings dialog. */
 interface SettingsDialogProps {
+  /** Mirrors Radix `Dialog.open`. */
   open: boolean;
+  /** Mirrors Radix `Dialog.onOpenChange` — host owns the boolean. */
   onOpenChange: (next: boolean) => void;
 }
 
+/** Renderable theme entry: persisted value + label + icon component. */
 interface ThemeOption {
   value: Theme;
   label: string;
