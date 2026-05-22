@@ -7,7 +7,7 @@ import { createPlateEditor } from "platejs/react";
 import { describe, expect, it } from "vitest";
 import type { PlateValue } from "@symbiot/annotations";
 
-import { SymbiotDiffKit } from "./diffKit.ts";
+import { SymbiotDiffKit } from "./kit.ts";
 import { computeDiffValue, pickChangedBlocks } from "./diffPlugin.ts";
 
 const fixturesRoot = join(
