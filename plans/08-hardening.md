@@ -60,7 +60,7 @@ Land the non-functional requirements:
 
 ### Licensing audit
 
-- `bun run licenses:audit` invokes `license-checker-rseidelsohn` per workspace, enforces a permissive-only allowlist (`MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;0BSD;Unlicense`), and regenerates `LICENSES.md`. Pinned via root devDependencies; orchestrated by `licenses-report.ts`. CI runs it via a dedicated `.github/workflows/licenses.yml` workflow gated on `package.json` (root + workspaces), `bun.lock`, `licenses-report.ts`, and `LICENSES.md` paths; the step checks `git diff --exit-code -- LICENSES.md` so dep changes that don't regenerate the file fail CI.
+- `bun run licenses:audit` invokes `license-checker-rseidelsohn` per workspace, enforces a permissive-only allowlist (`MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;0BSD;Unlicense`), and regenerates `LICENSES.md`. Pinned via root devDependencies; orchestrated by `scripts/licenses-report.ts`. CI runs it via a dedicated `.github/workflows/licenses.yml` workflow gated on `package.json` (root + workspaces), `bun.lock`, `scripts/licenses-report.ts`, and `LICENSES.md` paths; the step checks `git diff --exit-code -- LICENSES.md` so dep changes that don't regenerate the file fail CI.
 
 ## Out of scope
 
