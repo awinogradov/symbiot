@@ -5,10 +5,9 @@ import { join } from "node:path";
 import { expect } from "@playwright/test";
 
 import { After, Given, Then, When } from "../support/bdd.ts";
+import { fixturePlanSlug, fixtureProjectSlug } from "../support/testAssets.ts";
 
-const project = "symbiot";
-const slug = "example-plan-with-every-supported-markdown-element";
-const planDir = join(homedir(), ".symbiot", "history", project, slug);
+const planDir = join(homedir(), ".symbiot", "history", fixtureProjectSlug, fixturePlanSlug);
 const seededVersion = 99;
 const extraVersionFile = (n: number): string => join(planDir, `${String(n).padStart(3, "0")}.md`);
 

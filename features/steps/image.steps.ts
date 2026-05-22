@@ -1,12 +1,9 @@
 import { expect } from "@playwright/test";
 
 import { When, Then } from "../support/bdd.ts";
+import { transparentPng } from "../support/testAssets.ts";
 
-const pngBytes = Buffer.from(
-  // 1x1 transparent PNG (mirrors `upload.steps.ts::buildPng`).
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-  "base64"
-);
+const pngBytes = transparentPng();
 
 When("I attach a PNG via the composer image button", async ({ page }) => {
   // Composer popover lives in a Radix portal at body level. Wait for it first,
