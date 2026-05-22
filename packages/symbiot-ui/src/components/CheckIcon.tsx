@@ -21,10 +21,11 @@
 
 import type { Variants } from "motion/react";
 import { motion, useAnimation } from "motion/react";
-import type { HTMLAttributes, MouseEvent } from "react";
-import { useCallback } from "react";
+import type { HTMLAttributes } from "react";
+import { useCallback, useRef } from "react";
 
 import { cn } from "../utils/cn.ts";
+import { useAncestorHover } from "../utils/useAncestorHover.ts";
 
 /** Props for the animated `CheckIcon`. */
 export interface CheckIconProps extends HTMLAttributes<HTMLDivElement> {
@@ -54,37 +55,24 @@ const pathVariants: Variants = {
 };
 
 export const CheckIcon = ({
-  onMouseEnter,
-  onMouseLeave,
   className,
   size = 28,
   ...rest
 }: CheckIconProps): React.ReactElement => {
   const controls = useAnimation();
+  const ref = useRef<HTMLDivElement>(null);
 
-  const handleMouseEnter = useCallback(
-    (event: MouseEvent<HTMLDivElement>): void => {
-      controls.start("animate");
-      onMouseEnter?.(event);
+  const handleHoverChange = useCallback(
+    (hovered: boolean): void => {
+      controls.start(hovered ? "animate" : "normal");
     },
-    [controls, onMouseEnter]
+    [controls]
   );
 
-  const handleMouseLeave = useCallback(
-    (event: MouseEvent<HTMLDivElement>): void => {
-      controls.start("normal");
-      onMouseLeave?.(event);
-    },
-    [controls, onMouseLeave]
-  );
+  useAncestorHover(ref, '[data-slot="button"]', handleHoverChange);
 
   return (
-    <div
-      className={cn(className)}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      {...rest}
-    >
+    <div ref={ref} className={cn(className)} {...rest}>
       <svg
         fill="none"
         height={size}
