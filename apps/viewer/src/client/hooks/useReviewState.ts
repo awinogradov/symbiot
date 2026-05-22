@@ -27,6 +27,9 @@ export interface ReviewStateProps {
     commentImages: Map<string, string[]>;
     commentOriginalTexts: Map<string, string>;
     suggestionOriginalTexts: Map<string, string>;
+    insertionNewTexts: Map<string, string>;
+    insertionImages: Map<string, string[]>;
+    insertionOriginalTexts: Map<string, string>;
     globalComments: GlobalCommentEntry[];
   }) => void;
 }
@@ -40,6 +43,9 @@ export interface ReviewState {
   initialImages: Map<string, string[]> | undefined;
   initialCommentOriginalTexts: Map<string, string> | undefined;
   initialSuggestionOriginalTexts: Map<string, string> | undefined;
+  initialInsertionNewTexts: Map<string, string> | undefined;
+  initialInsertionImages: Map<string, string[]> | undefined;
+  initialInsertionOriginalTexts: Map<string, string> | undefined;
   reloadKey: number;
   collectEntries: () => AnnotationEntry[];
   setEditorHandle: (handle: ReviewEditorHandle) => void;
@@ -63,6 +69,9 @@ interface InitialDraftSlice {
   initialImages: Map<string, string[]> | undefined;
   initialCommentOriginalTexts: Map<string, string> | undefined;
   initialSuggestionOriginalTexts: Map<string, string> | undefined;
+  initialInsertionNewTexts: Map<string, string> | undefined;
+  initialInsertionImages: Map<string, string[]> | undefined;
+  initialInsertionOriginalTexts: Map<string, string> | undefined;
 }
 
 const initialValueFromDraft = (
@@ -73,12 +82,53 @@ const initialValueFromDraft = (
   return draft.value;
 };
 
-const draftInitial = (draft: DraftPayload | null, reloadKey: number): InitialDraftSlice => ({
-  initialValue: initialValueFromDraft(draft, reloadKey),
+const draftCommentInitial = (
+  draft: DraftPayload | null,
+  reloadKey: number
+): Pick<
+  InitialDraftSlice,
+  | "initialBodies"
+  | "initialImages"
+  | "initialCommentOriginalTexts"
+  | "initialSuggestionOriginalTexts"
+> => ({
   initialBodies: draftInitialMap(draft?.commentBodies, reloadKey),
   initialImages: draftInitialMap(draft?.commentImages, reloadKey),
   initialCommentOriginalTexts: draftInitialMap(draft?.commentOriginalTexts, reloadKey),
   initialSuggestionOriginalTexts: draftInitialMap(draft?.suggestionOriginalTexts, reloadKey),
+});
+
+const draftInsertionInitial = (
+  draft: DraftPayload | null,
+  reloadKey: number
+): Pick<
+  InitialDraftSlice,
+  "initialInsertionNewTexts" | "initialInsertionImages" | "initialInsertionOriginalTexts"
+> => ({
+  initialInsertionNewTexts: draftInitialMap(draft?.insertionNewTexts, reloadKey),
+  initialInsertionImages: draftInitialMap(draft?.insertionImages, reloadKey),
+  initialInsertionOriginalTexts: draftInitialMap(draft?.insertionOriginalTexts, reloadKey),
+});
+
+const draftInitial = (draft: DraftPayload | null, reloadKey: number): InitialDraftSlice => ({
+  initialValue: initialValueFromDraft(draft, reloadKey),
+  ...draftCommentInitial(draft, reloadKey),
+  ...draftInsertionInitial(draft, reloadKey),
+});
+
+const snapshotToDraft = (
+  snapshot: EditorSnapshot,
+  globalComments: GlobalCommentEntry[]
+): Parameters<ReviewStateProps["saveDraft"]>[0] => ({
+  value: snapshot.value,
+  commentBodies: snapshot.commentBodies,
+  commentImages: snapshot.commentImages,
+  commentOriginalTexts: snapshot.commentOriginalTexts,
+  suggestionOriginalTexts: snapshot.suggestionOriginalTexts,
+  insertionNewTexts: snapshot.insertionNewTexts,
+  insertionImages: snapshot.insertionImages,
+  insertionOriginalTexts: snapshot.insertionOriginalTexts,
+  globalComments,
 });
 
 /**
@@ -97,14 +147,7 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
   const onEditorChange = useCallback(
     (snapshot: EditorSnapshot): void => {
       setLatestSnapshot(snapshot);
-      saveDraft({
-        value: snapshot.value,
-        commentBodies: snapshot.commentBodies,
-        commentImages: snapshot.commentImages,
-        commentOriginalTexts: snapshot.commentOriginalTexts,
-        suggestionOriginalTexts: snapshot.suggestionOriginalTexts,
-        globalComments,
-      });
+      saveDraft(snapshotToDraft(snapshot, globalComments));
     },
     [globalComments, saveDraft]
   );
@@ -117,6 +160,9 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
       commentImages: editorHandle.getCommentImages(),
       commentOriginalTexts: editorHandle.getCommentOriginalTexts(),
       suggestionOriginalTexts: editorHandle.getSuggestionOriginalTexts(),
+      insertionNewTexts: editorHandle.getInsertionNewTexts(),
+      insertionImages: editorHandle.getInsertionImages(),
+      insertionOriginalTexts: editorHandle.getInsertionOriginalTexts(),
       globalComments,
     });
   }, [editorHandle, globalComments]);
@@ -145,14 +191,7 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
       const next = globalComments.filter((g) => g.id !== id);
       setGlobalComments(next);
       if (latestSnapshot === null) return;
-      saveDraft({
-        value: latestSnapshot.value,
-        commentBodies: latestSnapshot.commentBodies,
-        commentImages: latestSnapshot.commentImages,
-        commentOriginalTexts: latestSnapshot.commentOriginalTexts,
-        suggestionOriginalTexts: latestSnapshot.suggestionOriginalTexts,
-        globalComments: next,
-      });
+      saveDraft(snapshotToDraft(latestSnapshot, next));
     },
     [globalComments, latestSnapshot, saveDraft]
   );

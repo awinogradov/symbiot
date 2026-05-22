@@ -38,10 +38,10 @@ import { VersionBrowser } from "./VersionBrowser.tsx";
  */
 export interface AnnotationSidebarEntry {
   id: string;
-  kind: "comment" | "deletion" | "global";
-  /** Either the anchored selection (C/D) or the body (G). */
+  kind: "comment" | "deletion" | "global" | "insertion";
+  /** Either the anchored selection (C/D/I context) or the body (G). */
   primary: string;
-  /** Comment body for C; undefined for G/D. */
+  /** Comment body for C, proposed new text for I; undefined for G/D. */
   body?: string;
   lines?: { startLine: number; endLine: number };
   /**
@@ -97,6 +97,8 @@ const kindLabel = (kind: AnnotationSidebarEntry["kind"]): string => {
       return "Deletion";
     case "global":
       return "Global";
+    case "insertion":
+      return "Insertion";
   }
 };
 
@@ -107,6 +109,8 @@ const kindClass = (kind: AnnotationSidebarEntry["kind"]): string => {
       return "text-anno-comment";
     case "deletion":
       return "text-anno-delete";
+    case "insertion":
+      return "text-anno-insert";
   }
 };
 
@@ -118,6 +122,8 @@ const removalDescription = (kind: AnnotationSidebarEntry["kind"]): string => {
       return "This removes the deletion suggestion from the plan. It can't be undone.";
     case "global":
       return "This removes the global comment from the plan. It can't be undone.";
+    case "insertion":
+      return "This removes the insertion suggestion from the plan. It can't be undone.";
   }
 };
 
@@ -238,8 +244,8 @@ const ClearAllFooter = ({ onClearAll }: ClearAllFooterProps): React.ReactElement
         <AlertDialogHeader>
           <AlertDialogTitle>Clear all annotations?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes every comment, deletion, and global comment from the current plan. It
-            can&apos;t be undone.
+            This removes every comment, deletion, insertion, and global comment from the current
+            plan. It can&apos;t be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

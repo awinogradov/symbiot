@@ -18,9 +18,66 @@ interface EditorMountProps {
   initialImages: Map<string, string[]> | undefined;
   initialCommentOriginalTexts: Map<string, string> | undefined;
   initialSuggestionOriginalTexts: Map<string, string> | undefined;
+  initialInsertionNewTexts: Map<string, string> | undefined;
+  initialInsertionImages: Map<string, string[]> | undefined;
+  initialInsertionOriginalTexts: Map<string, string> | undefined;
   onReady: (handle: ReviewEditorHandle) => void;
   onChange: (snapshot: EditorSnapshot) => void;
 }
+
+interface GatedHydrationInput {
+  isBootVersion: boolean;
+  initialValue: unknown[] | undefined;
+  initialBodies: Map<string, string> | undefined;
+  initialImages: Map<string, string[]> | undefined;
+  initialCommentOriginalTexts: Map<string, string> | undefined;
+  initialSuggestionOriginalTexts: Map<string, string> | undefined;
+  initialInsertionNewTexts: Map<string, string> | undefined;
+  initialInsertionImages: Map<string, string[]> | undefined;
+  initialInsertionOriginalTexts: Map<string, string> | undefined;
+}
+
+interface GatedHydrationOutput {
+  initialValue: unknown[] | undefined;
+  initialBodies: Map<string, string> | undefined;
+  initialImages: Map<string, string[]> | undefined;
+  initialCommentOriginalTexts: Map<string, string> | undefined;
+  initialSuggestionOriginalTexts: Map<string, string> | undefined;
+  initialInsertionNewTexts: Map<string, string> | undefined;
+  initialInsertionImages: Map<string, string[]> | undefined;
+  initialInsertionOriginalTexts: Map<string, string> | undefined;
+}
+
+/**
+ * When the reviewer is browsing a historical version, none of the boot
+ * version's draft state should hydrate the editor (the marks would anchor
+ * onto unrelated text). Returns the props verbatim on the boot version, all
+ * `undefined` otherwise.
+ */
+const gatedHydration = (input: GatedHydrationInput): GatedHydrationOutput => {
+  if (!input.isBootVersion) {
+    return {
+      initialValue: undefined,
+      initialBodies: undefined,
+      initialImages: undefined,
+      initialCommentOriginalTexts: undefined,
+      initialSuggestionOriginalTexts: undefined,
+      initialInsertionNewTexts: undefined,
+      initialInsertionImages: undefined,
+      initialInsertionOriginalTexts: undefined,
+    };
+  }
+  return {
+    initialValue: input.initialValue,
+    initialBodies: input.initialBodies,
+    initialImages: input.initialImages,
+    initialCommentOriginalTexts: input.initialCommentOriginalTexts,
+    initialSuggestionOriginalTexts: input.initialSuggestionOriginalTexts,
+    initialInsertionNewTexts: input.initialInsertionNewTexts,
+    initialInsertionImages: input.initialInsertionImages,
+    initialInsertionOriginalTexts: input.initialInsertionOriginalTexts,
+  };
+};
 
 /**
  * Mounts `ReviewEditor` and folds `reloadKey` + `activeVersion` into `key` so
@@ -28,44 +85,6 @@ interface EditorMountProps {
  * the parent tree. Draft hydration is suppressed when the reviewer browses a
  * non-boot version so prior-version marks don't anchor onto unrelated text.
  */
-/**
- * When the reviewer is browsing a historical version, none of the boot
- * version's draft state should hydrate the editor (the marks would anchor
- * onto unrelated text). Returns the props verbatim on the boot version, all
- * `undefined` otherwise.
- */
-const gatedHydration = (
-  isBootVersion: boolean,
-  initialValue: unknown[] | undefined,
-  initialBodies: Map<string, string> | undefined,
-  initialImages: Map<string, string[]> | undefined,
-  initialCommentOriginalTexts: Map<string, string> | undefined,
-  initialSuggestionOriginalTexts: Map<string, string> | undefined
-): {
-  initialValue: unknown[] | undefined;
-  initialBodies: Map<string, string> | undefined;
-  initialImages: Map<string, string[]> | undefined;
-  initialCommentOriginalTexts: Map<string, string> | undefined;
-  initialSuggestionOriginalTexts: Map<string, string> | undefined;
-} => {
-  if (!isBootVersion) {
-    return {
-      initialValue: undefined,
-      initialBodies: undefined,
-      initialImages: undefined,
-      initialCommentOriginalTexts: undefined,
-      initialSuggestionOriginalTexts: undefined,
-    };
-  }
-  return {
-    initialValue,
-    initialBodies,
-    initialImages,
-    initialCommentOriginalTexts,
-    initialSuggestionOriginalTexts,
-  };
-};
-
 export const EditorMount = ({
   reloadKey,
   activeVersion,
@@ -76,17 +95,23 @@ export const EditorMount = ({
   initialImages,
   initialCommentOriginalTexts,
   initialSuggestionOriginalTexts,
+  initialInsertionNewTexts,
+  initialInsertionImages,
+  initialInsertionOriginalTexts,
   onReady,
   onChange,
 }: EditorMountProps): React.ReactElement => {
-  const hydration = gatedHydration(
-    activeVersion === bootVersion,
+  const hydration = gatedHydration({
+    isBootVersion: activeVersion === bootVersion,
     initialValue,
     initialBodies,
     initialImages,
     initialCommentOriginalTexts,
-    initialSuggestionOriginalTexts
-  );
+    initialSuggestionOriginalTexts,
+    initialInsertionNewTexts,
+    initialInsertionImages,
+    initialInsertionOriginalTexts,
+  });
   return (
     <ReviewEditor
       key={`review-${reloadKey}-${activeVersion}`}

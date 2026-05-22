@@ -12,7 +12,7 @@ When("I attach a PNG via the composer image button", async ({ page }) => {
   // Composer popover lives in a Radix portal at body level. Wait for it first,
   // then set the file input directly to bypass viewport-position quirks of the
   // hidden file picker trigger.
-  await page.getByTestId("comment-composer").waitFor({ state: "visible" });
+  await page.getByTestId("annotation-composer").waitFor({ state: "visible" });
   await page
     .getByTestId("image-attach-input")
     .setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: pngBytes });

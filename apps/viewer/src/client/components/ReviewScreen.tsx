@@ -107,6 +107,9 @@ const EditorPane = ({
       initialImages={state.initialImages}
       initialCommentOriginalTexts={state.initialCommentOriginalTexts}
       initialSuggestionOriginalTexts={state.initialSuggestionOriginalTexts}
+      initialInsertionNewTexts={state.initialInsertionNewTexts}
+      initialInsertionImages={state.initialInsertionImages}
+      initialInsertionOriginalTexts={state.initialInsertionOriginalTexts}
       onReady={state.setEditorHandle}
       onChange={state.onEditorChange}
     />

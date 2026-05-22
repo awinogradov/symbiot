@@ -33,11 +33,11 @@ When("I click the comment composer Cancel button", async ({ page }) => {
 });
 
 Then("the comment composer is visible in the viewport", async ({ page }) => {
-  await expect(page.getByTestId("comment-composer")).toBeInViewport();
+  await expect(page.getByTestId("annotation-composer")).toBeInViewport();
 });
 
 Then("the comment composer is not visible in the viewport", async ({ page }) => {
-  await expect(page.getByTestId("comment-composer")).toHaveCount(0);
+  await expect(page.getByTestId("annotation-composer")).toHaveCount(0);
 });
 
 Then("the comment composer shows {string} as a quote", async ({ page }, text: string) => {
