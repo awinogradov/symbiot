@@ -30,10 +30,10 @@ Feature: Keyboard shortcuts — drive the reviewer surface without the mouse
     And I press "r" anywhere outside the editor
     Then the comment composer is visible in the viewport
 
-  Scenario: Mod+Enter submits in annotate mode
-    Given I open the viewer in annotate mode
+  Scenario: Mod+Enter approves a clean plan
+    Given I open the viewer
     When I press "Mod+Enter" anywhere outside the editor
-    Then the recorded decision is "feedback"
+    Then the recorded decision is "approve"
 
   Scenario: Mod+Enter is suppressed while a composer dialog is open
     Given I open the viewer in annotate mode

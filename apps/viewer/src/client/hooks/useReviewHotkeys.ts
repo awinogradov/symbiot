@@ -41,13 +41,16 @@ const sharedOptions = {
 } as const;
 
 /**
- * Defence-in-depth check for any open Radix dialog. Used alongside the
+ * Defence-in-depth check for any open Radix modal dialog. Used alongside the
  * `composerOpen` prop so non-tracked dialogs (e.g. SettingsDialog) also
- * suppress hotkeys. Radix Dialog sets `data-state="open"` while mounted.
+ * suppress hotkeys. We restrict to `aria-modal="true"` so the FloatingToolbar
+ * (which is a Radix Popover — also `role="dialog"` + `data-state="open"` but
+ * not modal) does not match and we keep firing the hotkeys while the
+ * selection toolbar is visible.
  */
 const isAnyDialogOpen = (): boolean => {
   if (typeof document === "undefined") return false;
-  return document.querySelector('[role="dialog"][data-state="open"]') !== null;
+  return document.querySelector('[role="dialog"][data-state="open"][aria-modal="true"]') !== null;
 };
 
 /**
@@ -91,7 +94,7 @@ export const useReviewHotkeys = ({
   const useApprove = mode === "plan" && !hasAnnotations;
 
   useHotkeys(
-    "mod+enter",
+    "meta+enter, ctrl+enter",
     () => {
       if (isAnyDialogOpen()) return;
       if (useApprove) onApprove();
