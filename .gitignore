@@ -5,6 +5,11 @@ node_modules
 dist
 .output
 
+# track the hook plugin's bundled artifacts — Claude Code reads them from
+# the cloned repo via /plugin install, so they must ship with the source.
+!apps/hook/dist/
+!apps/hook/dist/**
+
 # turborepo
 .turbo
 

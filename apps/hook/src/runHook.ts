@@ -5,6 +5,8 @@ import { dirname, join } from "node:path";
 
 import { startServer } from "@symbiot/viewer";
 
+import { bundledStaticRoot } from "./bundledStaticRoot.ts";
+
 /**
  * JSON payload Claude Code writes to the hook's stdin. The same shape covers
  * both `PreToolUse` (drives the viewer) and `PermissionRequest` (defensive
@@ -163,7 +165,7 @@ const emitPermissionRequestAllow = (): void => {
 
 const runPreToolUse = async (plan: string): Promise<number> => {
   const planHash = hashPlan(plan);
-  const server = await startServer({ plan });
+  const server = await startServer({ plan, staticRoot: await bundledStaticRoot(import.meta.url) });
   process.stderr.write(`symbiot: review plan at ${server.url}\n`);
   const decision = await server.resolved;
   await server.stop();
