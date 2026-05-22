@@ -5,6 +5,7 @@ import { cn } from "../utils/cn.ts";
 
 import { AnnotationComposer, type AnnotationComposerPayload } from "./AnnotationComposer.tsx";
 import { Button } from "./Button.tsx";
+import { Kbd } from "./Kbd.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip.tsx";
 
 /** Props for the floating action button that opens the global-comment composer. */
@@ -15,6 +16,10 @@ interface GlobalCommentFabProps {
   disabled?: boolean;
   /** Extra Tailwind classes applied to the trigger button. */
   className?: string;
+  /** Controlled composer-open state. When provided alongside {@link onOpenChange}, the host owns the lifecycle (e.g. for hotkey-driven opening). */
+  open?: boolean;
+  /** Setter paired with {@link open} for the controlled mode. */
+  onOpenChange?: (next: boolean) => void;
 }
 
 /** Floating action button anchored bottom-right of the editor column that opens the global comment composer. */
@@ -22,19 +27,30 @@ export const GlobalCommentFab = ({
   onAddGlobalComment,
   disabled = false,
   className,
+  open: openProp,
+  onOpenChange,
 }: GlobalCommentFabProps): React.ReactElement => {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const isControlled = openProp !== undefined && onOpenChange !== undefined;
+  const open = isControlled ? openProp : openState;
+  const setOpen = useCallback(
+    (next: boolean): void => {
+      if (isControlled) onOpenChange(next);
+      else setOpenState(next);
+    },
+    [isControlled, onOpenChange]
+  );
 
   const onSave = useCallback(
     (payload: AnnotationComposerPayload): void => {
       onAddGlobalComment(payload.body, payload.images);
       setOpen(false);
     },
-    [onAddGlobalComment]
+    [onAddGlobalComment, setOpen]
   );
 
-  const onCancel = useCallback((): void => setOpen(false), []);
-  const onOpen = useCallback((): void => setOpen(true), []);
+  const onCancel = useCallback((): void => setOpen(false), [setOpen]);
+  const onOpen = useCallback((): void => setOpen(true), [setOpen]);
 
   return (
     <>
@@ -54,7 +70,10 @@ export const GlobalCommentFab = ({
             <MessageSquarePlus className="size-5" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left">Global comment</TooltipContent>
+        <TooltipContent side="left" className="inline-flex items-center gap-1.5">
+          Global comment
+          <Kbd>C</Kbd>
+        </TooltipContent>
       </Tooltip>
       <AnnotationComposer kind="global" open={open} onSave={onSave} onCancel={onCancel} />
     </>

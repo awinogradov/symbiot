@@ -1,9 +1,11 @@
+import { useCallback, useState } from "react";
 import { AnnotationSidebar } from "@symbiot/ui/components/AnnotationSidebar";
 import { GlobalCommentFab } from "@symbiot/ui/components/GlobalCommentFab";
 import { SidebarInset } from "@symbiot/ui/components/SidebarChrome";
 import { SidebarProvider } from "@symbiot/ui/components/SidebarProvider";
 import { TopBar } from "@symbiot/ui/components/TopBar";
 
+import { useReviewHotkeys } from "../hooks/useReviewHotkeys.ts";
 import { useReviewState } from "../hooks/useReviewState.ts";
 import { useReviewSubmit } from "../hooks/useReviewSubmit.ts";
 import { useVersionState } from "../hooks/useVersionState.ts";
@@ -34,6 +36,7 @@ interface EditorPaneProps {
   state: ReturnType<typeof useReviewState>;
   plan: PlanResponse;
   activePlan: PlanResponse;
+  onComposerOpenChange: (open: boolean) => void;
 }
 
 /** Derived flags driving sidebar toggle visibility + diff-overlay routing. */
@@ -61,6 +64,8 @@ const deriveReviewFlags = (
   const inDiffMode = showsDiff && version.previousPlan !== null;
   return { isHistorical, inCompareOverlay, inDiffMode, canCompareWithPredecessor };
 };
+
+const anyOpen = (...flags: boolean[]): boolean => flags.some((f) => f);
 
 const HistoricalPlaceholder = (): React.ReactElement => (
   <div
@@ -107,6 +112,7 @@ const EditorPane = ({
   state,
   plan,
   activePlan,
+  onComposerOpenChange,
 }: EditorPaneProps): React.ReactElement => {
   if (isHistorical || inCompareOverlay) return <DiffOverlay version={version} />;
   return (
@@ -128,6 +134,7 @@ const EditorPane = ({
       initialReplacementOriginalTexts={state.initialReplacementOriginalTexts}
       onReady={state.setEditorHandle}
       onChange={state.onEditorChange}
+      onComposerOpenChange={onComposerOpenChange}
     />
   );
 };
@@ -147,6 +154,26 @@ export const ReviewScreen = ({
     collectEntries: state.collectEntries,
     cancelDraft,
   });
+  const [globalCommentOpen, setGlobalCommentOpen] = useState(false);
+  const [inlineComposerOpen, setInlineComposerOpen] = useState(false);
+  const onOpenGlobalComment = useCallback((): void => setGlobalCommentOpen(true), []);
+  const composerOpen = anyOpen(globalCommentOpen, inlineComposerOpen);
+
+  const flags = deriveReviewFlags(version, plan.meta.version);
+  const { isHistorical, inCompareOverlay, inDiffMode, canCompareWithPredecessor } = flags;
+  const hasAnnotations = state.sidebarEntries.length > 0;
+
+  useReviewHotkeys({
+    phase,
+    mode: plan.mode,
+    hasAnnotations,
+    inReadOnlyView: isHistorical || inCompareOverlay,
+    composerOpen,
+    editorHandle: state.editorHandle,
+    onApprove,
+    onSubmit,
+    onOpenGlobalComment,
+  });
 
   if (phase === "done") return <SubmittedScreen mode={plan.mode} />;
 
@@ -155,8 +182,6 @@ export const ReviewScreen = ({
     plan: version.activePlan,
     meta: { ...plan.meta, version: version.activeVersion },
   };
-  const flags = deriveReviewFlags(version, plan.meta.version);
-  const { isHistorical, inCompareOverlay, inDiffMode, canCompareWithPredecessor } = flags;
 
   return (
     <SidebarProvider defaultOpen>
@@ -168,7 +193,7 @@ export const ReviewScreen = ({
           busy={phase === "submitting"}
           mode={plan.mode}
           showSidebarTrigger
-          hasAnnotations={state.sidebarEntries.length > 0}
+          hasAnnotations={hasAnnotations}
         />
         <main className="flex-1 overflow-auto px-8 py-6">
           <EditorPane
@@ -178,12 +203,15 @@ export const ReviewScreen = ({
             state={state}
             plan={plan}
             activePlan={activePlan}
+            onComposerOpenChange={setInlineComposerOpen}
           />
         </main>
         {!isHistorical && !inCompareOverlay && (
           <GlobalCommentFab
             onAddGlobalComment={state.onAddGlobalComment}
             disabled={phase === "submitting"}
+            open={globalCommentOpen}
+            onOpenChange={setGlobalCommentOpen}
           />
         )}
       </SidebarInset>

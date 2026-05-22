@@ -2,11 +2,19 @@ import { useCallback, useEffect, type Dispatch, type SetStateAction } from "reac
 import type { PlateEditor } from "platejs/react";
 import { type AnnotationComposerPayload } from "@symbiot/ui/components/AnnotationComposer";
 
-import { applyAnnotation, type AppliedAnnotation } from "../utils/applyAnnotation.ts";
+import {
+  applyAnnotation,
+  hasValidSelection,
+  type AppliedAnnotation,
+} from "../utils/applyAnnotation.ts";
 
 import { snapshotOf } from "./ReviewEditorPrune.tsx";
 import { type AnnotationMaps, type PruneSetters } from "./ReviewEditorState.tsx";
-import { type EditorSnapshot, type ReviewEditorHandle } from "./ReviewEditorTypes.tsx";
+import {
+  type AnnotationHandleKind,
+  type EditorSnapshot,
+  type ReviewEditorHandle,
+} from "./ReviewEditorTypes.tsx";
 
 /** Authoring flow currently in flight, waiting for the composer's Save. */
 export type PendingAuthoring =
@@ -62,6 +70,8 @@ export interface ToolbarHandlers {
   onInsertClick: () => void;
   onReplaceClick: () => void;
   onDeleteClick: () => void;
+  /** Dispatch the matching handler by kind; used by host-side hotkeys. */
+  triggerAnnotation: (kind: AnnotationHandleKind) => void;
 }
 
 /** Dependencies passed into the toolbar-handlers hook. */
@@ -100,7 +110,16 @@ export const useToolbarHandlers = ({
     }
     setters.setSuggestionOriginalTexts((prev) => new Map(prev).set(applied.id, applied.anchorText));
   }, [editor, maps, onChange, setters]);
-  return { onCommentClick, onInsertClick, onReplaceClick, onDeleteClick };
+  const triggerAnnotation = useCallback(
+    (kind: AnnotationHandleKind): void => {
+      if (kind === "comment") onCommentClick();
+      else if (kind === "insertion") onInsertClick();
+      else if (kind === "replacement") onReplaceClick();
+      else onDeleteClick();
+    },
+    [onCommentClick, onInsertClick, onReplaceClick, onDeleteClick]
+  );
+  return { onCommentClick, onInsertClick, onReplaceClick, onDeleteClick, triggerAnnotation };
 };
 
 /** Wire up the imperative `ReviewEditorHandle` and surface it through `onReady`. */
@@ -108,10 +127,13 @@ export const useReadyHandle = (
   editor: PlateEditor,
   maps: AnnotationMaps,
   removeAnnotation: ReviewEditorHandle["removeAnnotation"],
+  triggerAnnotation: ReviewEditorHandle["triggerAnnotation"],
   onReady?: (h: ReviewEditorHandle) => void
 ): void => {
   useEffect(() => {
     onReady?.({
+      hasValidSelection: () => hasValidSelection(editor),
+      triggerAnnotation,
       getValue: () => editor.children,
       getCommentBodies: () => new Map(maps.bodies),
       getCommentImages: () => new Map(maps.images),
@@ -125,7 +147,7 @@ export const useReadyHandle = (
       getReplacementOriginalTexts: () => new Map(maps.replacementOriginalTexts),
       removeAnnotation,
     });
-  }, [editor, maps, removeAnnotation, onReady]);
+  }, [editor, maps, removeAnnotation, triggerAnnotation, onReady]);
 };
 
 /** Annotation handle kinds that route through the composer. */

@@ -61,6 +61,8 @@ interface ReviewEditorProps {
   onReady?: (handle: ReviewEditorHandle) => void;
   /** Fires on every Plate editor change with a serializable snapshot. */
   onChange?: (snapshot: EditorSnapshot) => void;
+  /** Fires when the inline annotation composer opens (true) or closes (false). */
+  onComposerOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -87,6 +89,7 @@ export const ReviewEditor = ({
   initialReplacementOriginalTexts,
   onReady,
   onChange,
+  onComposerOpenChange,
 }: ReviewEditorProps): React.ReactElement => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { maps, setters } = useAnnotationState({
@@ -123,19 +126,24 @@ export const ReviewEditor = ({
     [editor, maps, onChange, setters]
   );
 
-  useReadyHandle(editor, maps, onRemoveAnnotation, onReady);
-
   useEffect(() => {
     onChange?.(snapshotOf(editor, maps));
   }, [editor, maps, onChange]);
 
-  const { onCommentClick, onInsertClick, onReplaceClick, onDeleteClick } = useToolbarHandlers({
-    editor,
-    maps,
-    setters,
-    setPending,
-    onChange,
-  });
+  useEffect(() => {
+    onComposerOpenChange?.(pending !== null);
+  }, [pending, onComposerOpenChange]);
+
+  const { onCommentClick, onInsertClick, onReplaceClick, onDeleteClick, triggerAnnotation } =
+    useToolbarHandlers({
+      editor,
+      maps,
+      setters,
+      setPending,
+      onChange,
+    });
+
+  useReadyHandle(editor, maps, onRemoveAnnotation, triggerAnnotation, onReady);
 
   const onComposerSave = useCallback(
     (payload: AnnotationComposerPayload): void => {
