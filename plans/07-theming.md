@@ -12,13 +12,13 @@ The `ThemeProvider` already exists in a minimal form (Phase 2). This phase harde
 
 ## Exit criteria
 
-- [ ] `ThemeProvider` supports `system | light | dark`; defaults to `system`; explicit user choice persists to `localStorage` and overrides system (FR-14.1, FR-14.2, FR-14.3).
-- [ ] Listens for `prefers-color-scheme` change events; updates `.dark` class when in `system` mode and the OS preference changes.
-- [ ] **Settings dialog** hosts a theme toggle (shadcn `ToggleGroup`: System / Light / Dark).
-- [ ] All color expressed through shadcn/Tailwind CSS variables (`--background`, `--foreground`, `--muted`, etc.) **plus** annotation tokens `--anno-delete`, `--anno-insert`, `--anno-replace`, `--anno-comment`, each defined for both themes (FR-14.4).
-- [ ] All four annotation highlight colors meet **WCAG AA contrast** in both themes (FR-14.5, M7) — verified by an automated check (small contrast unit test against resolved CSS variables, or `axe-core` on a rendered fixture).
-- [ ] **No FOUC** on first paint in the in-app shell **or** the static portal (NFR-9, R-6).
-- [ ] Diff view tokens (Phase 4) re-themed to reuse annotation tokens for consistency (PRD §10).
+- [x] `ThemeProvider` supports `system | light | dark`; defaults to `system`; explicit user choice persists to `localStorage` and overrides system (FR-14.1, FR-14.2, FR-14.3).
+- [x] Listens for `prefers-color-scheme` change events; updates `.dark` class when in `system` mode and the OS preference changes.
+- [x] **Settings dialog** hosts a theme toggle (shadcn `ToggleGroup`: System / Light / Dark).
+- [x] All color expressed through shadcn/Tailwind CSS variables (`--background`, `--foreground`, `--muted`, etc.) **plus** annotation tokens `--anno-delete`, `--anno-insert`, `--anno-replace`, `--anno-comment`, each defined for both themes (FR-14.4).
+- [x] All four annotation highlight colors meet **WCAG AA contrast** in both themes (FR-14.5, M7) — verified by an automated check (small contrast unit test against resolved CSS variables, or `axe-core` on a rendered fixture).
+- [x] **No FOUC** on first paint in the in-app shell **or** the static portal (NFR-9, R-6).
+- [x] Diff view tokens (Phase 4) re-themed to reuse annotation tokens for consistency (PRD §10).
 
 ## Scope
 
