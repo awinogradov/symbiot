@@ -19,21 +19,25 @@ export interface SourceWindow {
   insertionNewTexts?: Map<string, string>;
   insertionImages?: Map<string, string[]>;
   insertionOriginalTexts?: Map<string, string>;
+  /** Per-replacement proposed text + image refs + anchor snapshot (Phase 5.3). */
+  replacementTexts?: Map<string, string>;
+  replacementImages?: Map<string, string[]>;
+  replacementOriginalTexts?: Map<string, string>;
 }
 
 type SidebarKind = AnnotationSidebarEntry["kind"];
 type SupportedEntry = Extract<AnnotationEntry, { kind: SidebarKind }>;
 
 /**
- * Narrows a walked entry to the kinds the sidebar can render. Comment,
- * Deletion, Global (Phase 3) and Insertion (Phase 5.2). Replacement lands in
- * Phase 5.3 alongside its authoring UI.
+ * Narrows a walked entry to the five sidebar-renderable kinds: Comment,
+ * Deletion, Global (Phase 3), Insertion (Phase 5.2), Replacement (Phase 5.3).
  */
 export const isSupportedSidebarEntry = (entry: AnnotationEntry): entry is SupportedEntry =>
   entry.kind === "comment" ||
   entry.kind === "deletion" ||
   entry.kind === "global" ||
-  entry.kind === "insertion";
+  entry.kind === "insertion" ||
+  entry.kind === "replacement";
 
 type AnchoredEntry = Exclude<SupportedEntry, { kind: "global" }>;
 
@@ -45,6 +49,7 @@ const anchoredPrimary = (entry: AnchoredEntry): string => {
 const anchoredBody = (entry: AnchoredEntry): string | undefined => {
   if (entry.kind === "comment") return entry.body;
   if (entry.kind === "insertion") return entry.newText;
+  if (entry.kind === "replacement") return entry.replacementText;
   return undefined;
 };
 
@@ -72,11 +77,7 @@ export const toSidebarEntry = (entry: SupportedEntry): AnnotationSidebarEntry =>
   return decorateOptional(base, entry);
 };
 
-/**
- * Walk a source window and project to sidebar entries. Replacement entries
- * are filtered out — sidebar rendering for that type lands in Phase 5.3
- * alongside its authoring UI.
- */
+/** Walk a source window and project to sidebar entries across all five kinds. */
 export const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] =>
   walkAnnotations({
     value: sources.value as PlateValue,
@@ -88,6 +89,9 @@ export const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] 
     insertionNewTexts: sources.insertionNewTexts,
     insertionImages: sources.insertionImages,
     insertionOriginalTexts: sources.insertionOriginalTexts,
+    replacementTexts: sources.replacementTexts,
+    replacementImages: sources.replacementImages,
+    replacementOriginalTexts: sources.replacementOriginalTexts,
   })
     .filter(isSupportedSidebarEntry)
     .map(toSidebarEntry);

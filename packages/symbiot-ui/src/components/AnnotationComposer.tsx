@@ -10,7 +10,7 @@ export type AnnotationComposerPayload = ComposerPayload;
  * Kinds that author a body via the popover composer. Deletion authoring has
  * no body and therefore no composer.
  */
-export type AnnotationComposerKind = "comment" | "insertion";
+export type AnnotationComposerKind = "comment" | "insertion" | "replacement";
 
 interface KindSurface {
   title: string;
@@ -31,6 +31,12 @@ const kindSurface: Record<AnnotationComposerKind, KindSurface> = {
     description: "Type the text you want to insert after the selection.",
     placeholder: "Insert text after this selection… (Enter to save, Esc to cancel)",
     quoteClass: "border-anno-insert text-anno-insert bg-anno-insert/10",
+  },
+  replacement: {
+    title: "Replace selection",
+    description: "Type the text you want to substitute for the selection.",
+    placeholder: "Replace this selection with… (Enter to save, Esc to cancel)",
+    quoteClass: "border-anno-replace text-anno-replace bg-anno-replace/10",
   },
 };
 

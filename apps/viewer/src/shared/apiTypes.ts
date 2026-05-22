@@ -40,7 +40,8 @@ export interface PlanVersionResponse {
  *
  * `commentOriginalTexts` and `suggestionOriginalTexts` are optional so drafts
  * persisted before Phase 4.3 still load — older drafts walk without drift
- * signals (back-compat). New drafts always include them.
+ * signals (back-compat). Phase 5.2 added the three `insertion*` fields and
+ * Phase 5.3 the three `replacement*` fields under the same back-compat rule.
  */
 export interface DraftPayload {
   value: unknown[];
@@ -52,6 +53,10 @@ export interface DraftPayload {
   insertionNewTexts?: Record<string, string>;
   insertionImages?: Record<string, string[]>;
   insertionOriginalTexts?: Record<string, string>;
+  /** Per-replacement proposed text + image refs + anchor snapshot (Phase 5.3). Optional for back-compat. */
+  replacementTexts?: Record<string, string>;
+  replacementImages?: Record<string, string[]>;
+  replacementOriginalTexts?: Record<string, string>;
   globalComments: { id: string; body: string; images?: string[] }[];
   updatedAt: number;
 }

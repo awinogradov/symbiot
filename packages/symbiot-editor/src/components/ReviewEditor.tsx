@@ -1,5 +1,5 @@
 import { MarkdownPlugin } from "@platejs/markdown";
-import { MessageSquare, Plus, Strikethrough } from "lucide-react";
+import { MessageSquare, Plus, Replace, Strikethrough } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -26,7 +26,7 @@ import { useTypingGuard } from "../utils/typingGuard.ts";
 import { FloatingToolbar } from "./FloatingToolbar.tsx";
 
 /** Annotation kind that the host can remove via the editor handle. */
-export type AnnotationHandleKind = "comment" | "deletion" | "insertion";
+export type AnnotationHandleKind = "comment" | "deletion" | "insertion" | "replacement";
 
 /** Imperative handle the host uses to read the current value and annotation maps. */
 export interface ReviewEditorHandle {
@@ -42,6 +42,11 @@ export interface ReviewEditorHandle {
   getInsertionImages: () => Map<string, string[]>;
   /** `contextText` snapshot captured at insertion creation; drives drift detection. */
   getInsertionOriginalTexts: () => Map<string, string>;
+  /** `replacementText` (the proposed substitution) captured at replacement creation. Phase 5.3. */
+  getReplacementTexts: () => Map<string, string>;
+  getReplacementImages: () => Map<string, string[]>;
+  /** `originalText` snapshot captured at replacement creation; drives drift detection. */
+  getReplacementOriginalTexts: () => Map<string, string>;
   removeAnnotation: (kind: AnnotationHandleKind, id: string) => void;
 }
 
@@ -55,6 +60,9 @@ export interface EditorSnapshot {
   insertionNewTexts: Map<string, string>;
   insertionImages: Map<string, string[]>;
   insertionOriginalTexts: Map<string, string>;
+  replacementTexts: Map<string, string>;
+  replacementImages: Map<string, string[]>;
+  replacementOriginalTexts: Map<string, string>;
 }
 
 interface ReviewEditorProps {
@@ -75,6 +83,12 @@ interface ReviewEditorProps {
   initialInsertionImages?: Map<string, string[]>;
   /** Optional saved per-insertion `contextText` snapshots (Phase 5.2 drift). */
   initialInsertionOriginalTexts?: Map<string, string>;
+  /** Optional saved per-replacement `replacementText` map (Phase 5.3). */
+  initialReplacementTexts?: Map<string, string>;
+  /** Optional saved per-replacement image refs (Phase 5.3). */
+  initialReplacementImages?: Map<string, string[]>;
+  /** Optional saved per-replacement `originalText` snapshots (Phase 5.3 drift). */
+  initialReplacementOriginalTexts?: Map<string, string>;
   onReady?: (handle: ReviewEditorHandle) => void;
   onChange?: (snapshot: EditorSnapshot) => void;
 }
@@ -94,6 +108,9 @@ interface AnnotationMaps {
   insertionNewTexts: Map<string, string>;
   insertionImages: Map<string, string[]>;
   insertionOriginalTexts: Map<string, string>;
+  replacementTexts: Map<string, string>;
+  replacementImages: Map<string, string[]>;
+  replacementOriginalTexts: Map<string, string>;
 }
 
 interface PruneSetters {
@@ -104,6 +121,9 @@ interface PruneSetters {
   setInsertionNewTexts: Dispatch<SetStateAction<Map<string, string>>>;
   setInsertionImages: Dispatch<SetStateAction<Map<string, string[]>>>;
   setInsertionOriginalTexts: Dispatch<SetStateAction<Map<string, string>>>;
+  setReplacementTexts: Dispatch<SetStateAction<Map<string, string>>>;
+  setReplacementImages: Dispatch<SetStateAction<Map<string, string[]>>>;
+  setReplacementOriginalTexts: Dispatch<SetStateAction<Map<string, string>>>;
 }
 
 const pruneComment = (
@@ -154,6 +174,26 @@ const pruneInsertion = (
   return { ...current, insertionNewTexts, insertionImages, insertionOriginalTexts };
 };
 
+const pruneReplacement = (
+  id: string,
+  current: AnnotationMaps,
+  setters: PruneSetters
+): AnnotationMaps => {
+  const replacementTexts = withoutKey(current.replacementTexts, id);
+  const replacementImages = withoutKey(current.replacementImages, id);
+  const replacementOriginalTexts = withoutKey(current.replacementOriginalTexts, id);
+  if (replacementTexts !== current.replacementTexts) {
+    setters.setReplacementTexts(replacementTexts);
+  }
+  if (replacementImages !== current.replacementImages) {
+    setters.setReplacementImages(replacementImages);
+  }
+  if (replacementOriginalTexts !== current.replacementOriginalTexts) {
+    setters.setReplacementOriginalTexts(replacementOriginalTexts);
+  }
+  return { ...current, replacementTexts, replacementImages, replacementOriginalTexts };
+};
+
 const pruneRemovedAnnotation = (
   kind: AnnotationHandleKind,
   id: string,
@@ -162,7 +202,8 @@ const pruneRemovedAnnotation = (
 ): AnnotationMaps => {
   if (kind === "comment") return pruneComment(id, current, setters);
   if (kind === "deletion") return pruneDeletion(id, current, setters);
-  return pruneInsertion(id, current, setters);
+  if (kind === "insertion") return pruneInsertion(id, current, setters);
+  return pruneReplacement(id, current, setters);
 };
 
 const snapshotOf = (editor: PlateEditor, maps: AnnotationMaps): EditorSnapshot => ({
@@ -174,17 +215,22 @@ const snapshotOf = (editor: PlateEditor, maps: AnnotationMaps): EditorSnapshot =
   insertionNewTexts: new Map(maps.insertionNewTexts),
   insertionImages: new Map(maps.insertionImages),
   insertionOriginalTexts: new Map(maps.insertionOriginalTexts),
+  replacementTexts: new Map(maps.replacementTexts),
+  replacementImages: new Map(maps.replacementImages),
+  replacementOriginalTexts: new Map(maps.replacementOriginalTexts),
 });
 
 interface ToolbarButtonsProps {
   onComment: () => void;
   onInsert: () => void;
+  onReplace: () => void;
   onDelete: () => void;
 }
 
 const ToolbarButtons = ({
   onComment,
   onInsert,
+  onReplace,
   onDelete,
 }: ToolbarButtonsProps): React.ReactElement => (
   <FloatingToolbar>
@@ -195,6 +241,10 @@ const ToolbarButtons = ({
     <Button data-testid="toolbar-insert" variant="ghost" size="sm" onClick={onInsert}>
       <Plus />
       Insert
+    </Button>
+    <Button data-testid="toolbar-replace" variant="ghost" size="sm" onClick={onReplace}>
+      <Replace />
+      Replace
     </Button>
     <Button data-testid="toolbar-delete" variant="ghost" size="sm" onClick={onDelete}>
       <Strikethrough />
@@ -219,6 +269,9 @@ const useReadyHandle = (
       getInsertionNewTexts: () => new Map(maps.insertionNewTexts),
       getInsertionImages: () => new Map(maps.insertionImages),
       getInsertionOriginalTexts: () => new Map(maps.insertionOriginalTexts),
+      getReplacementTexts: () => new Map(maps.replacementTexts),
+      getReplacementImages: () => new Map(maps.replacementImages),
+      getReplacementOriginalTexts: () => new Map(maps.replacementOriginalTexts),
       removeAnnotation,
     });
   }, [editor, maps, removeAnnotation, onReady]);
@@ -226,7 +279,8 @@ const useReadyHandle = (
 
 type PendingAuthoring =
   | { kind: "comment"; applied: AppliedAnnotation }
-  | { kind: "insertion"; applied: AppliedAnnotation };
+  | { kind: "insertion"; applied: AppliedAnnotation }
+  | { kind: "replacement"; applied: AppliedAnnotation };
 
 interface InitialState {
   initialBodies?: Map<string, string>;
@@ -236,9 +290,79 @@ interface InitialState {
   initialInsertionNewTexts?: Map<string, string>;
   initialInsertionImages?: Map<string, string[]>;
   initialInsertionOriginalTexts?: Map<string, string>;
+  initialReplacementTexts?: Map<string, string>;
+  initialReplacementImages?: Map<string, string[]>;
+  initialReplacementOriginalTexts?: Map<string, string>;
 }
 
-/** Bundles the seven annotation state maps + their setters into one hook. */
+interface InsertionState {
+  insertionNewTexts: Map<string, string>;
+  insertionImages: Map<string, string[]>;
+  insertionOriginalTexts: Map<string, string>;
+  setInsertionNewTexts: Dispatch<SetStateAction<Map<string, string>>>;
+  setInsertionImages: Dispatch<SetStateAction<Map<string, string[]>>>;
+  setInsertionOriginalTexts: Dispatch<SetStateAction<Map<string, string>>>;
+}
+
+const useInsertionState = (initial: InitialState): InsertionState => {
+  const [insertionNewTexts, setInsertionNewTexts] = useState<Map<string, string>>(
+    () => new Map(initial.initialInsertionNewTexts ?? new Map())
+  );
+  const [insertionImages, setInsertionImages] = useState<Map<string, string[]>>(
+    () => new Map(initial.initialInsertionImages ?? new Map())
+  );
+  const [insertionOriginalTexts, setInsertionOriginalTexts] = useState<Map<string, string>>(
+    () => new Map(initial.initialInsertionOriginalTexts ?? new Map())
+  );
+  return {
+    insertionNewTexts,
+    insertionImages,
+    insertionOriginalTexts,
+    setInsertionNewTexts,
+    setInsertionImages,
+    setInsertionOriginalTexts,
+  };
+};
+
+interface ReplacementState {
+  replacementTexts: Map<string, string>;
+  replacementImages: Map<string, string[]>;
+  replacementOriginalTexts: Map<string, string>;
+  setReplacementTexts: Dispatch<SetStateAction<Map<string, string>>>;
+  setReplacementImages: Dispatch<SetStateAction<Map<string, string[]>>>;
+  setReplacementOriginalTexts: Dispatch<SetStateAction<Map<string, string>>>;
+}
+
+const useReplacementState = (initial: InitialState): ReplacementState => {
+  const [replacementTexts, setReplacementTexts] = useState<Map<string, string>>(
+    () => new Map(initial.initialReplacementTexts ?? new Map())
+  );
+  const [replacementImages, setReplacementImages] = useState<Map<string, string[]>>(
+    () => new Map(initial.initialReplacementImages ?? new Map())
+  );
+  const [replacementOriginalTexts, setReplacementOriginalTexts] = useState<Map<string, string>>(
+    () => new Map(initial.initialReplacementOriginalTexts ?? new Map())
+  );
+  return {
+    replacementTexts,
+    replacementImages,
+    replacementOriginalTexts,
+    setReplacementTexts,
+    setReplacementImages,
+    setReplacementOriginalTexts,
+  };
+};
+
+/**
+ * Bundles the ten annotation state maps + their setters into one hook.
+ *
+ * Insertion / Replacement state live in sub-hooks (`useInsertionState`,
+ * `useReplacementState`) so the function stays under the 100-line cap. Those
+ * sub-hooks return fresh object literals each render — so the `useMemo` here
+ * MUST depend on the individual state values they expose, not the wrapping
+ * objects. Otherwise `maps` re-creates every render and the snapshot
+ * `useEffect` in `ReviewEditor` loops forever.
+ */
 const useAnnotationState = (
   initial: InitialState
 ): { maps: AnnotationMaps; setters: PruneSetters } => {
@@ -254,15 +378,22 @@ const useAnnotationState = (
   const [suggestionOriginalTexts, setSuggestionOriginalTexts] = useState<Map<string, string>>(
     () => new Map(initial.initialSuggestionOriginalTexts ?? new Map())
   );
-  const [insertionNewTexts, setInsertionNewTexts] = useState<Map<string, string>>(
-    () => new Map(initial.initialInsertionNewTexts ?? new Map())
-  );
-  const [insertionImages, setInsertionImages] = useState<Map<string, string[]>>(
-    () => new Map(initial.initialInsertionImages ?? new Map())
-  );
-  const [insertionOriginalTexts, setInsertionOriginalTexts] = useState<Map<string, string>>(
-    () => new Map(initial.initialInsertionOriginalTexts ?? new Map())
-  );
+  const {
+    insertionNewTexts,
+    insertionImages,
+    insertionOriginalTexts,
+    setInsertionNewTexts,
+    setInsertionImages,
+    setInsertionOriginalTexts,
+  } = useInsertionState(initial);
+  const {
+    replacementTexts,
+    replacementImages,
+    replacementOriginalTexts,
+    setReplacementTexts,
+    setReplacementImages,
+    setReplacementOriginalTexts,
+  } = useReplacementState(initial);
   const maps = useMemo<AnnotationMaps>(
     () => ({
       bodies,
@@ -272,6 +403,9 @@ const useAnnotationState = (
       insertionNewTexts,
       insertionImages,
       insertionOriginalTexts,
+      replacementTexts,
+      replacementImages,
+      replacementOriginalTexts,
     }),
     [
       bodies,
@@ -281,6 +415,9 @@ const useAnnotationState = (
       insertionNewTexts,
       insertionImages,
       insertionOriginalTexts,
+      replacementTexts,
+      replacementImages,
+      replacementOriginalTexts,
     ]
   );
   const setters = useMemo<PruneSetters>(
@@ -292,8 +429,18 @@ const useAnnotationState = (
       setInsertionNewTexts,
       setInsertionImages,
       setInsertionOriginalTexts,
+      setReplacementTexts,
+      setReplacementImages,
+      setReplacementOriginalTexts,
     }),
-    []
+    [
+      setInsertionNewTexts,
+      setInsertionImages,
+      setInsertionOriginalTexts,
+      setReplacementTexts,
+      setReplacementImages,
+      setReplacementOriginalTexts,
+    ]
   );
   return { maps, setters };
 };
@@ -324,9 +471,23 @@ const saveInsertionBody = (
   setters.setInsertionOriginalTexts((prev) => new Map(prev).set(id, anchorText));
 };
 
+const saveReplacementBody = (
+  setters: PruneSetters,
+  id: string,
+  anchorText: string,
+  payload: AnnotationComposerPayload
+): void => {
+  setters.setReplacementTexts((prev) => new Map(prev).set(id, payload.body));
+  if (payload.images.length > 0) {
+    setters.setReplacementImages((prev) => new Map(prev).set(id, payload.images));
+  }
+  setters.setReplacementOriginalTexts((prev) => new Map(prev).set(id, anchorText));
+};
+
 interface ToolbarHandlers {
   onCommentClick: () => void;
   onInsertClick: () => void;
+  onReplaceClick: () => void;
   onDeleteClick: () => void;
 }
 
@@ -347,7 +508,7 @@ const useToolbarHandlers = ({
   onChange,
 }: ToolbarHandlerDeps): ToolbarHandlers => {
   const openComposer = useCallback(
-    (kind: "comment" | "insertion"): void => {
+    (kind: "comment" | "insertion" | "replacement"): void => {
       const applied = applyAnnotation(editor, kind);
       if (applied === null) return;
       setPending({ kind, applied });
@@ -356,6 +517,7 @@ const useToolbarHandlers = ({
   );
   const onCommentClick = useCallback((): void => openComposer("comment"), [openComposer]);
   const onInsertClick = useCallback((): void => openComposer("insertion"), [openComposer]);
+  const onReplaceClick = useCallback((): void => openComposer("replacement"), [openComposer]);
   const onDeleteClick = useCallback((): void => {
     const applied = applyAnnotation(editor, "deletion");
     if (applied === null) {
@@ -364,7 +526,7 @@ const useToolbarHandlers = ({
     }
     setters.setSuggestionOriginalTexts((prev) => new Map(prev).set(applied.id, applied.anchorText));
   }, [editor, maps, onChange, setters]);
-  return { onCommentClick, onInsertClick, onDeleteClick };
+  return { onCommentClick, onInsertClick, onReplaceClick, onDeleteClick };
 };
 
 /**
@@ -386,6 +548,9 @@ export const ReviewEditor = ({
   initialInsertionNewTexts,
   initialInsertionImages,
   initialInsertionOriginalTexts,
+  initialReplacementTexts,
+  initialReplacementImages,
+  initialReplacementOriginalTexts,
   onReady,
   onChange,
 }: ReviewEditorProps): React.ReactElement => {
@@ -398,6 +563,9 @@ export const ReviewEditor = ({
     initialInsertionNewTexts,
     initialInsertionImages,
     initialInsertionOriginalTexts,
+    initialReplacementTexts,
+    initialReplacementImages,
+    initialReplacementOriginalTexts,
   });
   const [pending, setPending] = useState<PendingAuthoring | null>(null);
 
@@ -427,7 +595,7 @@ export const ReviewEditor = ({
     onChange?.(snapshotOf(editor, maps));
   }, [editor, maps, onChange]);
 
-  const { onCommentClick, onInsertClick, onDeleteClick } = useToolbarHandlers({
+  const { onCommentClick, onInsertClick, onReplaceClick, onDeleteClick } = useToolbarHandlers({
     editor,
     maps,
     setters,
@@ -441,8 +609,10 @@ export const ReviewEditor = ({
       const { id, anchorText } = pending.applied;
       if (pending.kind === "comment") {
         saveCommentBody(setters, id, anchorText, payload);
-      } else {
+      } else if (pending.kind === "insertion") {
         saveInsertionBody(setters, id, anchorText, payload);
+      } else {
+        saveReplacementBody(setters, id, anchorText, payload);
       }
       setPending(null);
     },
@@ -462,6 +632,7 @@ export const ReviewEditor = ({
         <ToolbarButtons
           onComment={onCommentClick}
           onInsert={onInsertClick}
+          onReplace={onReplaceClick}
           onDelete={onDeleteClick}
         />
       </Plate>

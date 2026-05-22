@@ -30,6 +30,9 @@ export interface ReviewStateProps {
     insertionNewTexts: Map<string, string>;
     insertionImages: Map<string, string[]>;
     insertionOriginalTexts: Map<string, string>;
+    replacementTexts: Map<string, string>;
+    replacementImages: Map<string, string[]>;
+    replacementOriginalTexts: Map<string, string>;
     globalComments: GlobalCommentEntry[];
   }) => void;
 }
@@ -46,6 +49,9 @@ export interface ReviewState {
   initialInsertionNewTexts: Map<string, string> | undefined;
   initialInsertionImages: Map<string, string[]> | undefined;
   initialInsertionOriginalTexts: Map<string, string> | undefined;
+  initialReplacementTexts: Map<string, string> | undefined;
+  initialReplacementImages: Map<string, string[]> | undefined;
+  initialReplacementOriginalTexts: Map<string, string> | undefined;
   reloadKey: number;
   collectEntries: () => AnnotationEntry[];
   setEditorHandle: (handle: ReviewEditorHandle) => void;
@@ -72,6 +78,9 @@ interface InitialDraftSlice {
   initialInsertionNewTexts: Map<string, string> | undefined;
   initialInsertionImages: Map<string, string[]> | undefined;
   initialInsertionOriginalTexts: Map<string, string> | undefined;
+  initialReplacementTexts: Map<string, string> | undefined;
+  initialReplacementImages: Map<string, string[]> | undefined;
+  initialReplacementOriginalTexts: Map<string, string> | undefined;
 }
 
 const initialValueFromDraft = (
@@ -110,10 +119,23 @@ const draftInsertionInitial = (
   initialInsertionOriginalTexts: draftInitialMap(draft?.insertionOriginalTexts, reloadKey),
 });
 
+const draftReplacementInitial = (
+  draft: DraftPayload | null,
+  reloadKey: number
+): Pick<
+  InitialDraftSlice,
+  "initialReplacementTexts" | "initialReplacementImages" | "initialReplacementOriginalTexts"
+> => ({
+  initialReplacementTexts: draftInitialMap(draft?.replacementTexts, reloadKey),
+  initialReplacementImages: draftInitialMap(draft?.replacementImages, reloadKey),
+  initialReplacementOriginalTexts: draftInitialMap(draft?.replacementOriginalTexts, reloadKey),
+});
+
 const draftInitial = (draft: DraftPayload | null, reloadKey: number): InitialDraftSlice => ({
   initialValue: initialValueFromDraft(draft, reloadKey),
   ...draftCommentInitial(draft, reloadKey),
   ...draftInsertionInitial(draft, reloadKey),
+  ...draftReplacementInitial(draft, reloadKey),
 });
 
 const snapshotToDraft = (
@@ -128,6 +150,9 @@ const snapshotToDraft = (
   insertionNewTexts: snapshot.insertionNewTexts,
   insertionImages: snapshot.insertionImages,
   insertionOriginalTexts: snapshot.insertionOriginalTexts,
+  replacementTexts: snapshot.replacementTexts,
+  replacementImages: snapshot.replacementImages,
+  replacementOriginalTexts: snapshot.replacementOriginalTexts,
   globalComments,
 });
 
@@ -163,6 +188,9 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
       insertionNewTexts: editorHandle.getInsertionNewTexts(),
       insertionImages: editorHandle.getInsertionImages(),
       insertionOriginalTexts: editorHandle.getInsertionOriginalTexts(),
+      replacementTexts: editorHandle.getReplacementTexts(),
+      replacementImages: editorHandle.getReplacementImages(),
+      replacementOriginalTexts: editorHandle.getReplacementOriginalTexts(),
       globalComments,
     });
   }, [editorHandle, globalComments]);

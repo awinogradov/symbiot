@@ -1,10 +1,11 @@
 import type { PlateEditor } from "platejs/react";
 
-type Kind = "comment" | "deletion" | "insertion";
+type Kind = "comment" | "deletion" | "insertion" | "replacement";
 
-const prefixOf = (kind: Kind): "comment" | "suggestion" | "insertion" => {
+const prefixOf = (kind: Kind): "comment" | "suggestion" | "insertion" | "replacement" => {
   if (kind === "comment") return "comment";
   if (kind === "insertion") return "insertion";
+  if (kind === "replacement") return "replacement";
   return "suggestion";
 };
 

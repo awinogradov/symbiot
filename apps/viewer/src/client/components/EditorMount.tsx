@@ -21,6 +21,9 @@ interface EditorMountProps {
   initialInsertionNewTexts: Map<string, string> | undefined;
   initialInsertionImages: Map<string, string[]> | undefined;
   initialInsertionOriginalTexts: Map<string, string> | undefined;
+  initialReplacementTexts: Map<string, string> | undefined;
+  initialReplacementImages: Map<string, string[]> | undefined;
+  initialReplacementOriginalTexts: Map<string, string> | undefined;
   onReady: (handle: ReviewEditorHandle) => void;
   onChange: (snapshot: EditorSnapshot) => void;
 }
@@ -35,6 +38,9 @@ interface GatedHydrationInput {
   initialInsertionNewTexts: Map<string, string> | undefined;
   initialInsertionImages: Map<string, string[]> | undefined;
   initialInsertionOriginalTexts: Map<string, string> | undefined;
+  initialReplacementTexts: Map<string, string> | undefined;
+  initialReplacementImages: Map<string, string[]> | undefined;
+  initialReplacementOriginalTexts: Map<string, string> | undefined;
 }
 
 interface GatedHydrationOutput {
@@ -46,6 +52,9 @@ interface GatedHydrationOutput {
   initialInsertionNewTexts: Map<string, string> | undefined;
   initialInsertionImages: Map<string, string[]> | undefined;
   initialInsertionOriginalTexts: Map<string, string> | undefined;
+  initialReplacementTexts: Map<string, string> | undefined;
+  initialReplacementImages: Map<string, string[]> | undefined;
+  initialReplacementOriginalTexts: Map<string, string> | undefined;
 }
 
 /**
@@ -65,6 +74,9 @@ const gatedHydration = (input: GatedHydrationInput): GatedHydrationOutput => {
       initialInsertionNewTexts: undefined,
       initialInsertionImages: undefined,
       initialInsertionOriginalTexts: undefined,
+      initialReplacementTexts: undefined,
+      initialReplacementImages: undefined,
+      initialReplacementOriginalTexts: undefined,
     };
   }
   return {
@@ -76,6 +88,9 @@ const gatedHydration = (input: GatedHydrationInput): GatedHydrationOutput => {
     initialInsertionNewTexts: input.initialInsertionNewTexts,
     initialInsertionImages: input.initialInsertionImages,
     initialInsertionOriginalTexts: input.initialInsertionOriginalTexts,
+    initialReplacementTexts: input.initialReplacementTexts,
+    initialReplacementImages: input.initialReplacementImages,
+    initialReplacementOriginalTexts: input.initialReplacementOriginalTexts,
   };
 };
 
@@ -98,6 +113,9 @@ export const EditorMount = ({
   initialInsertionNewTexts,
   initialInsertionImages,
   initialInsertionOriginalTexts,
+  initialReplacementTexts,
+  initialReplacementImages,
+  initialReplacementOriginalTexts,
   onReady,
   onChange,
 }: EditorMountProps): React.ReactElement => {
@@ -111,6 +129,9 @@ export const EditorMount = ({
     initialInsertionNewTexts,
     initialInsertionImages,
     initialInsertionOriginalTexts,
+    initialReplacementTexts,
+    initialReplacementImages,
+    initialReplacementOriginalTexts,
   });
   return (
     <ReviewEditor

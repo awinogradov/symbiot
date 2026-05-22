@@ -38,7 +38,7 @@ import { VersionBrowser } from "./VersionBrowser.tsx";
  */
 export interface AnnotationSidebarEntry {
   id: string;
-  kind: "comment" | "deletion" | "global" | "insertion";
+  kind: "comment" | "deletion" | "global" | "insertion" | "replacement";
   /** Either the anchored selection (C/D/I context) or the body (G). */
   primary: string;
   /** Comment body for C, proposed new text for I; undefined for G/D. */
@@ -89,43 +89,34 @@ interface AnnotationSidebarProps {
   onToggleCompare: () => void;
 }
 
-const kindLabel = (kind: AnnotationSidebarEntry["kind"]): string => {
-  switch (kind) {
-    case "comment":
-      return "Comment";
-    case "deletion":
-      return "Deletion";
-    case "global":
-      return "Global";
-    case "insertion":
-      return "Insertion";
-  }
+const kindLabels: Record<AnnotationSidebarEntry["kind"], string> = {
+  comment: "Comment",
+  deletion: "Deletion",
+  global: "Global",
+  insertion: "Insertion",
+  replacement: "Replacement",
 };
 
-const kindClass = (kind: AnnotationSidebarEntry["kind"]): string => {
-  switch (kind) {
-    case "comment":
-    case "global":
-      return "text-anno-comment";
-    case "deletion":
-      return "text-anno-delete";
-    case "insertion":
-      return "text-anno-insert";
-  }
+const kindClasses: Record<AnnotationSidebarEntry["kind"], string> = {
+  comment: "text-anno-comment",
+  global: "text-anno-comment",
+  deletion: "text-anno-delete",
+  insertion: "text-anno-insert",
+  replacement: "text-anno-replace",
 };
 
-const removalDescription = (kind: AnnotationSidebarEntry["kind"]): string => {
-  switch (kind) {
-    case "comment":
-      return "This removes the comment from the plan. It can't be undone.";
-    case "deletion":
-      return "This removes the deletion suggestion from the plan. It can't be undone.";
-    case "global":
-      return "This removes the global comment from the plan. It can't be undone.";
-    case "insertion":
-      return "This removes the insertion suggestion from the plan. It can't be undone.";
-  }
+const removalDescriptions: Record<AnnotationSidebarEntry["kind"], string> = {
+  comment: "This removes the comment from the plan. It can't be undone.",
+  deletion: "This removes the deletion suggestion from the plan. It can't be undone.",
+  global: "This removes the global comment from the plan. It can't be undone.",
+  insertion: "This removes the insertion suggestion from the plan. It can't be undone.",
+  replacement: "This removes the replacement suggestion from the plan. It can't be undone.",
 };
+
+const kindLabel = (kind: AnnotationSidebarEntry["kind"]): string => kindLabels[kind];
+const kindClass = (kind: AnnotationSidebarEntry["kind"]): string => kindClasses[kind];
+const removalDescription = (kind: AnnotationSidebarEntry["kind"]): string =>
+  removalDescriptions[kind];
 
 interface EntryRowProps {
   entry: AnnotationSidebarEntry;
@@ -244,8 +235,8 @@ const ClearAllFooter = ({ onClearAll }: ClearAllFooterProps): React.ReactElement
         <AlertDialogHeader>
           <AlertDialogTitle>Clear all annotations?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes every comment, deletion, insertion, and global comment from the current
-            plan. It can&apos;t be undone.
+            This removes every comment, deletion, insertion, replacement, and global comment from
+            the current plan. It can&apos;t be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
