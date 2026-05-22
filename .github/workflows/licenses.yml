@@ -48,6 +48,8 @@ jobs:
       - name: Checkout (fork PR; read-only)
         if: steps.src.outputs.same_repo == 'false'
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: actions/setup-node@v4
         with:
