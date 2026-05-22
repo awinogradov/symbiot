@@ -36,17 +36,28 @@ export const markerPath = (): string =>
 
 const eventLogPath = (): string => join(homedir(), ".symbiot", "hook-state", "events.log");
 
+const isMissingPath = (error: unknown): boolean => {
+  const { code } = error as NodeJS.ErrnoException;
+  return code === "ENOENT" || code === "ENOTDIR";
+};
+
 /**
  * Append a single JSON line per hook invocation for post-hoc debugging.
- * Failures are swallowed — the log is observability, never load-bearing.
+ * The log is observability, never load-bearing — failures must not
+ * propagate (a throw would abort Claude Code's plan dispatch). Missing-
+ * path errors stay silent (first-invocation case); other failures surface
+ * a single-line warning on stderr so corruption / permission issues do
+ * not vanish.
  */
 const logEvent = async (entry: Record<string, unknown>): Promise<void> => {
   try {
     const target = eventLogPath();
     await mkdir(dirname(target), { recursive: true });
     await appendFile(target, `${JSON.stringify({ at: Date.now(), ...entry })}\n`, "utf8");
-  } catch {
-    // intentional swallow
+  } catch (error) {
+    if (isMissingPath(error)) return;
+    const code = (error as NodeJS.ErrnoException).code ?? "unknown";
+    process.stderr.write(`symbiot: events.log write failed (${code})\n`);
   }
 };
 
@@ -89,13 +100,19 @@ const isApproveMarker = (value: unknown): value is ApproveMarker => {
  * Read the most recent approve marker. Returns `null` on any failure
  * (missing file, malformed JSON, schema mismatch) so callers can fall back to
  * the no-op `permissionDecision: "ask"` path without partial signals.
+ * Missing-path errors stay silent (no marker yet); other errors emit a
+ * one-line stderr warning so corruption / permission issues are visible.
  */
 export const readApproveMarker = async (): Promise<ApproveMarker | null> => {
   try {
     const raw = await readFile(markerPath(), "utf8");
     const parsed: unknown = JSON.parse(raw);
     return isApproveMarker(parsed) ? parsed : null;
-  } catch {
+  } catch (error) {
+    if (!isMissingPath(error)) {
+      const code = (error as NodeJS.ErrnoException).code ?? "parse";
+      process.stderr.write(`symbiot: marker read failed (${code})\n`);
+    }
     return null;
   }
 };
