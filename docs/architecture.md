@@ -153,12 +153,32 @@ obsolete, delete the bullet rather than hedging it.
 
 ### Hook semantics
 
-- **Approve sends both shapes.** `apps/hook` emits the documented
-  `permissionDecision: "allow"` payload, but Claude Code currently ignores
-  that for the `ExitPlanMode` matcher (upstream bug:
+- **Two events under one matcher.** The installer registers
+  `PreToolUse(ExitPlanMode)` AND `PermissionRequest(ExitPlanMode)` against the
+  same `symbiot run-hook` command. `PreToolUse` drives the viewer (single
+  reviewer prompt). On approve it writes a short-lived marker keyed by a
+  SHA-256 of the plan to `~/.symbiot/hook-state/last-approve.json` and
+  emits the documented `permissionDecision: "allow"` payload. On deny it
+  emits the bulletproof top-level `{decision: "block", reason}` field —
+  this short-circuits tool dispatch, so `PermissionRequest` does not fire
+  on the deny path. `PermissionRequest` is a viewer-less reader that
+  consults the marker (60 s TTL, plan-hash gated) and emits the nested
+  `{decision: {behavior: "allow"}}` schema Claude Code honors for this
+  event — suppressing the native "Accept this plan?" prompt.
+- **Two schemas — `PreToolUse` ≠ `PermissionRequest`.** The two events do
+  NOT share an output shape. `PreToolUse` expects
+  `hookSpecificOutput.permissionDecision` (`allow` / `deny` / `ask`) which
+  Claude Code ignores for the `ExitPlanMode` matcher (upstream bug:
   [anthropics/claude-code#50660](https://github.com/anthropics/claude-code/issues/50660)).
-  The Request-changes path is unaffected. The auto-approve payload will
-  start working transparently when the upstream fix lands.
+  `PermissionRequest` expects the nested
+  `hookSpecificOutput.decision.behavior` (`allow` / `deny`) — a different
+  field at a different path — and IS honored for `ExitPlanMode`. That is
+  why the second prompt actually disappears today. When the marker is
+  missing or stale, `PermissionRequest` writes nothing so Claude Code
+  falls through to its native prompt (graceful degradation).
+- **Stop-on-deny is intentional.** The deny path stays on `PreToolUse`
+  via `{decision: "block", reason}` because that field also blocks the
+  tool dispatch entirely — no PermissionRequest, no re-prompt, no race.
 
 ### Testing harness
 
