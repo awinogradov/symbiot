@@ -44,15 +44,18 @@ const ensureHook = (settings: ClaudeSettings, command: string): ClaudeSettings =
   const hooks = settings.hooks ?? {};
   const existing = stripSymbiotEntries(hooks.Stop ?? []);
   const preExisting = stripSymbiotEntries(hooks.PreToolUse ?? []);
+  const permExisting = stripSymbiotEntries(hooks.PermissionRequest ?? []);
+  const symbiotGroup: ClaudeHookGroup = {
+    matcher: "ExitPlanMode",
+    hooks: [{ type: "command", command }],
+  };
   return {
     ...settings,
     hooks: {
       ...hooks,
       Stop: existing,
-      PreToolUse: [
-        ...preExisting,
-        { matcher: "ExitPlanMode", hooks: [{ type: "command", command }] },
-      ],
+      PreToolUse: [...preExisting, symbiotGroup],
+      PermissionRequest: [...permExisting, symbiotGroup],
     },
   };
 };
@@ -67,10 +70,19 @@ const readSettings = async (): Promise<ClaudeSettings> => {
 };
 
 /**
- * Idempotently register the symbiot PreToolUse(ExitPlanMode) hook in
- * ~/.claude/settings.json. Strips any prior symbiot entries (including the
- * deprecated Stop registration shipped in the first Phase 2 cut), then writes
- * the current absolute-path command. Other hooks in the file are untouched.
+ * Idempotently register the symbiot hooks in `~/.claude/settings.json`:
+ *
+ *   - `PreToolUse(ExitPlanMode)` — drives the viewer; emits the `decision:"block"`
+ *     deny path (bulletproof) and a `permissionDecision:"allow"` approve payload.
+ *   - `PermissionRequest(ExitPlanMode)` — defensive workaround for
+ *     anthropics/claude-code#50660. Reads the approve marker written by the
+ *     PreToolUse run and echoes it back on the new hook event, so Claude Code
+ *     can short-circuit its native "Accept this plan?" prompt once the event
+ *     honors `permissionDecision` for ExitPlanMode. No-op until then.
+ *
+ * Strips any prior symbiot entries (including the deprecated Stop registration
+ * shipped in the first Phase 2 cut), then writes the current absolute-path
+ * command. Other hooks in the file are untouched.
  */
 export const installHook = async (): Promise<{ path: string; command: string }> => {
   const command = cliCommand();

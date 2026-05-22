@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 /**
  * `symbiot` CLI entrypoint. Dispatches to:
- *  - `install-hook`   — register the PreToolUse(ExitPlanMode) hook in ~/.claude/settings.json
+ *  - `install-hook`   — register the PreToolUse(ExitPlanMode) and
+ *                       PermissionRequest(ExitPlanMode) hooks in
+ *                       ~/.claude/settings.json
  *  - `uninstall-hook` — remove every symbiot entry from ~/.claude/settings.json
  *  - `run-hook`       — handler invoked by Claude Code on ExitPlanMode (reads stdin)
  *  - `annotate <file>`— launch the viewer in annotate mode against a markdown file
@@ -22,7 +24,7 @@ const usage = (): never => {
 const runInstall = async (): Promise<number> => {
   const result = await installHook();
   process.stdout.write(
-    `installed symbiot PreToolUse(ExitPlanMode) hook in ${result.path}\n  command: ${result.command}\n`
+    `installed symbiot PreToolUse(ExitPlanMode) + PermissionRequest(ExitPlanMode) hooks in ${result.path}\n  command: ${result.command}\n`
   );
   return 0;
 };
