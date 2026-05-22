@@ -4,7 +4,7 @@ import {
   type GlobalCommentEntry,
   type PlateValue,
 } from "@symbiot/annotations";
-import { type AnnotationSidebarEntry } from "@symbiot/ui/components/AnnotationSidebar";
+import { type AnnotationSidebarEntry } from "@symbiot/ui/components/AnnotationSidebarTypes";
 
 /** Snapshot of every annotation source the sidebar needs to project a flat entry list. */
 export interface SourceWindow {
