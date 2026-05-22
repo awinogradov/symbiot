@@ -7,6 +7,12 @@
     <link rel="alternate icon" type="image/x-icon" href="/favicon.ico" sizes="16x16 32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <title>symbiot — review plan</title>
+    <!--
+      Pre-paint theme resolution. Must stay inline and synchronous (no defer/async/type=module)
+      so the first painted frame already reflects the resolved theme — prevents FOUC on dark OS.
+      The `symbiot.theme` localStorage key contract is owned by Phase 7.1 (#49).
+    -->
+    <script>try{var t=localStorage.getItem('symbiot.theme');var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}</script>
   </head>
   <body class="bg-background text-foreground">
     <div id="root"></div>
