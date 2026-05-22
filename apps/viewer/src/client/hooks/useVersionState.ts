@@ -4,6 +4,8 @@ import type { DiffMode } from "@symbiot/editor/components/DiffEditor";
 import { fetchPlanVersion, fetchPlanVersions } from "../libs/apiClient.ts";
 import type { PlanResponse, PlanVersionResponse } from "../../shared/apiTypes.ts";
 
+import { useCancelledFetch } from "./useCancelledFetch.ts";
+
 const diffModeStorageKey = "symbiot.diffMode";
 
 const readDiffMode = (): DiffMode => {
@@ -73,18 +75,12 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
   const [diffMode, setDiffMode] = useState<DiffMode>(readDiffMode);
   const [compareWithPredecessor, setCompareWithPredecessor] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchPlanVersions()
-      .then((res) => {
-        if (cancelled) return;
-        setVersions(res.versions.length > 0 ? res.versions : [plan.meta.version]);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [plan.meta.version]);
+  useCancelledFetch(
+    fetchPlanVersions,
+    (res) => setVersions(res.versions.length > 0 ? res.versions : [plan.meta.version]),
+    null,
+    [plan.meta.version]
+  );
 
   const latestActiveRequestRef = useRef(0);
   const latestPreviousRequestRef = useRef(0);
