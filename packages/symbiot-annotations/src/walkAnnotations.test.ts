@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlateValue } from "./types.ts";
-import { onlyComments, onlyDeletions, onlyGlobals, walkAnnotations } from "./walkAnnotations.ts";
+import {
+  onlyComments,
+  onlyDeletions,
+  onlyGlobals,
+  onlyInsertions,
+  onlyReplacements,
+  walkAnnotations,
+} from "./walkAnnotations.ts";
 
 describe("walkAnnotations", () => {
   it("extracts comments, deletions, and global comments in one pass", () => {
@@ -141,5 +148,157 @@ describe("walkAnnotations drift detection", () => {
     );
     expect(entry?.drifted).toBe(true);
     expect(entry?.originalText).toBe("deleted-anchor");
+  });
+});
+
+describe("walkAnnotations insertions + replacements", () => {
+  it("extracts insertion entries from `insertion_<id>` marks plus sidecar new texts", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [
+          { text: "lead " },
+          { text: "the quick brown fox", insertion_i1: true },
+          { text: " trail" },
+        ],
+      },
+    ];
+    const entries = walkAnnotations({
+      value,
+      commentBodies: new Map(),
+      globalComments: [],
+      insertionNewTexts: new Map([["i1", "jumps"]]),
+    });
+    expect(onlyInsertions(entries)).toEqual([
+      { id: "i1", contextText: "the quick brown fox", newText: "jumps" },
+    ]);
+  });
+
+  it("extracts replacement entries from `replacement_<id>` marks plus sidecar replacement texts", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [
+          { text: "before " },
+          { text: "redundant clause", replacement_r1: true },
+          { text: " after" },
+        ],
+      },
+    ];
+    const entries = walkAnnotations({
+      value,
+      commentBodies: new Map(),
+      globalComments: [],
+      replacementTexts: new Map([["r1", "concise note"]]),
+    });
+    expect(onlyReplacements(entries)).toEqual([
+      { id: "r1", originalText: "redundant clause", replacementText: "concise note" },
+    ]);
+  });
+
+  it("skips insertion / replacement marks when sidecar text is missing", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [
+          { text: "ctx", insertion_i1: true },
+          { text: " " },
+          { text: "orig", replacement_r1: true },
+        ],
+      },
+    ];
+    const entries = walkAnnotations({
+      value,
+      commentBodies: new Map(),
+      globalComments: [],
+      insertionNewTexts: new Map(),
+      replacementTexts: new Map(),
+    });
+    expect(onlyInsertions(entries)).toEqual([]);
+    expect(onlyReplacements(entries)).toEqual([]);
+  });
+
+  it("attaches image attachments via parallel sidecar maps", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [
+          { text: "ctx", insertion_i1: true },
+          { text: " " },
+          { text: "orig", replacement_r1: true },
+        ],
+      },
+    ];
+    const entries = walkAnnotations({
+      value,
+      commentBodies: new Map(),
+      globalComments: [],
+      insertionNewTexts: new Map([["i1", "n"]]),
+      insertionImages: new Map([["i1", ["img-i"]]]),
+      replacementTexts: new Map([["r1", "r"]]),
+      replacementImages: new Map([["r1", ["img-r"]]]),
+    });
+    expect(onlyInsertions(entries)[0]?.images).toEqual(["img-i"]);
+    expect(onlyReplacements(entries)[0]?.images).toEqual(["img-r"]);
+  });
+
+  it("marks drift on insertions whose stored contextText is gone", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [{ text: "garbled", insertion_i1: true }],
+      },
+    ];
+    const [entry] = onlyInsertions(
+      walkAnnotations({
+        value,
+        commentBodies: new Map(),
+        globalComments: [],
+        insertionNewTexts: new Map([["i1", "n"]]),
+        insertionOriginalTexts: new Map([["i1", "deleted-context"]]),
+      })
+    );
+    expect(entry?.drifted).toBe(true);
+    expect(entry?.contextText).toBe("deleted-context");
+  });
+
+  it("marks drift on replacements whose stored originalText is gone", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [{ text: "garbled", replacement_r1: true }],
+      },
+    ];
+    const [entry] = onlyReplacements(
+      walkAnnotations({
+        value,
+        commentBodies: new Map(),
+        globalComments: [],
+        replacementTexts: new Map([["r1", "r"]]),
+        replacementOriginalTexts: new Map([["r1", "deleted-original"]]),
+      })
+    );
+    expect(entry?.drifted).toBe(true);
+    expect(entry?.originalText).toBe("deleted-original");
+  });
+
+  it("is a no-op on insertion / replacement marks when their sidecar maps are absent", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [
+          { text: "ctx", insertion_i1: true },
+          { text: "orig", replacement_r1: true },
+        ],
+      },
+    ];
+    const entries = walkAnnotations({
+      value,
+      commentBodies: new Map(),
+      globalComments: [],
+    });
+    expect(onlyInsertions(entries)).toEqual([]);
+    expect(onlyReplacements(entries)).toEqual([]);
+    expect(onlyGlobals(entries)).toEqual([]);
   });
 });

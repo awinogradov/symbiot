@@ -17,8 +17,18 @@ export interface SourceWindow {
   suggestionOriginalTexts?: Map<string, string>;
 }
 
+type SidebarKind = AnnotationSidebarEntry["kind"];
+type SupportedEntry = Extract<AnnotationEntry, { kind: SidebarKind }>;
+
+/**
+ * Narrows a walked entry to the kinds the sidebar can render today (C / D / G).
+ * Insertion and Replacement land with their authoring UI in Phases 5.2 / 5.3.
+ */
+export const isSupportedSidebarEntry = (entry: AnnotationEntry): entry is SupportedEntry =>
+  entry.kind === "comment" || entry.kind === "deletion" || entry.kind === "global";
+
 /** Convert a single walker entry into the projection the sidebar component consumes. */
-export const toSidebarEntry = (entry: AnnotationEntry): AnnotationSidebarEntry => {
+export const toSidebarEntry = (entry: SupportedEntry): AnnotationSidebarEntry => {
   if (entry.kind === "global") {
     return { id: entry.id, kind: "global", primary: entry.body };
   }
@@ -33,7 +43,11 @@ export const toSidebarEntry = (entry: AnnotationEntry): AnnotationSidebarEntry =
   return base;
 };
 
-/** Walk a source window and project to sidebar entries. */
+/**
+ * Walk a source window and project to sidebar entries. Insertion and
+ * Replacement entries are filtered out — sidebar rendering for those types
+ * lands in Phases 5.2 / 5.3 alongside their authoring UI.
+ */
 export const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] =>
   walkAnnotations({
     value: sources.value as PlateValue,
@@ -42,7 +56,9 @@ export const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] 
     globalComments: sources.globalComments,
     commentOriginalTexts: sources.commentOriginalTexts,
     suggestionOriginalTexts: sources.suggestionOriginalTexts,
-  }).map(toSidebarEntry);
+  })
+    .filter(isSupportedSidebarEntry)
+    .map(toSidebarEntry);
 
 /** Scroll the DOM range tagged with `data-anno-id` into view. No-op when missing. */
 export const focusAnnotation = (id: string): void => {

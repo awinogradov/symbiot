@@ -4,17 +4,26 @@ import type {
   CommentEntry,
   DeletionEntry,
   GlobalCommentEntry,
+  InsertionEntry,
+  ReplacementEntry,
 } from "./types.ts";
 
 /**
- * Serialize annotations into plannotator-compatible feedback markdown.
+ * Serialize annotations into feedback markdown.
  *
- * Matches `exportAnnotations()` in plannotator's `packages/ui/utils/parser.ts`:
- * each entry is numbered, gets an optional `(lines N–M)` prefix when block
- * source lines are available, and uses a per-kind heading + body.
+ * C / G / D match `exportAnnotations()` in plannotator's
+ * `packages/ui/utils/parser.ts`: each entry is numbered, gets an optional
+ * `(lines N–M)` prefix when block source lines are available, and uses a
+ * per-kind heading + body.
  *
  * Phase 2 shipped Comment-only with no line labels (`fixtures/plannotator-reference/comment.md`).
  * Phase 3.1 extends to G and D and emits `(lines N–M)` when present.
+ *
+ * Phase 5.1 adds Insertion and Replacement as **symbiot-only export forms**
+ * (no plannotator parity). They follow the same heading + quoted-body shape
+ * as Comment per PRD Appendix A: Insertion → `Insert after: "<ctx>"` /
+ * `> <newText>`; Replacement → `Suggest replacing: "<orig>"` /
+ * `> Replace with: "<replacementText>"`.
  *
  * @see fixtures/plannotator-reference/README.md
  */
@@ -45,17 +54,6 @@ const linePrefix = (lines: BlockLines | undefined): string => {
   return `(lines ${lines.startLine}–${lines.endLine}) `;
 };
 
-const formatEntry = (entry: AnnotationEntry, index: number): string[] => {
-  switch (entry.kind) {
-    case "comment":
-      return formatComment(entry, index);
-    case "deletion":
-      return formatDeletion(entry, index);
-    case "global":
-      return formatGlobal(entry, index);
-  }
-};
-
 const formatComment = (entry: CommentEntry & { kind: "comment" }, index: number): string[] => [
   `## ${index}. ${linePrefix(entry.lines)}Feedback on: "${entry.originalText}"`,
   `> ${entry.body}`,
@@ -72,3 +70,39 @@ const formatGlobal = (entry: GlobalCommentEntry & { kind: "global" }, index: num
   `> ${entry.body}`,
   "",
 ];
+
+const formatInsertion = (
+  entry: InsertionEntry & { kind: "insertion" },
+  index: number
+): string[] => [
+  `## ${index}. ${linePrefix(entry.lines)}Insert after: "${entry.contextText}"`,
+  `> ${entry.newText}`,
+  "",
+];
+
+const formatReplacement = (
+  entry: ReplacementEntry & { kind: "replacement" },
+  index: number
+): string[] => [
+  `## ${index}. ${linePrefix(entry.lines)}Suggest replacing: "${entry.originalText}"`,
+  `> Replace with: "${entry.replacementText}"`,
+  "",
+];
+
+type FormatterTable = {
+  [K in AnnotationEntry["kind"]]: (
+    entry: Extract<AnnotationEntry, { kind: K }>,
+    index: number
+  ) => string[];
+};
+
+const formatters: FormatterTable = {
+  comment: formatComment,
+  deletion: formatDeletion,
+  global: formatGlobal,
+  insertion: formatInsertion,
+  replacement: formatReplacement,
+};
+
+const formatEntry = (entry: AnnotationEntry, index: number): string[] =>
+  (formatters[entry.kind] as (e: AnnotationEntry, i: number) => string[])(entry, index);

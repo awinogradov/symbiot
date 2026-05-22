@@ -12,7 +12,11 @@ import {
 import { type AnnotationSidebarEntry } from "@symbiot/ui/components/AnnotationSidebar";
 
 import { type DraftPayload } from "../../shared/apiTypes.ts";
-import { projectEntries, toSidebarEntry } from "../utils/sidebarProjection.ts";
+import {
+  isSupportedSidebarEntry,
+  projectEntries,
+  toSidebarEntry,
+} from "../utils/sidebarProjection.ts";
 
 /** Inputs that bind the review session to its loaded plan and persisted draft. */
 export interface ReviewStateProps {
@@ -121,7 +125,7 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
     if (latestSnapshot !== null) {
       return projectEntries({ ...latestSnapshot, globalComments });
     }
-    return collectEntries().map(toSidebarEntry);
+    return collectEntries().filter(isSupportedSidebarEntry).map(toSidebarEntry);
   }, [collectEntries, globalComments, latestSnapshot]);
 
   const onAddGlobalComment = useCallback((body: string, images: string[]): void => {

@@ -34,6 +34,22 @@ They do **not** independently verify plannotator parity for `G` / `D`. The next
 step is to capture all four (`comment.md`, `global-comment.md`, `deletion.md`,
 `mixed.md`) from a real plannotator session and swap them in here.
 
+## insertion.md, replacement.md (symbiot-only extensions)
+
+Phase 5.1 added the net-new symbiot annotation tuples `['I', …]` and
+`['R', …]` (PRD §14 Appendix A). These have **no plannotator parity** — the
+serializer output is symbiot-defined, mirroring Comment's heading + quoted-body
+shape:
+
+- `insertion.md` — one `['I', 'the quick brown fox', 'jumps']` entry. Heading
+  `Insert after: "<contextText>"`, body `> <newText>`.
+- `replacement.md` — one `['R', 'redundant clause', 'concise note']` entry.
+  Heading `Suggest replacing: "<originalText>"`, body
+  `> Replace with: "<replacementText>"`.
+
+These pin symbiot's own output for I and R going forward; they will not be
+re-captured from plannotator.
+
 <!-- TODO(post-3.1): replace synthesized G/D/mixed fixtures with real plannotator
 captures. See plans/03-1-wire-format-and-markdown.md follow-ups. -->
 
