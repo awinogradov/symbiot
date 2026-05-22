@@ -1,6 +1,6 @@
 import { memo, useCallback } from "react";
 
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./Sidebar.tsx";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./SidebarMenu.tsx";
 
 const pad = (n: number): string => String(n).padStart(3, "0");
 

@@ -7,7 +7,7 @@ import { CheckIcon } from "./CheckIcon.tsx";
 import { SendIcon } from "./SendIcon.tsx";
 import { Separator } from "./Separator.tsx";
 import { SettingsDialog } from "./SettingsDialog.tsx";
-import { SidebarTrigger } from "./Sidebar.tsx";
+import { SidebarTrigger } from "./SidebarChrome.tsx";
 
 export type TopBarMode = "plan" | "annotate";
 

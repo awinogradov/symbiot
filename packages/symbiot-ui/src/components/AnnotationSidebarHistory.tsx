@@ -1,6 +1,6 @@
 import { type SidebarDiffMode } from "./AnnotationSidebarTypes.tsx";
 import { Button } from "./Button.tsx";
-import { SidebarGroup } from "./Sidebar.tsx";
+import { SidebarGroup } from "./SidebarSection.tsx";
 import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup.tsx";
 import { VersionBrowser } from "./VersionBrowser.tsx";
 
