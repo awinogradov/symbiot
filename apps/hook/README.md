@@ -1,14 +1,20 @@
 # @symbiot/hook
 
 Claude Code plugin that intercepts plan-mode plans, forwards them to the
-symbiot viewer for annotation, and returns the resolved markdown back to
-Claude Code.
+embedded symbiot viewer for annotation, and returns the resolved markdown
+back to Claude Code.
 
 This directory doubles as the **plugin root** (`${CLAUDE_PLUGIN_ROOT}`):
-`.claude-plugin/plugin.json` is the manifest, and `hooks/hooks.json`
-auto-registers the `PreToolUse(ExitPlanMode)` and
-`PermissionRequest(ExitPlanMode)` entries against the bundled
-`dist/cli.js`.
+
+- `.claude-plugin/plugin.json` — plugin manifest (name, version, repo).
+- `hooks/hooks.json` — registers `SessionStart`,
+  `PreToolUse(ExitPlanMode)`, and `PermissionRequest(ExitPlanMode)`,
+  each invoking `${CLAUDE_PLUGIN_ROOT}/bin/symbiot`.
+- `bin/symbiot` — POSIX shell shim that downloads + execs the
+  platform-specific binary from GitHub Releases.
+- `bin/symbiot.cmd` — Windows counterpart.
+- `bin/VERSION`, `bin/SHA256SUMS` — the version + hash manifest the
+  shim verifies downloads against.
 
 ## Install
 
@@ -17,33 +23,46 @@ auto-registers the `PreToolUse(ExitPlanMode)` and
 /plugin install symbiot
 ```
 
-The plugin requires `bun` on the user's PATH (the hook command is
-`bun "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" run-hook`).
+No Bun, no Node, no other runtime needed on the user side. On the first
+session after install the shim downloads a ~60 MB binary for the
+current platform into `${CLAUDE_PLUGIN_DATA}/bin/` and verifies its
+SHA256 against `bin/SHA256SUMS`.
+
+See [`docs/release.md`](../../docs/release.md) for the release flow and
+the offline-install path.
 
 ## Local development
 
-The hook also exposes a CLI (`symbiot`) that can be wired into
-`~/.claude/settings.json` directly, bypassing the plugin mechanism. Useful
-when iterating on the source tree without rebuilding `dist/`.
+For contributors iterating on the source tree (no need to compile a
+binary on every change), the legacy installer still works:
 
 ```sh
 bun run hook:install     # registers settings.json hooks pointing at src/cli.ts
 bun run hook:uninstall   # removes them
 ```
 
-## Build
+This path requires `bun` on your PATH and runs the TypeScript source
+directly via `bun src/cli.ts run-hook`.
+
+## Build a binary locally
 
 ```sh
-bun run build            # bundles src/cli.ts → dist/cli.js and copies
-                         # apps/viewer/dist/client → dist/client
+bun run compile:darwin-arm64   # or :darwin-x64 / :linux-x64 / :windows-x64
+bun run compile:all            # all 4 platforms (CI does this on tag push)
 ```
 
-`dist/` is tracked in git so the plugin works after `/plugin install`
-without a build step. Rebuild and commit before tagging a release.
+The viewer must be built first (Turborepo handles this via
+`dependsOn: ["^build"]`):
+
+```sh
+bun --filter @symbiot/viewer build
+```
 
 ## Scripts
 
-- `bun run build` — bundle CLI + copy viewer client into `dist/`
-- `bun run typecheck` — `tsc --noEmit`
-- `bun run lint` — `eslint . --max-warnings=0`
-- `bun run test` — `vitest run --passWithNoTests`
+- `bun run build` — non-compiled JS bundle of the CLI (dev convenience).
+- `bun run compile:<triple>` — single-file binary for one platform.
+- `bun run compile:all` — all 4 supported platforms.
+- `bun run typecheck` — `tsc --noEmit`.
+- `bun run lint` — `eslint . --max-warnings=0`.
+- `bun run test` — `vitest run --passWithNoTests`.

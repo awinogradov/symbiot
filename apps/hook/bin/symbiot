@@ -1,0 +1,62 @@
+#!/usr/bin/env sh
+# symbiot shim: ensure the platform binary is cached under
+# ${CLAUDE_PLUGIN_DATA}/bin, then exec it. Called from hooks.json under three
+# subcommands:
+#   prepare   → SessionStart  (ensure cached; no exec)
+#   run-hook  → ExitPlanMode  (ensure cached; exec binary run-hook)
+#   <other>   → manual CLI    (ensure cached; exec binary with args)
+set -e
+
+PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DATA_DIR="${CLAUDE_PLUGIN_DATA:-$HOME/.symbiot/plugin-data}"
+
+case "$(uname -s)-$(uname -m)" in
+  Darwin-arm64)    TRIPLE="darwin-arm64" ;;
+  Darwin-x86_64)   TRIPLE="darwin-x64"   ;;
+  Linux-x86_64)    TRIPLE="linux-x64"    ;;
+  *)
+    echo "symbiot: unsupported platform $(uname -s)-$(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+BIN="$DATA_DIR/bin/symbiot-$TRIPLE"
+EXPECTED="$(awk -v t="symbiot-$TRIPLE" '$2 == t { print $1 }' "$PLUGIN_ROOT/bin/SHA256SUMS" 2>/dev/null || true)"
+
+if [ -z "$EXPECTED" ]; then
+  echo "symbiot: no SHA256 for symbiot-$TRIPLE in $PLUGIN_ROOT/bin/SHA256SUMS" >&2
+  exit 1
+fi
+
+# Cache-hit fast path.
+if [ -x "$BIN" ]; then
+  ACTUAL="$(shasum -a 256 "$BIN" | awk '{ print $1 }')"
+  if [ "$EXPECTED" = "$ACTUAL" ]; then
+    if [ "$1" = "prepare" ]; then exit 0; fi
+    exec "$BIN" "$@"
+  fi
+fi
+
+mkdir -p "$DATA_DIR/bin"
+LOCK="$DATA_DIR/bin/.download.lock"
+
+(
+  if command -v flock >/dev/null 2>&1; then flock -x 9; fi
+  if [ ! -x "$BIN" ] || [ "$(shasum -a 256 "$BIN" | awk '{ print $1 }')" != "$EXPECTED" ]; then
+    VERSION="$(cat "$PLUGIN_ROOT/bin/VERSION")"
+    URL="https://github.com/awinogradov/symbiot/releases/download/$VERSION/symbiot-$TRIPLE"
+    echo "symbiot: downloading $URL …" >&2
+    curl -fsSL "$URL" -o "$BIN.tmp"
+    ACTUAL="$(shasum -a 256 "$BIN.tmp" | awk '{ print $1 }')"
+    if [ "$EXPECTED" != "$ACTUAL" ]; then
+      rm -f "$BIN.tmp"
+      echo "symbiot: sha256 mismatch (expected $EXPECTED, got $ACTUAL)" >&2
+      exit 1
+    fi
+    chmod +x "$BIN.tmp"
+    mv "$BIN.tmp" "$BIN"
+  fi
+) 9>"$LOCK"
+
+if [ "$1" = "prepare" ]; then exit 0; fi
+exec "$BIN" "$@"

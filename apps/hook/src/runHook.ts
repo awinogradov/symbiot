@@ -4,8 +4,9 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { startServer } from "@symbiot/viewer";
-
-import { bundledStaticRoot } from "./bundledStaticRoot.ts";
+// Bun's compile mode embeds this file into the binary; the import resolves to
+// a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
+import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
 
 /**
  * JSON payload Claude Code writes to the hook's stdin. The same shape covers
@@ -165,7 +166,7 @@ const emitPermissionRequestAllow = (): void => {
 
 const runPreToolUse = async (plan: string): Promise<number> => {
   const planHash = hashPlan(plan);
-  const server = await startServer({ plan, staticRoot: await bundledStaticRoot(import.meta.url) });
+  const server = await startServer({ plan, indexHtmlGz: viewerHtmlGz });
   process.stderr.write(`symbiot: review plan at ${server.url}\n`);
   const decision = await server.resolved;
   await server.stop();

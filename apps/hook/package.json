@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "main": "src/cli.ts",
-  "bin": {
-    "symbiot": "./dist/cli.js"
-  },
   "scripts": {
-    "build": "bun build src/cli.ts --target=bun --outfile dist/cli.js && rm -rf dist/client && cp -r ../viewer/dist/client dist/client",
+    "build": "bun build src/cli.ts --target=bun --outdir dist",
+    "compile:darwin-arm64": "bun build src/cli.ts --compile --target=bun-darwin-arm64 --bytecode --minify --outfile dist/bin/symbiot-darwin-arm64",
+    "compile:darwin-x64": "bun build src/cli.ts --compile --target=bun-darwin-x64 --bytecode --minify --outfile dist/bin/symbiot-darwin-x64",
+    "compile:linux-x64": "bun build src/cli.ts --compile --target=bun-linux-x64 --bytecode --minify --outfile dist/bin/symbiot-linux-x64",
+    "compile:windows-x64": "bun build src/cli.ts --compile --target=bun-windows-x64 --bytecode --minify --outfile dist/bin/symbiot-windows-x64.exe",
+    "compile:all": "bun run compile:darwin-arm64 && bun run compile:darwin-x64 && bun run compile:linux-x64 && bun run compile:windows-x64",
     "install-hook": "bun src/cli.ts install-hook",
     "uninstall-hook": "bun src/cli.ts uninstall-hook",
     "run-hook": "bun src/cli.ts run-hook",
