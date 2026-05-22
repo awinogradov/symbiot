@@ -10,7 +10,7 @@ const createEditor = (): ReturnType<typeof createSlateEditor> =>
     value: [{ type: "p", children: [{ text: "hello world" }] }],
   });
 
-const kinds: AnnotationKind[] = ["comment", "deletion", "insertion"];
+const kinds: AnnotationKind[] = ["comment", "deletion", "insertion", "replacement"];
 
 describe.each(kinds)("applyAnnotation(%s)", (kind) => {
   it("returns null when there is no selection", () => {
