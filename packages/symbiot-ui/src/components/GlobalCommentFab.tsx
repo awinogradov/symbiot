@@ -3,11 +3,8 @@ import { useCallback, useState } from "react";
 
 import { cn } from "../utils/cn.ts";
 
+import { AnnotationComposer, type AnnotationComposerPayload } from "./AnnotationComposer.tsx";
 import { Button } from "./Button.tsx";
-import {
-  GlobalCommentComposer,
-  type GlobalCommentComposerPayload,
-} from "./GlobalCommentComposer.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip.tsx";
 
 interface GlobalCommentFabProps {
@@ -25,7 +22,7 @@ export const GlobalCommentFab = ({
   const [open, setOpen] = useState(false);
 
   const onSave = useCallback(
-    (payload: GlobalCommentComposerPayload): void => {
+    (payload: AnnotationComposerPayload): void => {
       onAddGlobalComment(payload.body, payload.images);
       setOpen(false);
     },
@@ -55,7 +52,7 @@ export const GlobalCommentFab = ({
         </TooltipTrigger>
         <TooltipContent side="left">Global comment</TooltipContent>
       </Tooltip>
-      <GlobalCommentComposer open={open} onSave={onSave} onCancel={onCancel} />
+      <AnnotationComposer kind="global" open={open} onSave={onSave} onCancel={onCancel} />
     </>
   );
 };

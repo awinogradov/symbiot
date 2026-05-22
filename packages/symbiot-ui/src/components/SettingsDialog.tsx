@@ -1,6 +1,6 @@
 /**
  * Settings dialog with a Theme section. Controlled via `open` + `onOpenChange`
- * (mirrors `GlobalCommentComposer`). The layout reserves room for future
+ * (mirrors `AnnotationComposer`). The layout reserves room for future
  * settings sections (e.g. author name) so they can drop in without restructuring.
  */
 import { Monitor, Moon, Sun } from "lucide-react";

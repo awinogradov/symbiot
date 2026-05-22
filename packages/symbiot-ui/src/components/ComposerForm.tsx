@@ -20,9 +20,9 @@ interface ComposerFormProps {
 }
 
 /**
- * Shared body/images/Save/Cancel block used by both the inline
- * `AnnotationComposer` and the global `GlobalCommentComposer` dialogs. Auto-focuses the textarea on
- * `open`; Enter saves, Shift+Enter newlines, Esc cancels.
+ * Shared body/images/Save/Cancel block used by the polymorphic
+ * `AnnotationComposer` dialog (selection-anchored or global). Auto-focuses the
+ * textarea on `open`; Enter saves, Shift+Enter newlines, Esc cancels.
  */
 export const ComposerForm = ({
   open,
