@@ -1,10 +1,12 @@
-import { PanelRight } from "lucide-react";
+import { PanelRight, Settings } from "lucide-react";
+import { useCallback, useState } from "react";
 
 import { AppLogo } from "./AppLogo.tsx";
 import { Button } from "./Button.tsx";
 import { CheckIcon } from "./CheckIcon.tsx";
 import { SendIcon } from "./SendIcon.tsx";
 import { Separator } from "./Separator.tsx";
+import { SettingsDialog } from "./SettingsDialog.tsx";
 import { SidebarTrigger } from "./Sidebar.tsx";
 
 export type TopBarMode = "plan" | "annotate";
@@ -68,6 +70,23 @@ const SidebarTriggerSlot = ({ show }: { show: boolean }): React.ReactElement | n
   );
 };
 
+interface SettingsTriggerSlotProps {
+  onClick: () => void;
+}
+
+const SettingsTriggerSlot = ({ onClick }: SettingsTriggerSlotProps): React.ReactElement => (
+  <Button
+    data-testid="top-bar-settings"
+    variant="ghost"
+    size="icon"
+    aria-label="Settings"
+    onClick={onClick}
+    className="size-8"
+  >
+    <Settings />
+  </Button>
+);
+
 export const TopBar = ({
   onApprove,
   onDeny,
@@ -76,28 +95,37 @@ export const TopBar = ({
   mode = "plan",
   showSidebarTrigger = false,
   hasAnnotations = false,
-}: TopBarProps): React.ReactElement => (
-  <header
-    data-testid="top-bar"
-    data-mode={mode}
-    className="border-border bg-background flex h-14 items-center gap-2 border-b px-8"
-  >
-    <div data-testid="top-bar-brand" className="flex items-center gap-2">
-      <AppLogo size={20} className="text-foreground" />
-      <h1 className="text-sm font-medium">
-        Symbiot
-        <span className="text-muted-foreground">{` · ${projectName}`}</span>
-      </h1>
-    </div>
-    <div className="ml-auto flex items-center gap-3">
-      <Actions
-        onApprove={onApprove}
-        onDeny={onDeny}
-        busy={busy}
-        mode={mode}
-        hasAnnotations={hasAnnotations}
-      />
-      <SidebarTriggerSlot show={showSidebarTrigger} />
-    </div>
-  </header>
-);
+}: TopBarProps): React.ReactElement => {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const openSettings = useCallback((): void => setSettingsOpen(true), []);
+
+  return (
+    <>
+      <header
+        data-testid="top-bar"
+        data-mode={mode}
+        className="border-border bg-background flex h-14 items-center gap-2 border-b px-8"
+      >
+        <div data-testid="top-bar-brand" className="flex items-center gap-2">
+          <AppLogo size={20} className="text-foreground" />
+          <h1 className="text-sm font-medium">
+            Symbiot
+            <span className="text-muted-foreground">{` · ${projectName}`}</span>
+          </h1>
+        </div>
+        <div className="ml-auto flex items-center gap-3">
+          <Actions
+            onApprove={onApprove}
+            onDeny={onDeny}
+            busy={busy}
+            mode={mode}
+            hasAnnotations={hasAnnotations}
+          />
+          <SettingsTriggerSlot onClick={openSettings} />
+          <SidebarTriggerSlot show={showSidebarTrigger} />
+        </div>
+      </header>
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </>
+  );
+};
