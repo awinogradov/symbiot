@@ -1,10 +1,6 @@
-import type { ReactNode } from "react";
 import { createPlatePlugin } from "platejs/react";
 
-interface InsertionLeafProps {
-  attributes: Record<string, unknown>;
-  children: ReactNode;
-}
+import { createAnnotationLeaf } from "./createAnnotationLeaf.tsx";
 
 /**
  * Leaf renderer for the `insertion` mark applied by `applyAnnotation(editor,
@@ -13,13 +9,10 @@ interface InsertionLeafProps {
  * insertion point in-context. The proposed `newText` is sidebar-only — it is
  * never spliced into the editor value.
  */
-export const InsertionLeaf = ({ attributes, children }: InsertionLeafProps): React.ReactElement => (
-  <ins
-    {...attributes}
-    className="text-anno-insert bg-anno-insert/10 rounded-sm px-0.5 no-underline"
-  >
-    {children}
-  </ins>
+export const InsertionLeaf = createAnnotationLeaf(
+  "ins",
+  "text-anno-insert bg-anno-insert/10 rounded-sm px-0.5 no-underline",
+  "InsertionLeaf"
 );
 
 /**

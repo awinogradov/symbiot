@@ -1,10 +1,6 @@
-import type { ReactNode } from "react";
 import { createPlatePlugin } from "platejs/react";
 
-interface DeletionLeafProps {
-  attributes: Record<string, unknown>;
-  children: ReactNode;
-}
+import { createAnnotationLeaf } from "./createAnnotationLeaf.tsx";
 
 /**
  * Leaf renderer for the `suggestion` mark applied by `applyDeletion`. Wraps the
@@ -12,13 +8,10 @@ interface DeletionLeafProps {
  * in the original document. The `comment_<id>` marks remain orthogonal so a
  * deletion can also carry a comment if a future flow needs it.
  */
-export const DeletionLeaf = ({ attributes, children }: DeletionLeafProps): React.ReactElement => (
-  <s
-    {...attributes}
-    className="text-anno-delete bg-anno-delete/10 rounded-sm px-0.5 line-through decoration-2"
-  >
-    {children}
-  </s>
+export const DeletionLeaf = createAnnotationLeaf(
+  "s",
+  "text-anno-delete bg-anno-delete/10 rounded-sm px-0.5 line-through decoration-2",
+  "DeletionLeaf"
 );
 
 /**
