@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 
 import { Button } from "./Button.tsx";
 import { ImageAttachButton, type ImageRef } from "./ImageAttachButton.tsx";
@@ -79,13 +86,17 @@ export const ComposerForm = ({
     setImages((prev) => prev.filter((r) => r !== ref));
   }, []);
 
+  const onBodyChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>): void => {
+    setBody(event.target.value);
+  }, []);
+
   return (
     <div className="flex flex-col gap-3">
       <Textarea
         ref={textareaRef}
         data-testid={testId?.textarea}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={onBodyChange}
         placeholder={placeholder}
         onKeyDown={onKeyDown}
         className="min-h-40 sm:min-h-48"
