@@ -1,13 +1,6 @@
 import type { PlateEditor } from "platejs/react";
 
-type Kind = "comment" | "deletion" | "insertion" | "replacement";
-
-const prefixOf = (kind: Kind): "comment" | "suggestion" | "insertion" | "replacement" => {
-  if (kind === "comment") return "comment";
-  if (kind === "insertion") return "insertion";
-  if (kind === "replacement") return "replacement";
-  return "suggestion";
-};
+import { type AnnotationKind, prefixOf } from "./annotationKind.ts";
 
 interface TextLeaf {
   text: string;
@@ -48,7 +41,11 @@ const hasSiblingIdMark = (leaf: TextLeaf, prefix: string, idKey: string): boolea
  * mark on any leaf that no longer carries another sibling id mark. Mirrors
  * `applyComment` / `applyDeletion` (which add the same two marks together).
  */
-export const removeAnnotationMark = (editor: PlateEditor, kind: Kind, id: string): void => {
+export const removeAnnotationMark = (
+  editor: PlateEditor,
+  kind: AnnotationKind,
+  id: string
+): void => {
   const prefix = prefixOf(kind);
   const idKey = `${prefix}_${id}`;
   const matches: { leaf: TextLeaf; path: number[] }[] = [];
