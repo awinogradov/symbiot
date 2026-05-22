@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { AppLogo } from "./AppLogo.tsx";
 import { Button } from "./Button.tsx";
 import { CheckIcon } from "./CheckIcon.tsx";
+import { Kbd, formatHotkey } from "./Kbd.tsx";
 import { SendIcon } from "./SendIcon.tsx";
 import { Separator } from "./Separator.tsx";
 import { SettingsDialog } from "./SettingsDialog.tsx";
@@ -47,6 +48,7 @@ const Actions = ({
       <Button data-testid="top-bar-approve" size="sm" onClick={onApprove} disabled={busy}>
         <CheckIcon />
         Approve
+        <Kbd>{formatHotkey("mod+enter")}</Kbd>
       </Button>
     );
   }
@@ -54,6 +56,7 @@ const Actions = ({
     <Button data-testid="top-bar-deny" size="sm" onClick={onDeny} disabled={busy}>
       <SendIcon />
       {denyLabel(mode)}
+      <Kbd>{formatHotkey("mod+enter")}</Kbd>
     </Button>
   );
 };

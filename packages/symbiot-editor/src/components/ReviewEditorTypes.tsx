@@ -5,6 +5,10 @@ export type AnnotationHandleKind = "comment" | "deletion" | "insertion" | "repla
 
 /** Imperative handle the host uses to read the current value and annotation maps. */
 export interface ReviewEditorHandle {
+  /** True when the editor has a non-empty selection that can host an annotation. */
+  hasValidSelection: () => boolean;
+  /** Triggers the same flow as the matching toolbar button click. No-op when selection is empty. */
+  triggerAnnotation: (kind: AnnotationHandleKind) => void;
   getValue: () => unknown[];
   getCommentBodies: () => Map<string, string>;
   getCommentImages: () => Map<string, string[]>;

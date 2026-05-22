@@ -1,5 +1,6 @@
 import { MessageSquare, Plus, Replace, Strikethrough } from "lucide-react";
 import { Button } from "@symbiot/ui/components/Button";
+import { Kbd } from "@symbiot/ui/components/Kbd";
 
 import { FloatingToolbar } from "./FloatingToolbar.tsx";
 
@@ -22,18 +23,22 @@ export const ToolbarButtons = ({
     <Button data-testid="toolbar-comment" variant="ghost" size="sm" onClick={onComment}>
       <MessageSquare />
       Comment
+      <Kbd>C</Kbd>
     </Button>
     <Button data-testid="toolbar-insert" variant="ghost" size="sm" onClick={onInsert}>
       <Plus />
       Insert
+      <Kbd>I</Kbd>
     </Button>
     <Button data-testid="toolbar-replace" variant="ghost" size="sm" onClick={onReplace}>
       <Replace />
       Replace
+      <Kbd>R</Kbd>
     </Button>
     <Button data-testid="toolbar-delete" variant="ghost" size="sm" onClick={onDelete}>
       <Strikethrough />
       Delete
+      <Kbd>D</Kbd>
     </Button>
   </FloatingToolbar>
 );

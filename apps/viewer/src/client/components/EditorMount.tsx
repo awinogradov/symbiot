@@ -31,6 +31,8 @@ interface EditorMountProps {
   onReady: (handle: ReviewEditorHandle) => void;
   /** Fires on every Plate editor change with a serializable snapshot. */
   onChange: (snapshot: EditorSnapshot) => void;
+  /** Fires when the inline annotation composer opens (true) or closes (false). */
+  onComposerOpenChange: (open: boolean) => void;
 }
 
 /** Input to {@link gatedHydration}: full hydration slice + the gate flag. */
@@ -126,6 +128,7 @@ export const EditorMount = ({
   initialReplacementOriginalTexts,
   onReady,
   onChange,
+  onComposerOpenChange,
 }: EditorMountProps): React.ReactElement => {
   const hydration = gatedHydration({
     isBootVersion: activeVersion === bootVersion,
@@ -148,6 +151,7 @@ export const EditorMount = ({
       {...hydration}
       onReady={onReady}
       onChange={onChange}
+      onComposerOpenChange={onComposerOpenChange}
     />
   );
 };
