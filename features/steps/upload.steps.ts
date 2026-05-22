@@ -1,16 +1,18 @@
 import { expect } from "@playwright/test";
 
-import { When, Then } from "../support/bdd.ts";
+import { Before, When, Then } from "../support/bdd.ts";
+import { transparentPng } from "../support/testAssets.ts";
 
-const buildPng = (): Buffer =>
-  Buffer.from(
-    // 1x1 transparent PNG
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-    "base64"
-  );
-
+// Per-scenario state. Reset by the Before hook below so a stale `Then` from
+// the previous scenario can't accidentally assert against this scenario's
+// upload — playwright-bdd reuses the module across scenarios within a worker.
 let lastUploadStatus = 0;
 let lastUploadBody: { id?: string; extension?: string } | null = null;
+
+Before(() => {
+  lastUploadStatus = 0;
+  lastUploadBody = null;
+});
 
 const ensureRoot = (baseURL: string | undefined): string => {
   if (baseURL === undefined) throw new Error("baseURL not configured");
@@ -19,7 +21,7 @@ const ensureRoot = (baseURL: string | undefined): string => {
 
 When("I POST a PNG to the upload endpoint", async ({ request, baseURL }) => {
   const root = ensureRoot(baseURL);
-  const png = buildPng();
+  const png = transparentPng();
   const res = await request.post(`${root}/api/upload`, {
     multipart: { file: { name: "photo.png", mimeType: "image/png", buffer: png } },
   });
@@ -48,7 +50,7 @@ When("I POST a file with a traversal name to the upload endpoint", async ({ requ
       file: {
         name: "..\\evil\\path.png",
         mimeType: "image/png",
-        buffer: buildPng(),
+        buffer: transparentPng(),
       },
     },
   });

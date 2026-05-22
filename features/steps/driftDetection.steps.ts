@@ -5,10 +5,16 @@ import { join } from "node:path";
 import { expect } from "@playwright/test";
 
 import { After, Given, Then } from "../support/bdd.ts";
+import { fixturePlanSlug, fixtureProjectSlug } from "../support/testAssets.ts";
 
-const project = "symbiot";
-const slug = "example-plan-with-every-supported-markdown-element";
-const draftFile = join(homedir(), ".symbiot", "drafts", project, slug, "draft.json");
+const draftFile = join(
+  homedir(),
+  ".symbiot",
+  "drafts",
+  fixtureProjectSlug,
+  fixturePlanSlug,
+  "draft.json"
+);
 
 const seededCommentId = "drift-test-comment";
 const liveAnchor = "live anchor";
@@ -34,7 +40,9 @@ const buildDraft = ({ storedOriginalText }: DraftSeed): unknown => ({
 });
 
 const seedDraft = async (seed: DraftSeed): Promise<void> => {
-  await mkdir(join(homedir(), ".symbiot", "drafts", project, slug), { recursive: true });
+  await mkdir(join(homedir(), ".symbiot", "drafts", fixtureProjectSlug, fixturePlanSlug), {
+    recursive: true,
+  });
   await writeFile(draftFile, JSON.stringify(buildDraft(seed)), "utf8");
 };
 

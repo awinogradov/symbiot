@@ -1,35 +1,49 @@
 import { rm, readFile, stat } from "node:fs/promises";
 
-import { decisionFile } from "./world.ts";
+import { annotateDecisionFile, decisionFile } from "./world.ts";
 
 /** Decision payload written by the viewer routes when `--decision-file` is set. */
 export interface DecisionRecord {
-  kind: "approve" | "deny";
+  kind: "approve" | "deny" | "feedback";
   feedback?: string;
-  at: number;
+  at?: number;
 }
 
-/** Remove the decision file so a scenario starts from a clean slate. Idempotent. */
-export const resetDecisionFile = async (): Promise<void> => {
-  await rm(decisionFile, { force: true });
+const resetFile = async (path: string): Promise<void> => {
+  await rm(path, { force: true });
 };
 
-/** Parse the decision file. Throws if missing — call after the viewer has resolved. */
-export const readDecision = async (): Promise<DecisionRecord> => {
-  const raw = await readFile(decisionFile, "utf8");
+const readRecord = async (path: string): Promise<DecisionRecord> => {
+  const raw = await readFile(path, "utf8");
   return JSON.parse(raw) as DecisionRecord;
 };
 
-/** Poll until the decision file exists, up to `timeoutMs` (default 5s). */
-export const waitForDecision = async (timeoutMs = 5_000): Promise<DecisionRecord> => {
+const waitForRecord = async (path: string, timeoutMs: number): Promise<DecisionRecord> => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      await stat(decisionFile);
-      return await readDecision();
+      await stat(path);
+      return await readRecord(path);
     } catch {
       await new Promise((r) => setTimeout(r, 50));
     }
   }
-  throw new Error(`No decision recorded within ${timeoutMs}ms`);
+  throw new Error(`No decision recorded at ${path} within ${timeoutMs}ms`);
 };
+
+/** Remove the plan-mode decision file so a scenario starts from a clean slate. Idempotent. */
+export const resetDecisionFile = (): Promise<void> => resetFile(decisionFile);
+
+/** Parse the plan-mode decision file. Throws if missing — call after the viewer has resolved. */
+export const readDecision = (): Promise<DecisionRecord> => readRecord(decisionFile);
+
+/** Poll until the plan-mode decision file exists, up to `timeoutMs` (default 5s). */
+export const waitForDecision = (timeoutMs = 5_000): Promise<DecisionRecord> =>
+  waitForRecord(decisionFile, timeoutMs);
+
+/** Remove the annotate-mode decision file so a scenario starts from a clean slate. Idempotent. */
+export const resetAnnotateDecisionFile = (): Promise<void> => resetFile(annotateDecisionFile);
+
+/** Poll until the annotate-mode decision file exists, up to `timeoutMs` (default 5s). */
+export const waitForAnnotateDecision = (timeoutMs = 5_000): Promise<DecisionRecord> =>
+  waitForRecord(annotateDecisionFile, timeoutMs);
