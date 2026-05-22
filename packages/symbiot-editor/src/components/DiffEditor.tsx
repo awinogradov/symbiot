@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Plate, PlateContent, createPlateEditor, usePlateEditor } from "platejs/react";
 import type { PlateValue } from "@symbiot/annotations";
 
-import { SymbiotDiffKit } from "../utils/diffKit.ts";
+import { SymbiotDiffKit } from "../utils/kit.ts";
 import { computeDiffValue, hasAnyDiff, pickChangedBlocks } from "../utils/diffPlugin.ts";
 
 /** Visible diff view mode. `clean` drops untouched top-level blocks; `raw` keeps everything. */

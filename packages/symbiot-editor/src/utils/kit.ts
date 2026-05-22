@@ -31,6 +31,7 @@ import {
 import { HrElement } from "../components/VoidElements.tsx";
 import { VoidImage } from "../components/VoidImage.tsx";
 
+import { DiffPlugin } from "./diffPlugin.ts";
 import { SourceLinesPlugin } from "./sourceLines.ts";
 
 const MarkdownWithGfm = MarkdownPlugin.configure({
@@ -38,37 +39,27 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
 });
 
 /**
- * Plate plugin composition for symbiot's read-only review editor.
- *
- * Phase 3.1 wires the full FR-1.2 markdown surface:
- *  - `remark-gfm` for tables / strikethrough / task lists at parse time
- *  - explicit `Table*Element` components so mdast `table` nodes render as
- *    semantic `<table>` instead of falling through to a `<div>` wrapper
- *  - `SourceLinesPlugin` exposing `editor.api.sourceLines.getBlockLines(path)`
- *    so `walkAnnotations` can attach `BlockLines` to per-anchor entries and
- *    `serializeFeedback` can emit the `(lines N–M)` prefix
- *  - `CodeBlockElement` with Shiki dual-themed highlighting on fenced code
- *  - `DeletionLeaf` so suggestion marks render with strikethrough (3.2)
+ * Shared markdown surface used by every editor mode. Read-only diff and
+ * read-write review editors render the same prose tokens (paragraphs, tables,
+ * lists, code blocks, void elements), so the shared base lives once here and
+ * the per-mode appendices are layered on top in {@link SymbiotEditorKit} /
+ * {@link SymbiotDiffKit}.
  *
  * `HorizontalRulePlugin` ships with `render: { as: "hr" }`, which React 19
  * rejects because Slate-React always passes a zero-width text node as
- * children — `<hr>` is a void element that can't host children. Override
- * with a wrapper component that keeps the Slate children hidden.
+ * children — `<hr>` is a void element that can't host children. Override with
+ * a wrapper component (`HrElement`) that keeps the Slate children hidden.
  *
- * `ParagraphPlugin` ships without a `render` config, so paragraph nodes
- * fall through to the default `<div>` element — breaking semantic HTML and
- * any `.prose p` / `p code` selector that depends on it. Configure it to
- * render as `<p>`.
+ * `ParagraphPlugin` ships without a `render` config, so paragraph nodes fall
+ * through to the default `<div>` — breaking semantic HTML and any `.prose p`
+ * selector that depends on it. Configure it to render as `<p>`.
  */
-export const SymbiotEditorKit = [
+const symbiotBaseKit = [
   MarkdownWithGfm,
   SourceLinesPlugin,
   BasicBlocksPlugin,
   ParagraphPlugin.configure({ render: { as: "p" } }),
   BasicMarksPlugin,
-  SuggestionMarkPlugin,
-  InsertionMarkPlugin,
-  ReplacementMarkPlugin,
   HorizontalRulePlugin.withComponent(HrElement),
   CodeBlockPlugin.withComponent(CodeBlockElement),
   ListPlugin,
@@ -77,5 +68,26 @@ export const SymbiotEditorKit = [
   TableCellPlugin.withComponent(TableCellElement),
   TableCellHeaderPlugin.withComponent(TableCellHeaderElement),
   ImagePlugin.withComponent(VoidImage),
+];
+
+/**
+ * Plate plugin composition for the editable review editor. Appends the
+ * annotation-authoring leaf plugins (suggestion / insertion / replacement) and
+ * the comment plugin so reviewer marks render alongside markdown.
+ */
+export const SymbiotEditorKit = [
+  ...symbiotBaseKit,
+  SuggestionMarkPlugin,
+  InsertionMarkPlugin,
+  ReplacementMarkPlugin,
   CommentPlugin.withComponent(CommentLeaf),
 ];
+
+/**
+ * Plate plugin composition for the read-only diff viewer. Mirrors
+ * {@link SymbiotEditorKit} for the markdown surface but omits the
+ * annotation-authoring plugins — diff mode is read-only and the suggestion /
+ * comment plugins share leaf-key space with the diff renderer. `DiffPlugin` is
+ * appended last so its leaf renderer wins on any leaf carrying `leaf.diff`.
+ */
+export const SymbiotDiffKit = [...symbiotBaseKit, DiffPlugin];
