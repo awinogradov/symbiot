@@ -3,7 +3,17 @@ import { expect } from "@playwright/test";
 import { Then, When } from "../support/bdd.ts";
 
 When("I press {string} anywhere outside the editor", async ({ page }, combo: string) => {
-  await page.getByTestId("top-bar").click();
+  // Wait until Plate has finished constructing the editor. Reaching this
+  // state means useReadyHandle has fired and the editor handle is registered;
+  // without it, c/i/r/d would route through a null handle. Plate stamps
+  // `data-slate-node="element"` on every block.
+  await page
+    .locator('[data-testid="editor-root"] [data-slate-node="element"]')
+    .first()
+    .waitFor({ state: "visible" });
+  // Do NOT click outside the editor first — that collapses the DOM text
+  // selection that c/i/r/d depend on. useHotkeys binds at the document
+  // level, so a bare keyboard press fires regardless of where focus is.
   await page.keyboard.press(toPlaywrightKey(combo));
 });
 
