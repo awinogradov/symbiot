@@ -1,9 +1,12 @@
 import type { PlateEditor } from "platejs/react";
 
-type Kind = "comment" | "deletion";
+type Kind = "comment" | "deletion" | "insertion";
 
-const prefixOf = (kind: Kind): "comment" | "suggestion" =>
-  kind === "comment" ? "comment" : "suggestion";
+const prefixOf = (kind: Kind): "comment" | "suggestion" | "insertion" => {
+  if (kind === "comment") return "comment";
+  if (kind === "insertion") return "insertion";
+  return "suggestion";
+};
 
 interface TextLeaf {
   text: string;

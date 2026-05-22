@@ -20,6 +20,7 @@ import remarkGfm from "remark-gfm";
 import { CodeBlockElement } from "../components/CodeBlockElement.tsx";
 import { CommentLeaf } from "../components/CommentLeaf.tsx";
 import { SuggestionMarkPlugin } from "../components/DeletionLeaf.tsx";
+import { InsertionMarkPlugin } from "../components/InsertionLeaf.tsx";
 import {
   TableCellElement,
   TableCellHeaderElement,
@@ -65,6 +66,7 @@ export const SymbiotEditorKit = [
   ParagraphPlugin.configure({ render: { as: "p" } }),
   BasicMarksPlugin,
   SuggestionMarkPlugin,
+  InsertionMarkPlugin,
   HorizontalRulePlugin.withComponent(HrElement),
   CodeBlockPlugin.withComponent(CodeBlockElement),
   ListPlugin,

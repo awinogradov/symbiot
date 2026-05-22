@@ -48,6 +48,10 @@ export interface DraftPayload {
   commentImages?: Record<string, string[]>;
   commentOriginalTexts?: Record<string, string>;
   suggestionOriginalTexts?: Record<string, string>;
+  /** Per-insertion proposed text + image refs + anchor snapshot (Phase 5.2). Optional for back-compat. */
+  insertionNewTexts?: Record<string, string>;
+  insertionImages?: Record<string, string[]>;
+  insertionOriginalTexts?: Record<string, string>;
   globalComments: { id: string; body: string; images?: string[] }[];
   updatedAt: number;
 }

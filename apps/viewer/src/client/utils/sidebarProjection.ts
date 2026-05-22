@@ -15,17 +15,47 @@ export interface SourceWindow {
   /** Sidecar maps captured at annotation creation; drive drift detection in the walker. Phase 4.3. */
   commentOriginalTexts?: Map<string, string>;
   suggestionOriginalTexts?: Map<string, string>;
+  /** Per-insertion proposed text + image refs + anchor snapshot (Phase 5.2). */
+  insertionNewTexts?: Map<string, string>;
+  insertionImages?: Map<string, string[]>;
+  insertionOriginalTexts?: Map<string, string>;
 }
 
 type SidebarKind = AnnotationSidebarEntry["kind"];
 type SupportedEntry = Extract<AnnotationEntry, { kind: SidebarKind }>;
 
 /**
- * Narrows a walked entry to the kinds the sidebar can render today (C / D / G).
- * Insertion and Replacement land with their authoring UI in Phases 5.2 / 5.3.
+ * Narrows a walked entry to the kinds the sidebar can render. Comment,
+ * Deletion, Global (Phase 3) and Insertion (Phase 5.2). Replacement lands in
+ * Phase 5.3 alongside its authoring UI.
  */
 export const isSupportedSidebarEntry = (entry: AnnotationEntry): entry is SupportedEntry =>
-  entry.kind === "comment" || entry.kind === "deletion" || entry.kind === "global";
+  entry.kind === "comment" ||
+  entry.kind === "deletion" ||
+  entry.kind === "global" ||
+  entry.kind === "insertion";
+
+type AnchoredEntry = Exclude<SupportedEntry, { kind: "global" }>;
+
+const anchoredPrimary = (entry: AnchoredEntry): string => {
+  if (entry.kind === "insertion") return entry.contextText;
+  return entry.originalText;
+};
+
+const anchoredBody = (entry: AnchoredEntry): string | undefined => {
+  if (entry.kind === "comment") return entry.body;
+  if (entry.kind === "insertion") return entry.newText;
+  return undefined;
+};
+
+const decorateOptional = (
+  base: AnnotationSidebarEntry,
+  entry: AnchoredEntry
+): AnnotationSidebarEntry => {
+  if (entry.lines !== undefined) base.lines = entry.lines;
+  if (entry.drifted === true) base.drifted = true;
+  return base;
+};
 
 /** Convert a single walker entry into the projection the sidebar component consumes. */
 export const toSidebarEntry = (entry: SupportedEntry): AnnotationSidebarEntry => {
@@ -35,18 +65,17 @@ export const toSidebarEntry = (entry: SupportedEntry): AnnotationSidebarEntry =>
   const base: AnnotationSidebarEntry = {
     id: entry.id,
     kind: entry.kind,
-    primary: entry.originalText,
+    primary: anchoredPrimary(entry),
   };
-  if (entry.kind === "comment") base.body = entry.body;
-  if (entry.lines !== undefined) base.lines = entry.lines;
-  if (entry.drifted === true) base.drifted = true;
-  return base;
+  const body = anchoredBody(entry);
+  if (body !== undefined) base.body = body;
+  return decorateOptional(base, entry);
 };
 
 /**
- * Walk a source window and project to sidebar entries. Insertion and
- * Replacement entries are filtered out — sidebar rendering for those types
- * lands in Phases 5.2 / 5.3 alongside their authoring UI.
+ * Walk a source window and project to sidebar entries. Replacement entries
+ * are filtered out — sidebar rendering for that type lands in Phase 5.3
+ * alongside its authoring UI.
  */
 export const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] =>
   walkAnnotations({
@@ -56,6 +85,9 @@ export const projectEntries = (sources: SourceWindow): AnnotationSidebarEntry[] 
     globalComments: sources.globalComments,
     commentOriginalTexts: sources.commentOriginalTexts,
     suggestionOriginalTexts: sources.suggestionOriginalTexts,
+    insertionNewTexts: sources.insertionNewTexts,
+    insertionImages: sources.insertionImages,
+    insertionOriginalTexts: sources.insertionOriginalTexts,
   })
     .filter(isSupportedSidebarEntry)
     .map(toSidebarEntry);

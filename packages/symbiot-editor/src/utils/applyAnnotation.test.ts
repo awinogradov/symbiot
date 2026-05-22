@@ -1,7 +1,7 @@
 import { createSlateEditor } from "platejs";
 import { describe, expect, it } from "vitest";
 
-import { applyComment } from "./applyComment.ts";
+import { applyAnnotation, type AnnotationKind } from "./applyAnnotation.ts";
 import { SymbiotEditorKit } from "./kit.ts";
 
 const createEditor = (): ReturnType<typeof createSlateEditor> =>
@@ -10,31 +10,33 @@ const createEditor = (): ReturnType<typeof createSlateEditor> =>
     value: [{ type: "p", children: [{ text: "hello world" }] }],
   });
 
-describe("applyComment", () => {
+const kinds: AnnotationKind[] = ["comment", "deletion", "insertion"];
+
+describe.each(kinds)("applyAnnotation(%s)", (kind) => {
   it("returns null when there is no selection", () => {
     const editor = createEditor();
     editor.selection = null;
-    expect(applyComment(editor)).toBeNull();
+    expect(applyAnnotation(editor, kind)).toBeNull();
   });
 
-  it("returns null when the selection is collapsed — the case that breaks if a toolbar click steals selection", () => {
+  it("returns null when the selection is collapsed", () => {
     const editor = createEditor();
     editor.selection = {
       anchor: { path: [0, 0], offset: 3 },
       focus: { path: [0, 0], offset: 3 },
     };
-    expect(applyComment(editor)).toBeNull();
+    expect(applyAnnotation(editor, kind)).toBeNull();
   });
 
-  it("captures originalText and generates an id when the selection is expanded", () => {
+  it("captures anchorText and generates an id when the selection is expanded", () => {
     const editor = createEditor();
     editor.selection = {
       anchor: { path: [0, 0], offset: 0 },
       focus: { path: [0, 0], offset: 5 },
     };
-    const result = applyComment(editor);
+    const result = applyAnnotation(editor, kind);
     expect(result).not.toBeNull();
-    expect(result?.originalText).toBe("hello");
+    expect(result?.anchorText).toBe("hello");
     expect(result?.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
