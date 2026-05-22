@@ -1,21 +1,32 @@
 import type { AnnotationEntry, AnnotationTuple } from "./types.ts";
-import { toCommentTuple, toDeletionTuple, toGlobalCommentTuple } from "./types.ts";
+import {
+  toCommentTuple,
+  toDeletionTuple,
+  toGlobalCommentTuple,
+  toInsertionTuple,
+  toReplacementTuple,
+} from "./types.ts";
 
-const encodeOne = (entry: AnnotationEntry): AnnotationTuple => {
-  switch (entry.kind) {
-    case "comment":
-      return toCommentTuple(entry);
-    case "global":
-      return toGlobalCommentTuple(entry);
-    case "deletion":
-      return toDeletionTuple(entry);
-  }
+type EncoderTable = {
+  [K in AnnotationEntry["kind"]]: (entry: Extract<AnnotationEntry, { kind: K }>) => AnnotationTuple;
 };
 
+const encoders: EncoderTable = {
+  comment: toCommentTuple,
+  global: toGlobalCommentTuple,
+  deletion: toDeletionTuple,
+  insertion: toInsertionTuple,
+  replacement: toReplacementTuple,
+};
+
+const encodeOne = (entry: AnnotationEntry): AnnotationTuple =>
+  (encoders[entry.kind] as (e: AnnotationEntry) => AnnotationTuple)(entry);
+
 /**
- * Encode a list of walked annotations into their plannotator-compatible tuple
- * forms. Order is preserved so callers can rely on document-order semantics for
- * Comment / Deletion entries and append-order for Global Comments.
+ * Encode a list of walked annotations into their compact tuple forms. C / G /
+ * D are plannotator-compatible; I / R are symbiot-only extensions. Order is
+ * preserved so callers can rely on document-order semantics for anchored
+ * entries and append-order for Global Comments.
  */
 export const encodeAnnotations = (entries: AnnotationEntry[]): AnnotationTuple[] =>
   entries.map(encodeOne);

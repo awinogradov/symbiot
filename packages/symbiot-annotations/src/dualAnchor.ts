@@ -49,6 +49,15 @@ const findTextQuote = (value: PlateValue, needle: string): number[] | null => {
  * first; if it no longer addresses a node containing the original text, fall
  * back to a text-quote scan over each block. Returns `missing` when neither
  * strategy succeeds (the anchor's original text has been edited away).
+ *
+ * Anchor-text contract per annotation kind:
+ * - Comment → `originalText` (the selected span)
+ * - Deletion → `originalText` (the span to remove)
+ * - Insertion → `contextText` (the span the new text is inserted after)
+ * - Replacement → `originalText` (the span the replacement substitutes)
+ *
+ * Callers stamp the appropriate field as the `DualAnchor.originalText`
+ * snapshot at creation time; the resolver itself is generic over either.
  */
 export const resolveAnchor = (value: PlateValue, anchor: DualAnchor): AnchorResolution => {
   const direct = nodeAt(value, anchor.pathAnchor);

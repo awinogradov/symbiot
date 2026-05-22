@@ -69,6 +69,32 @@ describe("serializeFeedback", () => {
     expect(serializeFeedback(entries)).toBe(expected);
   });
 
+  it("matches the synthesized insertion fixture (byte-equality)", async () => {
+    const expected = await loadFixture("plannotator-reference/insertion.md");
+    const entries: AnnotationEntry[] = [
+      {
+        kind: "insertion",
+        id: "i1",
+        contextText: "the quick brown fox",
+        newText: "jumps",
+      },
+    ];
+    expect(serializeFeedback(entries)).toBe(expected);
+  });
+
+  it("matches the synthesized replacement fixture (byte-equality)", async () => {
+    const expected = await loadFixture("plannotator-reference/replacement.md");
+    const entries: AnnotationEntry[] = [
+      {
+        kind: "replacement",
+        id: "r1",
+        originalText: "redundant clause",
+        replacementText: "concise note",
+      },
+    ];
+    expect(serializeFeedback(entries)).toBe(expected);
+  });
+
   it("emits (lines N–M) prefix when block lines are present", () => {
     const entries: AnnotationEntry[] = [
       {
@@ -81,6 +107,29 @@ describe("serializeFeedback", () => {
     ];
     const out = serializeFeedback(entries);
     expect(out).toContain('## 1. (lines 12–14) Feedback on: "x"');
+  });
+
+  it("emits (lines N–M) prefix for insertion and replacement", () => {
+    const entries: AnnotationEntry[] = [
+      {
+        kind: "insertion",
+        id: "1",
+        contextText: "ctx",
+        newText: "n",
+        lines: { startLine: 3, endLine: 4 },
+      },
+      {
+        kind: "replacement",
+        id: "2",
+        originalText: "o",
+        replacementText: "r",
+        lines: { startLine: 7, endLine: 9 },
+      },
+    ];
+    const out = serializeFeedback(entries);
+    expect(out).toContain('## 1. (lines 3–4) Insert after: "ctx"');
+    expect(out).toContain('## 2. (lines 7–9) Suggest replacing: "o"');
+    expect(out).toContain('> Replace with: "r"');
   });
 });
 

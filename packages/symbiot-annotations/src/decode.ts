@@ -4,6 +4,8 @@ import type {
   CommentTuple,
   DeletionTuple,
   GlobalCommentTuple,
+  InsertionTuple,
+  ReplacementTuple,
 } from "./types.ts";
 
 const decodeComment = (tuple: CommentTuple, index: number): AnnotationEntry => {
@@ -35,20 +37,56 @@ const decodeDeletion = (tuple: DeletionTuple, index: number): AnnotationEntry =>
   return entry;
 };
 
+const decodeInsertion = (tuple: InsertionTuple, index: number): AnnotationEntry => {
+  const [, contextText, newText, author, images] = tuple;
+  const entry: AnnotationEntry = {
+    kind: "insertion",
+    id: `i-${index}`,
+    contextText,
+    newText,
+  };
+  if (author !== undefined && author.length > 0) entry.author = author;
+  if (images !== undefined) entry.images = images;
+  return entry;
+};
+
+const decodeReplacement = (tuple: ReplacementTuple, index: number): AnnotationEntry => {
+  const [, originalText, replacementText, author, images] = tuple;
+  const entry: AnnotationEntry = {
+    kind: "replacement",
+    id: `r-${index}`,
+    originalText,
+    replacementText,
+  };
+  if (author !== undefined && author.length > 0) entry.author = author;
+  if (images !== undefined) entry.images = images;
+  return entry;
+};
+
+type DecoderTable = {
+  [K in AnnotationTuple[0]]: (
+    tuple: Extract<AnnotationTuple, readonly [K, ...unknown[]]>,
+    index: number
+  ) => AnnotationEntry;
+};
+
+const decoders: DecoderTable = {
+  C: decodeComment,
+  G: decodeGlobal,
+  D: decodeDeletion,
+  I: decodeInsertion,
+  R: decodeReplacement,
+};
+
 /**
- * Decode a list of plannotator-compatible tuples back into AnnotationEntry
- * objects. Ids are synthesized from the tuple position since the wire format
- * doesn't carry them. Callers that need to re-attach anchors should pair this
- * output with `dualAnchor.resolveAnchor` against the current Plate value.
+ * Decode a list of compact annotation tuples back into AnnotationEntry
+ * objects. C / G / D are plannotator-compatible; I / R are symbiot extensions.
+ * Ids are synthesized from the tuple position since the wire format doesn't
+ * carry them. Callers that need to re-attach anchors should pair this output
+ * with `dualAnchor.resolveAnchor` against the current Plate value (Insertion
+ * anchors on `contextText`; Replacement on `originalText`).
  */
 export const decodeAnnotations = (tuples: AnnotationTuple[]): AnnotationEntry[] =>
-  tuples.map((tuple, i) => {
-    switch (tuple[0]) {
-      case "C":
-        return decodeComment(tuple, i);
-      case "G":
-        return decodeGlobal(tuple, i);
-      case "D":
-        return decodeDeletion(tuple, i);
-    }
-  });
+  tuples.map((tuple, i) =>
+    (decoders[tuple[0]] as (t: AnnotationTuple, index: number) => AnnotationEntry)(tuple, i)
+  );

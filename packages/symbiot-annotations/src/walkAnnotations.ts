@@ -5,13 +5,17 @@ import type {
   CommentEntry,
   DeletionEntry,
   GlobalCommentEntry,
+  InsertionEntry,
   PlateNode,
   PlateTextLeaf,
   PlateValue,
+  ReplacementEntry,
 } from "./types.ts";
 
 const commentIdPrefix = "comment_";
 const suggestionIdPrefix = "suggestion_";
+const insertionIdPrefix = "insertion_";
+const replacementIdPrefix = "replacement_";
 const blockLinesMark = "__symbiotBlockLines";
 
 const isText = (node: PlateNode): node is PlateTextLeaf =>
@@ -140,6 +144,26 @@ export interface AnnotationSources {
   commentOriginalTexts?: Map<string, string>;
   /** Per-deletion `originalText` snapshot. Parallel to `commentOriginalTexts`. */
   suggestionOriginalTexts?: Map<string, string>;
+  /**
+   * Per-insertion proposed text (the text to insert after `contextText`).
+   * Editor authoring (Phase 5.2) populates this; walker skips marks without
+   * an entry. Phase 5.1.
+   */
+  insertionNewTexts?: Map<string, string>;
+  /** Optional per-insertion image refs, parallel to `insertionNewTexts`. */
+  insertionImages?: Map<string, string[]>;
+  /** Per-insertion snapshot of the anchored `contextText` for drift detection. */
+  insertionOriginalTexts?: Map<string, string>;
+  /**
+   * Per-replacement proposed text (substitutes the anchored `originalText`).
+   * Editor authoring (Phase 5.3) populates this; walker skips marks without
+   * an entry. Phase 5.1.
+   */
+  replacementTexts?: Map<string, string>;
+  /** Optional per-replacement image refs, parallel to `replacementTexts`. */
+  replacementImages?: Map<string, string[]>;
+  /** Per-replacement snapshot of the anchored `originalText` for drift detection. */
+  replacementOriginalTexts?: Map<string, string>;
 }
 
 interface CommentParts {
@@ -156,21 +180,28 @@ const nonEmpty = <T extends { length: number }>(value: T | undefined): value is 
   return value.length > 0;
 };
 
-const decorateLines = (entry: { kind: "comment" } & CommentEntry, fragment: Fragment): void => {
+interface LinesBearing {
+  lines?: BlockLines;
+}
+interface ImagesBearing {
+  images?: string[];
+}
+interface DriftBearing {
+  drifted?: boolean;
+}
+
+const decorateLines = (entry: LinesBearing, fragment: Fragment): void => {
   if (fragment.lines === undefined) return;
   entry.lines = fragment.lines;
 };
 
-const decorateImages = (
-  entry: { kind: "comment" } & CommentEntry,
-  images: string[] | undefined
-): void => {
+const decorateImages = (entry: ImagesBearing, images: string[] | undefined): void => {
   if (!nonEmpty(images)) return;
   entry.images = images;
 };
 
 const decorateDrift = (
-  entry: ({ kind: "comment" } & CommentEntry) | ({ kind: "deletion" } & DeletionEntry),
+  entry: DriftBearing,
   drift: { originalText: string; drifted: boolean } | undefined
 ): void => {
   if (drift?.drifted !== true) return;
@@ -264,15 +295,106 @@ const walkDeletionEntries = (
   return out;
 };
 
+const buildInsertionEntry = (
+  id: string,
+  fragment: Fragment,
+  newText: string,
+  images: string[] | undefined,
+  drift: { originalText: string; drifted: boolean } | undefined
+): { kind: "insertion" } & InsertionEntry => {
+  const entry: { kind: "insertion" } & InsertionEntry = {
+    kind: "insertion",
+    id,
+    contextText: anchorTextOf(fragment, drift),
+    newText,
+  };
+  decorateLines(entry, fragment);
+  decorateImages(entry, images);
+  decorateDrift(entry, drift);
+  return entry;
+};
+
+const walkInsertionEntries = (
+  entries: LeafWithLines[],
+  newTexts: Map<string, string> | undefined,
+  imagesById: Map<string, string[]> | undefined,
+  originalTexts: Map<string, string> | undefined,
+  value: PlateValue
+): AnnotationEntry[] => {
+  if (newTexts === undefined) return [];
+  const out: AnnotationEntry[] = [];
+  for (const [id, fragment] of groupContiguous(entries, insertionIdPrefix)) {
+    const newText = newTexts.get(id);
+    if (!nonEmpty(newText)) continue;
+    out.push(
+      buildInsertionEntry(
+        id,
+        fragment,
+        newText,
+        imagesById?.get(id),
+        resolveDrift(id, fragment, originalTexts, value)
+      )
+    );
+  }
+  return out;
+};
+
+const buildReplacementEntry = (
+  id: string,
+  fragment: Fragment,
+  replacementText: string,
+  images: string[] | undefined,
+  drift: { originalText: string; drifted: boolean } | undefined
+): { kind: "replacement" } & ReplacementEntry => {
+  const entry: { kind: "replacement" } & ReplacementEntry = {
+    kind: "replacement",
+    id,
+    originalText: anchorTextOf(fragment, drift),
+    replacementText,
+  };
+  decorateLines(entry, fragment);
+  decorateImages(entry, images);
+  decorateDrift(entry, drift);
+  return entry;
+};
+
+const walkReplacementEntries = (
+  entries: LeafWithLines[],
+  replacementTexts: Map<string, string> | undefined,
+  imagesById: Map<string, string[]> | undefined,
+  originalTexts: Map<string, string> | undefined,
+  value: PlateValue
+): AnnotationEntry[] => {
+  if (replacementTexts === undefined) return [];
+  const out: AnnotationEntry[] = [];
+  for (const [id, fragment] of groupContiguous(entries, replacementIdPrefix)) {
+    const replacementText = replacementTexts.get(id);
+    if (!nonEmpty(replacementText)) continue;
+    out.push(
+      buildReplacementEntry(
+        id,
+        fragment,
+        replacementText,
+        imagesById?.get(id),
+        resolveDrift(id, fragment, originalTexts, value)
+      )
+    );
+  }
+  return out;
+};
+
 const walkGlobalEntries = (globals: GlobalCommentEntry[]): AnnotationEntry[] =>
   globals.map((g) => ({ kind: "global", ...g }));
 
 /**
- * Walk a Plate value and surface every annotation (Comment + Deletion) plus
- * app-level Global Comments. Each per-anchor entry carries the `BlockLines`
- * range of its enclosing top-level block when the value was stamped by
- * `SourceLinesPlugin` / `stampBlockLines`, so `serializeFeedback` can emit the
- * `(lines N–M)` prefix.
+ * Walk a Plate value and surface every anchored annotation (Comment, Deletion,
+ * Insertion, Replacement) plus app-level Global Comments. Each per-anchor
+ * entry carries the `BlockLines` range of its enclosing top-level block when
+ * the value was stamped by `SourceLinesPlugin` / `stampBlockLines`, so
+ * `serializeFeedback` can emit the `(lines N–M)` prefix.
+ *
+ * Insertion / Replacement walks no-op when their sidecar text maps are
+ * absent — Phase 5.2 / 5.3 editor authoring populates them.
  */
 export const walkAnnotations = (sources: AnnotationSources): AnnotationEntry[] => {
   const entries = collectLeavesWithLines(sources.value);
@@ -285,6 +407,20 @@ export const walkAnnotations = (sources: AnnotationSources): AnnotationEntry[] =
       sources.value
     ),
     ...walkDeletionEntries(entries, sources.suggestionOriginalTexts, sources.value),
+    ...walkInsertionEntries(
+      entries,
+      sources.insertionNewTexts,
+      sources.insertionImages,
+      sources.insertionOriginalTexts,
+      sources.value
+    ),
+    ...walkReplacementEntries(
+      entries,
+      sources.replacementTexts,
+      sources.replacementImages,
+      sources.replacementOriginalTexts,
+      sources.value
+    ),
     ...walkGlobalEntries(sources.globalComments),
   ];
 };
@@ -315,6 +451,26 @@ const stripGlobalKind = (e: { kind: "global" } & GlobalCommentEntry): GlobalComm
   ...(e.images === undefined ? {} : { images: e.images }),
 });
 
+const stripInsertionKind = (e: { kind: "insertion" } & InsertionEntry): InsertionEntry => ({
+  id: e.id,
+  contextText: e.contextText,
+  newText: e.newText,
+  ...(e.author === undefined ? {} : { author: e.author }),
+  ...(e.images === undefined ? {} : { images: e.images }),
+  ...(e.lines === undefined ? {} : { lines: e.lines }),
+  ...(e.drifted === undefined ? {} : { drifted: e.drifted }),
+});
+
+const stripReplacementKind = (e: { kind: "replacement" } & ReplacementEntry): ReplacementEntry => ({
+  id: e.id,
+  originalText: e.originalText,
+  replacementText: e.replacementText,
+  ...(e.author === undefined ? {} : { author: e.author }),
+  ...(e.images === undefined ? {} : { images: e.images }),
+  ...(e.lines === undefined ? {} : { lines: e.lines }),
+  ...(e.drifted === undefined ? {} : { drifted: e.drifted }),
+});
+
 /** Filter a walk to comments only (Phase 2 backwards-compat). */
 export const onlyComments = (entries: AnnotationEntry[]): CommentEntry[] =>
   entries.filter((e) => e.kind === "comment").map(stripCommentKind);
@@ -326,3 +482,11 @@ export const onlyDeletions = (entries: AnnotationEntry[]): DeletionEntry[] =>
 /** Filter a walk to global comments only. */
 export const onlyGlobals = (entries: AnnotationEntry[]): GlobalCommentEntry[] =>
   entries.filter((e) => e.kind === "global").map(stripGlobalKind);
+
+/** Filter a walk to insertions only. */
+export const onlyInsertions = (entries: AnnotationEntry[]): InsertionEntry[] =>
+  entries.filter((e) => e.kind === "insertion").map(stripInsertionKind);
+
+/** Filter a walk to replacements only. */
+export const onlyReplacements = (entries: AnnotationEntry[]): ReplacementEntry[] =>
+  entries.filter((e) => e.kind === "replacement").map(stripReplacementKind);
