@@ -67,6 +67,40 @@ Any tool that implements the same pipeline reproduces these hex values and
 ratios: `oklch.com`, the `culori` npm package, or a 30-line script using the
 formulas above.
 
+## Automated contrast test
+
+`packages/tailwind-config/contrast.test.ts` locks every annotation token's
+contrast against `--background` at the WCAG AA threshold (>= 4.5:1) in both
+light and dark themes. Each test case reads the actual `theme.css` cascade
+through JSDOM by toggling the `.dark` class on `document.documentElement`,
+so a hue edit that drops below AA fails CI before review.
+
+JSDOM was picked over a headless browser because the assertion is a values
+check — there is no rendered fixture to inspect — and spinning Playwright
+up for that costs seconds per case. `axe-core` on a rendered fixture is the
+other published option; it operates one level higher (rendered element +
+font-weight rules) than needed here and stays available for a future
+end-to-end a11y pass.
+
+The WCAG 2.1 relative-luminance formula spelled out in [Methodology](#methodology)
+is inlined in the test rather than imported from `wcag-contrast`. The
+library accepts only sRGB inputs, so the OKLCH parser and Björn Ottosson
+matrix would still be hand-rolled — collapsing both into ~40 lines of
+inline math keeps the test a single file with the formula visible at the
+call site.
+
+The four tokens cover all five annotation kinds: `--anno-comment` is shared
+between Comment and Global Comment (Global Comment carries no anchored
+span, so the foreground-on-`--background` requirement still applies to the
+composer surface). Run with:
+
+```sh
+bun --filter @symbiot/tailwind-config test
+```
+
+Adding a new annotation token to `theme.css` requires extending the test's
+`tokens` tuple; adding a new theme requires extending the `themes` tuple.
+
 ## Cross-references
 
 - Phase plan: [`../plans/07-theming.md`](../plans/07-theming.md).
