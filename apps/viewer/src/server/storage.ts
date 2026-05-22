@@ -13,7 +13,7 @@ import type { PlanMeta } from "../shared/apiTypes.ts";
  *
  * @see plans/02-mvp.md — storage layout for the MVP plan-review loop.
  */
-export const getStorageRoot = (): string => join(process.env.HOME ?? homedir(), ".symbiot");
+export const getStorageRoot = (): string => join(process.env.HOME || homedir(), ".symbiot");
 
 /**
  * Static snapshot of {@link getStorageRoot} captured at module load. Use only
