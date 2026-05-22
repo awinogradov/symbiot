@@ -5,7 +5,7 @@ import { HistoryPanel } from "./AnnotationSidebarHistory.tsx";
 import { type AnnotationSidebarEntry, type SidebarDiffMode } from "./AnnotationSidebarTypes.tsx";
 import { Badge } from "./Badge.tsx";
 import { Sidebar } from "./Sidebar.tsx";
-import { SidebarContent, SidebarGroup, SidebarHeader } from "./SidebarSection.tsx";
+import { SidebarContent, SidebarGroup } from "./SidebarSection.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./Tabs.tsx";
 
 /** Props driving the annotation sidebar shell. */
@@ -46,10 +46,10 @@ interface AnnotationSidebarProps {
 type TabValue = "annotations" | "history";
 
 /**
- * Right-aligned `<Sidebar>` with two tabs: Annotations (the existing entry
- * list) and History (a `VersionBrowser` listing every persisted plan version).
- * The tab bar is hidden when only a single version exists so a fresh plan
- * keeps the single-purpose UX.
+ * Right-aligned `<Sidebar>` with a tab bar that always renders the Annotations
+ * tab — its title carries the live entry count — and reveals the History tab
+ * (a `VersionBrowser` listing every persisted plan version) only when at least
+ * two versions exist.
  *
  * "Clear all" only renders on the Annotations tab so a stray click can't lose
  * work while the reviewer is browsing history.
@@ -80,35 +80,36 @@ export const AnnotationSidebar = ({
     },
     [onDiffModeChange]
   );
-  const showClearAll = entries.length > 0 && (!hasHistory || tab === "annotations");
+  const showClearAll = entries.length > 0 && tab === "annotations";
   return (
     <Sidebar side="right" collapsible="offcanvas" data-testid="annotation-sidebar" className="w-80">
-      <SidebarHeader>
-        <div className="flex items-center justify-between px-2 py-1">
-          <h2 className="text-sm font-semibold">Annotations</h2>
-          <Badge variant="secondary" data-testid="sidebar-total-count">
-            {entries.length}
-          </Badge>
-        </div>
-      </SidebarHeader>
       <SidebarContent>
-        {hasHistory ? (
-          <Tabs value={tab} onValueChange={handleTabChange} className="flex w-full flex-col gap-2">
-            <div className="px-2">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger data-testid="sidebar-tab-annotations" value="annotations">
-                  Annotations
-                </TabsTrigger>
-                <TabsTrigger data-testid="sidebar-tab-history" value="history">
+        <Tabs value={tab} onValueChange={handleTabChange} className="flex w-full flex-col gap-2">
+          <div className="px-2 pt-2">
+            <TabsList className="flex w-full">
+              <TabsTrigger
+                data-testid="sidebar-tab-annotations"
+                value="annotations"
+                className="flex-1"
+              >
+                Annotations
+                <Badge variant="secondary" data-testid="sidebar-total-count">
+                  {entries.length}
+                </Badge>
+              </TabsTrigger>
+              {hasHistory && (
+                <TabsTrigger data-testid="sidebar-tab-history" value="history" className="flex-1">
                   History
                 </TabsTrigger>
-              </TabsList>
-            </div>
-            <TabsContent value="annotations">
-              <SidebarGroup className="px-2">
-                <AnnotationList entries={entries} onFocus={onFocus} onRemove={onRemove} />
-              </SidebarGroup>
-            </TabsContent>
+              )}
+            </TabsList>
+          </div>
+          <TabsContent value="annotations">
+            <SidebarGroup className="px-2">
+              <AnnotationList entries={entries} onFocus={onFocus} onRemove={onRemove} />
+            </SidebarGroup>
+          </TabsContent>
+          {hasHistory && (
             <TabsContent value="history">
               <HistoryPanel
                 versions={versions}
@@ -122,12 +123,8 @@ export const AnnotationSidebar = ({
                 onToggleCompare={onToggleCompare}
               />
             </TabsContent>
-          </Tabs>
-        ) : (
-          <SidebarGroup className="px-2">
-            <AnnotationList entries={entries} onFocus={onFocus} onRemove={onRemove} />
-          </SidebarGroup>
-        )}
+          )}
+        </Tabs>
       </SidebarContent>
       {showClearAll && <ClearAllFooter onClearAll={onClearAll} />}
     </Sidebar>
