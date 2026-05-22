@@ -1,6 +1,8 @@
 import { Skeleton } from "@symbiot/ui/components/Skeleton";
 
+/** Props for the loading placeholder used while plan / draft requests are in flight. */
 interface LoadingFallbackProps {
+  /** Screen-reader-only label describing what is loading. */
   label: string;
 }
 

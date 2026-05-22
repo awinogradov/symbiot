@@ -13,13 +13,19 @@ import { DiffMount } from "./DiffMount.tsx";
 import { EditorMount } from "./EditorMount.tsx";
 import { SubmittedScreen } from "./SubmittedScreen.tsx";
 
+/** Top-level props for the plan-review surface. */
 interface ReviewScreenProps {
+  /** Boot-version plan markdown + viewer mode + meta. */
   plan: PlanResponse;
+  /** Draft loaded by `useDraft`, or `null` if none existed for this slug. */
   draft: DraftPayload | null;
+  /** Debounced auto-save hook from `useDraft`. */
   saveDraft: Parameters<typeof useReviewState>[0]["saveDraft"];
+  /** Cancels in-flight debounced saves before the explicit submission DELETE. */
   cancelDraft: () => void;
 }
 
+/** Internal pane selector: switches between editable editor and read-only diff overlay. */
 interface EditorPaneProps {
   isHistorical: boolean;
   inCompareOverlay: boolean;
@@ -29,10 +35,15 @@ interface EditorPaneProps {
   activePlan: PlanResponse;
 }
 
+/** Derived flags driving sidebar toggle visibility + diff-overlay routing. */
 interface ReviewFlags {
+  /** True while the reviewer is browsing a version other than the boot version. */
   isHistorical: boolean;
+  /** True while the boot-version diff overlay (current vs predecessor) is on. */
   inCompareOverlay: boolean;
+  /** True when the visible pane is a diff (either historical or compare-overlay). */
   inDiffMode: boolean;
+  /** True when the boot version exposes a "Compare with predecessor" toggle. */
   canCompareWithPredecessor: boolean;
 }
 
@@ -59,6 +70,7 @@ const HistoricalPlaceholder = (): React.ReactElement => (
   </div>
 );
 
+/** Props for the read-only diff overlay rendered on historical or compare-mode selections. */
 interface DiffOverlayProps {
   version: ReturnType<typeof useVersionState>;
 }

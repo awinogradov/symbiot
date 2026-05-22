@@ -1,3 +1,12 @@
+/**
+ * Lazily-built dual-themed Shiki highlighter used by `CodeBlockElement` to
+ * render fenced code blocks. The highlighter is instantiated once per page,
+ * cached, and shared across every block — language and theme bundles are
+ * imported dynamically so the initial editor payload stays small.
+ *
+ * @example
+ *   const html = await highlightToHtml(code, lang);
+ */
 import type { HighlighterCore } from "shiki/core";
 import { createHighlighterCore } from "shiki/core";
 import { createOnigurumaEngine } from "shiki/engine/oniguruma";

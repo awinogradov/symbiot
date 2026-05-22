@@ -2,11 +2,15 @@ import { useCallback } from "react";
 
 import { buildImageUrl, type ImageRef } from "./ImageAttachButton.tsx";
 
+/** Props for the composer's attached-image thumbnail strip. */
 interface ImagePreviewListProps {
+  /** Currently attached refs, rendered in insertion order. */
   images: ImageRef[];
+  /** Invoked with the ref the reviewer clicked the remove button on. */
   onRemove: (ref: ImageRef) => void;
 }
 
+/** Internal per-thumbnail props for {@link ImagePreviewListProps}. */
 interface ImagePreviewItemProps {
   imageRef: ImageRef;
   onRemove: (ref: ImageRef) => void;

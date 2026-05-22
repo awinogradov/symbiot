@@ -1,3 +1,13 @@
+/**
+ * Source-line resolution Plate plugin. Walks the freshly-parsed mdast for the
+ * current markdown so each top-level Plate block can be queried for its 1-based
+ * line range (`BlockLines`). `walkAnnotations` calls
+ * `editor.api.sourceLines.getBlockLines(path)` per anchor so the sidebar can
+ * stamp `(lines N–M)` next to each entry and `serializeFeedback` can emit the
+ * same prefix on the structured feedback.
+ *
+ * @see ../utils/kit.ts — exposes the plugin via `SourceLinesPlugin`.
+ */
 import { createPlatePlugin } from "platejs/react";
 import { unified } from "unified";
 import remarkParse from "remark-parse";

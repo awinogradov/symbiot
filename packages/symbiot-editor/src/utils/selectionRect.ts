@@ -1,3 +1,10 @@
+/**
+ * Document-space selection geometry used by `FloatingToolbar` to position
+ * itself above the current selection. Returns `null` whenever the selection
+ * has no meaningful rect (no selection at all, caret-only, off-screen, or
+ * zero-sized), so callers can short-circuit rendering without inspecting the
+ * editor state directly.
+ */
 import type { PlateEditor } from "platejs/react";
 
 /** Document-space bounding rect for the editor's current selection. */
