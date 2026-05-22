@@ -2,7 +2,7 @@
 
 # Third-party licenses
 
-48 unique production dependencies across 6 workspaces. Regenerate with `bun run licenses:audit`.
+49 unique production dependencies across 6 workspaces. Regenerate with `bun run licenses:audit`.
 
 | Package | License | Repository |
 | --- | --- | --- |
@@ -46,6 +46,7 @@
 | prettier-plugin-tailwindcss@0.8.0 | MIT | https://github.com/tailwindlabs/prettier-plugin-tailwindcss |
 | prettier@3.8.3 | MIT | https://github.com/prettier/prettier |
 | react-dom@19.2.0 | MIT | https://github.com/facebook/react |
+| react-hotkeys-hook@5.3.2 | MIT | https://github.com/JohannesKlauss/react-keymap-hook |
 | react@19.2.0 | MIT | https://github.com/facebook/react |
 | remark-gfm@4.0.1 | MIT | https://github.com/remarkjs/remark-gfm |
 | remark-parse@11.0.0 | MIT | https://github.com/remarkjs/remark.git#main |
