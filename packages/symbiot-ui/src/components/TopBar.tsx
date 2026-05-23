@@ -117,6 +117,7 @@ export const TopBar = ({
           </h1>
         </div>
         <div className="ml-auto flex items-center gap-3">
+          <SettingsTriggerSlot onClick={openSettings} />
           <Actions
             onApprove={onApprove}
             onDeny={onDeny}
@@ -124,7 +125,6 @@ export const TopBar = ({
             mode={mode}
             hasAnnotations={hasAnnotations}
           />
-          <SettingsTriggerSlot onClick={openSettings} />
           <SidebarTriggerSlot show={showSidebarTrigger} />
         </div>
       </header>
