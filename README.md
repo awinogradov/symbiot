@@ -149,6 +149,7 @@ Read this list before touching the code — it's the documentation index CLAUDE.
 - [`docs/theming.md`](./docs/theming.md) — annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).
 - [`docs/version-history.md`](./docs/version-history.md) — on-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.
 - [`docs/release.md`](./docs/release.md) — release pipeline + shim/binary contract; cut and roll back releases here.
+- [`docs/perf.md`](./docs/perf.md) — performance budget (interactive ≤ 1 s, Lighthouse ≥ 90/95), bundle visualizer + Lighthouse reproduction.
 - [`plans`](./plans/README.md) — phase table, cross-phase gates, per-phase plans.
 - [`features`](./features/README.md) — Playwright-BDD layout, selector conventions, how to add a scenario.
 - [`fixtures/plans`](./fixtures/plans/README.md) — sample plans + the inline-diff smoke flow.
