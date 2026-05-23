@@ -34,6 +34,10 @@ Supported platforms: **macOS arm64**, **macOS x64**, **Linux x64**,
 **Windows x64**. See [`docs/release.md`](docs/release.md) for the
 release flow and the offline-install path.
 
+## Prerequisites
+
+- Bun `1.3.9` (pinned in the root `package.json` `packageManager` field). Bun is both the runtime and the package manager — no Node install is needed.
+
 ## Quick start (development)
 
 ```sh
@@ -91,6 +95,7 @@ bun run lint:fix         # eslint --fix
 bun run test             # Vitest
 bun run format:check     # prettier
 bun run build            # final gate
+bun run licenses:audit   # third-party license report (see LICENSES.md)
 ```
 
 End-to-end (Playwright-BDD, headless Chromium):
@@ -115,7 +120,6 @@ apps/
   viewer/        Bun HTTP server + React/Vite client; ships as a single binary
   hook/          Claude Code hook that opens the viewer and resolves plans
   portal/        Static viewer for shared review links
-  marketing/     Public marketing site
 packages/
   symbiot-annotations/  Annotation tuple model + codec
   symbiot-editor/       PlateJS editor as a reusable React package
@@ -137,7 +141,13 @@ Read this list before touching the code — it's the documentation index CLAUDE.
 
 - [`PRD.md`](./PRD.md) — product requirements (goals, non-goals, annotation model, server contract).
 - [`CLAUDE.md`](./CLAUDE.md) — core principles, naming, lint/style rules, post-task checks.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — branch, commit, and PR conventions.
+- [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) — community standards.
+- [`LICENSES.md`](./LICENSES.md) — third-party license manifest (distinct from `LICENSE.md`).
 - [`docs`](./docs/README.md) — cross-cutting architecture, package layering, HTTP surface, architectural specials. Start here when a change spans more than one package.
+- [`docs/architecture.md`](./docs/architecture.md) — app composition, package layering, HTTP surface, monorepo invariants, and the architectural specials.
+- [`docs/theming.md`](./docs/theming.md) — annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).
+- [`docs/version-history.md`](./docs/version-history.md) — on-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.
 - [`docs/release.md`](./docs/release.md) — release pipeline + shim/binary contract; cut and roll back releases here.
 - [`plans`](./plans/README.md) — phase table, cross-phase gates, per-phase plans.
 - [`features`](./features/README.md) — Playwright-BDD layout, selector conventions, how to add a scenario.
@@ -148,7 +158,6 @@ Apps:
 - [`apps/viewer`](./apps/viewer/README.md) — fullstack viewer (server + client).
 - [`apps/hook`](./apps/hook/README.md) — Claude Code hook entry point.
 - [`apps/portal`](./apps/portal/README.md) — shared-link viewer.
-- [`apps/marketing`](./apps/marketing/README.md) — marketing site.
 
 Packages:
 
@@ -160,6 +169,10 @@ Packages:
 - [`packages/tailwind-config`](./packages/tailwind-config/README.md) — design tokens and annotation hues.
 - [`packages/typescript-config`](./packages/typescript-config/README.md) — tsconfig presets.
 
+## Contributing
+
+Before opening a PR, read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for branch, commit, and review conventions.
+
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT — see [`LICENSE.md`](./LICENSE.md).
