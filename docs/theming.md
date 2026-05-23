@@ -118,8 +118,12 @@ dark)` by default. symbiot uses class-based theming — `ThemeProvider` toggles
 the variant is rewired in [`../packages/tailwind-config/theme.css`](../packages/tailwind-config/theme.css):
 
 ```css
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:is(.dark *));
 ```
+
+The selector matches the shadcn Tailwind v4 template verbatim ([shadcn theming
+docs](https://ui.shadcn.com/docs/theming)) so shadcn components keep the
+`.dark` class specificity they're designed against.
 
 Class-based wins because it keeps `dark:` utilities in lock-step with the
 `.dark` toggle and the `:root` / `.dark` CSS-variable cascade. With the media

@@ -43,14 +43,13 @@ const tokens = ["--anno-delete", "--anno-insert", "--anno-replace", "--anno-comm
 const cases = themes.flatMap((theme) => tokens.map((token) => ({ theme, token })));
 
 describe("theme.css dark variant", () => {
-  it("declares @custom-variant dark with the class-based selector", () => {
-    // Rewires Tailwind v4's `dark:` from `prefers-color-scheme: dark` to a
-    // class-based selector so it tracks `ThemeProvider`'s `.dark` toggle on
-    // `<html>`. A formatting drift (missing comma, wrong selector) would let
-    // OS-level dark preference override an explicit user-selected Light again.
-    expect(themeCss).toMatch(
-      /@custom-variant\s+dark\s*\(\s*&:where\(\.dark,\s*\.dark\s\*\)\s*\)\s*;/
-    );
+  it("declares @custom-variant dark with shadcn's class-based selector", () => {
+    // Rewires Tailwind v4's `dark:` from `prefers-color-scheme: dark` to the
+    // shadcn-prescribed class-based selector so it tracks `ThemeProvider`'s
+    // `.dark` toggle on `<html>`. The selector carries `.dark` specificity
+    // that shadcn components expect; a formatting drift would let OS-level
+    // dark preference override an explicit user-selected Light again.
+    expect(themeCss).toMatch(/@custom-variant\s+dark\s*\(\s*&:is\(\.dark\s\*\)\s*\)\s*;/);
   });
 });
 
