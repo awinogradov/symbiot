@@ -1,19 +1,26 @@
 /**
  * Lighthouse perf budget runner.
  *
- * Boots the built viewer against the reference plan
- * (`fixtures/plans/elements.md`, <50KB) on a free localhost port, runs
- * Lighthouse via `chrome-launcher` + `lighthouse` under the default mobile
- * profile (simulated Slow 4G + 4× CPU throttling), and writes a JSON report
- * to `perf-reports/lighthouse-viewer.json`. Prints headline Performance,
- * Accessibility, LCP, TBT, CLS, TTI to stdout.
+ * Spawns the viewer server (`apps/viewer/src/bin.ts`) against the built
+ * client (`apps/viewer/dist/client/index.html`) on a free localhost port,
+ * pointed at the reference plan (`fixtures/plans/elements.md`, <50KB), then
+ * runs Lighthouse via `chrome-launcher` + `lighthouse` under the default
+ * mobile profile (simulated Slow 4G + 4× CPU throttling) and writes a JSON
+ * report to `perf-reports/lighthouse-viewer.json`. Prints headline
+ * Performance, Accessibility, LCP, TBT, CLS, TTI to stdout.
+ *
+ * The spawned viewer's `HOME` is redirected to an ephemeral temp directory
+ * for the run and removed afterwards, so perf invocations do not write to
+ * the user's real `~/.symbiot/` plan-history store. Reproducible scores;
+ * no local pollution.
  *
  * Invoked from `bun run perf`. Requires `bun run --filter @symbiot/viewer
- * build` to have produced `apps/viewer/dist/bin.js` first.
+ * build` to have produced the static client bundle first.
  */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -90,18 +97,27 @@ const waitForViewerUrl = (
 const ensureViewerBuild = async (): Promise<void> => {
   try {
     await stat(viewerDistClient);
-  } catch {
-    throw new Error(
-      `viewer client build not found at ${viewerDistClient}. Run \`bun run --filter @symbiot/viewer build\` first.`
-    );
+  } catch (error: unknown) {
+    const { code } = error as NodeJS.ErrnoException;
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      throw new Error(
+        `viewer client build not found at ${viewerDistClient}. Run \`bun run --filter @symbiot/viewer build\` first.`,
+        { cause: error }
+      );
+    }
+    throw error;
   }
 };
 
-const startViewer = async (port: number): Promise<ChildProcessWithoutNullStreams> => {
+const startViewer = (port: number, home: string): ChildProcessWithoutNullStreams => {
   const child = spawn(
     "bun",
     [viewerSrc, "--plan", planFixture, "--port", String(port), "--no-open", "--keep-alive"],
-    { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] }
+    {
+      cwd: repoRoot,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, HOME: home },
+    }
   );
   child.stderr.on("data", (chunk: Buffer) => {
     process.stderr.write(`[viewer] ${chunk.toString("utf8")}`);
@@ -115,11 +131,14 @@ const killViewer = (child: ChildProcessWithoutNullStreams): Promise<void> =>
       resolveKill();
       return;
     }
-    child.once("exit", () => resolveKill());
-    child.kill("SIGTERM");
-    setTimeout(() => {
+    const forceKillTimer = setTimeout(() => {
       if (child.exitCode === null) child.kill("SIGKILL");
     }, 2_000);
+    child.once("exit", () => {
+      clearTimeout(forceKillTimer);
+      resolveKill();
+    });
+    child.kill("SIGTERM");
   });
 
 interface HeadlineScores {
@@ -164,7 +183,8 @@ const main = async (): Promise<void> => {
   await mkdir(reportDir, { recursive: true });
 
   const port = await findFreePort();
-  const viewer = await startViewer(port);
+  const ephemeralHome = await mkdtemp(resolve(tmpdir(), "symbiot-perf-"));
+  const viewer = startViewer(port, ephemeralHome);
 
   let chrome: chromeLauncher.LaunchedChrome | null = null;
   try {
@@ -195,6 +215,7 @@ const main = async (): Promise<void> => {
   } finally {
     if (chrome !== null) await chrome.kill();
     await killViewer(viewer);
+    await rm(ephemeralHome, { recursive: true, force: true });
   }
 };
 
