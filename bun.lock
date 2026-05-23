@@ -44,17 +44,6 @@
         "vitest": "4.1.6",
       },
     },
-    "apps/marketing": {
-      "name": "@symbiot/marketing",
-      "version": "0.0.0",
-      "devDependencies": {
-        "@symbiot/eslint-config": "workspace:*",
-        "@symbiot/typescript-config": "workspace:*",
-        "eslint": "10.4.0",
-        "typescript": "6.0.3",
-        "vitest": "4.1.6",
-      },
-    },
     "apps/portal": {
       "name": "@symbiot/portal",
       "version": "0.0.0",
@@ -632,8 +621,6 @@
     "@symbiot/eslint-config": ["@symbiot/eslint-config@workspace:packages/eslint-config"],
 
     "@symbiot/hook": ["@symbiot/hook@workspace:apps/hook"],
-
-    "@symbiot/marketing": ["@symbiot/marketing@workspace:apps/marketing"],
 
     "@symbiot/portal": ["@symbiot/portal@workspace:apps/portal"],
 
