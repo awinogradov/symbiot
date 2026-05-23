@@ -147,6 +147,7 @@ Read this list before touching the code — it's the documentation index CLAUDE.
 - [`docs`](./docs/README.md) — cross-cutting architecture, package layering, HTTP surface, architectural specials. Start here when a change spans more than one package.
 - [`docs/architecture.md`](./docs/architecture.md) — app composition, package layering, HTTP surface, monorepo invariants, and the architectural specials.
 - [`docs/theming.md`](./docs/theming.md) — annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).
+- [`docs/a11y.md`](./docs/a11y.md) — WCAG AA baseline: axe-core scenarios, keyboard nav checklist, focus-ring policy, ARIA-label inventory, screen-reader smoke.
 - [`docs/version-history.md`](./docs/version-history.md) — on-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.
 - [`docs/release.md`](./docs/release.md) — release pipeline + shim/binary contract; cut and roll back releases here.
 - [`plans`](./plans/README.md) — phase table, cross-phase gates, per-phase plans.

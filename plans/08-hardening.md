@@ -15,11 +15,12 @@ Land the non-functional requirements:
 - [ ] **Interactive within 1.5s** on the reference plan (<50KB markdown) — measured via Lighthouse on a throttled profile (NFR-1, M5).
 - [ ] Editor lazy-loaded; syntax-highlighting languages code-split (NFR-1 mitigation).
 - [ ] **a11y:**
-  - Keyboard-navigable selection toolbar and sidebar (Tab order verified).
-  - All annotation actions reachable without a mouse.
-  - Visible focus rings.
-  - ARIA labels on icon-only buttons.
-  - Screen-reader smoke pass on Comment + Delete flows (NFR-5).
+  - Keyboard-navigable selection toolbar and sidebar (Tab order verified) — see [`../docs/a11y.md`](../docs/a11y.md).
+  - All annotation actions reachable without a mouse — see [`../docs/a11y.md`](../docs/a11y.md).
+  - Visible focus rings — see [`../docs/a11y.md`](../docs/a11y.md).
+  - ARIA labels on icon-only buttons — see [`../docs/a11y.md`](../docs/a11y.md).
+  - Screen-reader smoke pass on Comment + Delete flows (NFR-5) — see [`../docs/a11y.md`](../docs/a11y.md).
+  - Automated baseline: [`../features/a11y/a11y-baseline.feature`](../features/a11y/a11y-baseline.feature) + [`../features/steps/a11y.steps.ts`](../features/steps/a11y.steps.ts) — zero Critical / Serious axe-core findings on the viewer shell, sidebar, and composer dialogs.
 - [ ] **Cross-browser smoke:** Chrome, Edge, Firefox, Safari (latest) — manual checklist captured in this file.
 - [ ] **CI:** `.github/workflows/ci.yml` runs `bun install && bun run typecheck && bun run lint && bun run test && bun run build` on every PR with Turborepo cache hydration.
 - [ ] **Optional CI:** `.github/workflows/golden-files.yml` enforces M2 (byte-compatible feedback markdown vs the captured plannotator reference fixtures for the 3 shared types).
@@ -84,7 +85,7 @@ Land the non-functional requirements:
 ## Dependencies
 
 - `vite-plugin-singlefile` (already added in Phase 6)
-- `@axe-core/playwright` or similar for automated a11y checks
+- `@axe-core/playwright@4.10.2` for automated a11y checks (installed Phase 8.4)
 - `vite-bundle-visualizer` (devDep)
 
 ## Risks / OQs

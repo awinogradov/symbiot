@@ -7,6 +7,7 @@ sources; cross-cutting design notes live here.
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`architecture.md`](./architecture.md)       | App composition, package layering, HTTP surface, monorepo invariants, and the "architectural specials" — non-obvious decisions easy to break by accident.                                                               |
 | [`theming.md`](./theming.md)                 | Annotation color tokens — chosen OKLCH values, hex equivalents, contrast ratios against `--background`, and the WCAG 2.1 methodology used to verify them.                                                               |
+| [`a11y.md`](./a11y.md)                       | WCAG AA accessibility — axe-core scenarios, keyboard-nav checklist, focus-ring policy, ARIA-label inventory, screen-reader smoke, and AA-contrast cross-reference.                                                      |
 | [`version-history.md`](./version-history.md) | On-disk version layout, `/api/plan/version[s]` endpoints, History sidebar tab, read-only `DiffEditor`, Clean / Raw toggle, drift detection sidecars, predecessor-diff overlay, `vscode-diff` endpoint, smoke-test flow. |
 
 Higher-level material lives at the repo root:
