@@ -21,7 +21,7 @@ jobs:
           - os: macos-14
             triple: darwin-arm64
             artifact: symbiot-darwin-arm64
-          - os: macos-13
+          - os: macos-14
             triple: darwin-x64
             artifact: symbiot-darwin-x64
           - os: ubuntu-latest
