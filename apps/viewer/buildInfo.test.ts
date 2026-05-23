@@ -5,6 +5,7 @@ import { resolveBuildInfo, type BuildInfoReaders } from "./buildInfo.ts";
 const fixedDate = new Date("2026-05-23T17:48:02.000Z");
 
 const makeReaders = (overrides: Partial<BuildInfoReaders> = {}): BuildInfoReaders => ({
+  readReleaseVersion: () => null,
   readPluginVersion: () => "0.1.0",
   readGitSha: (kind) => (kind === "short" ? "a1b2c3d" : "a1b2c3def1234567890abcdef1234567890abcd"),
   now: () => fixedDate,
@@ -19,6 +20,26 @@ describe("resolveBuildInfo", () => {
       shaFull: "a1b2c3def1234567890abcdef1234567890abcd",
       builtAt: "2026-05-23T17:48:02.000Z",
     });
+  });
+
+  it("prefers the release version when readReleaseVersion returns a value", () => {
+    const info = resolveBuildInfo(
+      makeReaders({
+        readReleaseVersion: () => "0.2.0",
+        readPluginVersion: () => "0.1.0",
+      })
+    );
+    expect(info.version).toBe("0.2.0");
+  });
+
+  it("falls back to the plugin.json version when readReleaseVersion returns null", () => {
+    const info = resolveBuildInfo(
+      makeReaders({
+        readReleaseVersion: () => null,
+        readPluginVersion: () => "0.1.0",
+      })
+    );
+    expect(info.version).toBe("0.1.0");
   });
 
   it("falls back to 'dev' for both short and full SHA when git is unavailable", () => {

@@ -32,7 +32,9 @@ export interface BuildInfo {
 
 /** Injected dependencies for {@link resolveBuildInfo} so tests can avoid touching git or the filesystem. */
 export interface BuildInfoReaders {
-  /** Returns the `version` field of `apps/hook/.claude-plugin/plugin.json`. Throws on missing/malformed input — plugin.json is the release source of truth. */
+  /** Returns the in-flight release version when the build runs from a CI release workflow (e.g. `GITHUB_REF_NAME=v0.2.0` → `"0.2.0"`), or `null` outside that context. Takes precedence over {@link readPluginVersion} so a tagged release does not embed the previous version still pinned in the on-disk manifest. */
+  readReleaseVersion: () => string | null;
+  /** Returns the `version` field of `apps/hook/.claude-plugin/plugin.json`. Throws on missing/malformed input — plugin.json is the release source of truth for non-release builds. */
   readPluginVersion: () => string;
   /** Returns the git HEAD SHA (short or full). Returns `null` when not in a git checkout or git is unavailable. */
   readGitSha: (kind: "short" | "full") => string | null;
@@ -72,7 +74,29 @@ const extractVersion = (parsed: unknown, path: string): string => {
   return version;
 };
 
+interface ExecError {
+  code?: string;
+  status?: number;
+}
+
+const isExpectedGitMissing = (cause: unknown): boolean => {
+  if (typeof cause !== "object" || cause === null) return false;
+  const { code, status } = cause as ExecError;
+  // ENOENT: `git` binary not on PATH. Exit status 128: git ran but reported
+  // "not a git repository" (or another usage-level failure). Anything else
+  // (e.g. EACCES on the binary, signal kills, OOM) is unexpected.
+  return code === "ENOENT" || status === 128;
+};
+
+const releaseVersionFromTag = (ref: string | undefined): string | null => {
+  if (ref === undefined) return null;
+  const stripped = ref.startsWith("v") ? ref.slice(1) : ref;
+  return /^\d+\.\d+\.\d+/.test(stripped) ? stripped : null;
+};
+
 export const defaultReaders: BuildInfoReaders = {
+  readReleaseVersion: () =>
+    releaseVersionFromTag(process.env.SYMBIOT_RELEASE_VERSION ?? process.env.GITHUB_REF_NAME),
   readPluginVersion: () => extractVersion(readPluginJson(pluginJsonPath), pluginJsonPath),
   readGitSha: (kind) => {
     const args = kind === "short" ? ["rev-parse", "--short", "HEAD"] : ["rev-parse", "HEAD"];
@@ -80,15 +104,16 @@ export const defaultReaders: BuildInfoReaders = {
       return execFileSync("git", args, { stdio: ["ignore", "pipe", "ignore"] })
         .toString()
         .trim();
-    } catch {
-      return null;
+    } catch (cause) {
+      if (isExpectedGitMissing(cause)) return null;
+      throw cause;
     }
   },
   now: () => new Date(),
 };
 
 export const resolveBuildInfo = (readers: BuildInfoReaders = defaultReaders): BuildInfo => ({
-  version: readers.readPluginVersion(),
+  version: readers.readReleaseVersion() ?? readers.readPluginVersion(),
   shaShort: readers.readGitSha("short") ?? "dev",
   shaFull: readers.readGitSha("full") ?? "dev",
   builtAt: readers.now().toISOString(),
