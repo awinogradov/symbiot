@@ -4,7 +4,7 @@
 
 Land the non-functional requirements:
 
-- Viewer interactive within **1.5s** on a typical plan, **single-file HTML**.
+- Viewer interactive within **1s** on a typical plan, **single-file HTML**.
 - **WCAG AA** a11y across the UI.
 - **Cross-browser smoke** passes on Chrome, Edge, Firefox, Safari (latest).
 - **CI** runs the full lint / typecheck / test / build matrix with Turborepo cache.
@@ -12,7 +12,7 @@ Land the non-functional requirements:
 ## Exit criteria
 
 - [ ] Viewer ships as **single-file HTML** via `vite-plugin-singlefile` (NFR-2).
-- [ ] **Interactive within 1.5s** on the reference plan (<50KB markdown) — measured via Lighthouse on a throttled profile (NFR-1, M5).
+- [ ] **Interactive within 1s** on the reference plan (<50KB markdown) — measured via Lighthouse on a throttled profile (NFR-1, M5). Tooling lands in Phase 8.3 (see [`docs/perf.md`](../docs/perf.md)).
 - [ ] Editor lazy-loaded; syntax-highlighting languages code-split (NFR-1 mitigation).
 - [ ] **a11y:**
   - Keyboard-navigable selection toolbar and sidebar (Tab order verified).
@@ -35,7 +35,7 @@ Land the non-functional requirements:
 - Rollup config for the viewer: manual chunks for syntax-highlighting languages.
 - Lazy-load `symbiot-editor` and shadcn dialogs.
 - Tree-shake unused Plate kit features.
-- Bundle analyzer (`rollup-plugin-visualizer` or `vite-bundle-visualizer`) run as the `bundle-analyze` Turborepo task defined in Phase 1.
+- Bundle analyzer (`rollup-plugin-visualizer`) run as the `bundle-analyze` Turborepo task defined in Phase 1 — implemented in Phase 8.3, see [`docs/perf.md`](../docs/perf.md).
 
 ### a11y audit
 
