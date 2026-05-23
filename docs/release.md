@@ -86,6 +86,11 @@ bumped by the release workflow's auto-PR — never edit them by hand on
 - ⑦ New GitHub Release with auto-generated notes + 4 binaries + SHA256SUMS
 - ⑧ PR opened against `main` that brings the in-repo manifest into sync
 
+Each binary embeds the release's `plugin.json` version and the build commit's
+SHA at compile time (`apps/viewer/buildInfo.ts` → Vite `define`). The viewer
+surfaces both via its bottom-right debug bar; bug reports should include the
+SHA shown there.
+
 ## Shim ↔ binary contract
 
 ```

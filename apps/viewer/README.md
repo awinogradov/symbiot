@@ -39,3 +39,22 @@ image uploads live in sibling directories. Layout details in
 
 Per-phase scope and status live in
 [`../../plans/README.md`](../../plans/README.md).
+
+## Debugging
+
+Every viewer screen pins a small `<DebugBar>` to the bottom-right that reads
+`v<version> · <short-sha>`. Hover (or keyboard-focus) surfaces a tooltip with
+the full SHA, the ISO 8601 build timestamp, and the active viewer mode;
+clicking the badge copies the full SHA to the clipboard.
+
+When triaging a bug report, the fastest path is to ask the reporter for the
+debug-bar SHA — that pinpoints the exact commit the binary was built from,
+regardless of which install method they used (cached plugin binary,
+`bun run dev`, or `hook:install`). The bar is intentionally always-on across
+builds; debuggability wins over pixel real estate for v0.1.x.
+
+Implementation lives in
+[`src/client/components/DebugBar.tsx`](./src/client/components/DebugBar.tsx);
+the build-time constants are resolved in [`buildInfo.ts`](./buildInfo.ts) and
+injected via Vite's `define` (see [`vite.config.ts`](./vite.config.ts)). The
+SHA falls back to `dev` when built outside a git checkout.
