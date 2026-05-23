@@ -1,4 +1,0 @@
-{
-  "extends": "@symbiot/typescript-config/react.json",
-  "include": ["src"]
-}
