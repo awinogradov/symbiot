@@ -24,9 +24,11 @@ bun run perf
 # → perf-reports/lighthouse-viewer.json
 ```
 
-`scripts/perf-lighthouse.ts` boots the built viewer (`apps/viewer/dist/bin.js --plan fixtures/plans/elements.md --no-open --keep-alive`) on a free localhost port, launches headless Chrome via `chrome-launcher`, and runs Lighthouse against it for the `performance` + `accessibility` categories. Headline scores (Performance, Accessibility, LCP, TBT, CLS, TTI) are printed to stdout; the full report lands in `perf-reports/lighthouse-viewer.json` and is git-ignored.
+`scripts/perf-lighthouse.ts` spawns the viewer server from source (`apps/viewer/src/bin.ts`) against the freshly built static client (`apps/viewer/dist/client/index.html`) on a free localhost port with `--plan fixtures/plans/elements.md --no-open --keep-alive`, launches headless Chrome via `chrome-launcher`, and runs Lighthouse against it for the `performance` + `accessibility` categories. Headline scores (Performance, Accessibility, LCP, TBT, CLS, TTI) are printed to stdout; the full report lands in `perf-reports/lighthouse-viewer.json` and is git-ignored.
 
-The script returns exit 0 regardless of the scores — this is a reporting tool, not a CI gate. A hard-fail-on-regression gate is a follow-up.
+The spawned viewer's `HOME` is redirected to an ephemeral temp directory for the run and removed afterwards, so repeated `bun run perf` calls do not pollute your real `~/.symbiot/` plan-history store. The script returns exit 0 regardless of the scores — this is a reporting tool, not a CI gate. A hard-fail-on-regression gate is a follow-up.
+
+> The Bun-bundled `apps/viewer/dist/bin.js` is intentionally not used here: its `defaultStaticRoot` is computed relative to `startServer.ts`'s source path and breaks once bundled, so it can only serve a client when the hook injects `indexHtmlGz`. Spawning the source bin sidesteps that.
 
 ## Baseline
 
