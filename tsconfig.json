@@ -11,6 +11,7 @@
     "mcr.config.ts",
     "mcr-generate.ts",
     "scripts/licenses-report.ts",
+    "scripts/perf-lighthouse.ts",
     "features/**/*.ts"
   ],
   "references": [
