@@ -3,6 +3,12 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
 
+import { resolveBuildInfo } from "./buildInfo.ts";
+
+// Resolved once at config load. Frozen at dev-server / build start by design —
+// restart Vite to refresh these values after a new commit or version bump.
+const buildInfo = resolveBuildInfo();
+
 export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
   return {
@@ -15,6 +21,9 @@ export default defineConfig(({ mode }) => {
         removeViteModuleLoader: true,
       }),
     ],
+    define: {
+      symbiotBuildInfo: JSON.stringify(buildInfo),
+    },
     server: {
       port: 5173,
       strictPort: true,

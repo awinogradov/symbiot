@@ -4,5 +4,12 @@
     "composite": true,
     "types": ["vite/client"]
   },
-  "include": ["src/client", "src/shared", "vite.config.ts", "eslint.config.ts"]
+  "include": [
+    "src/client",
+    "src/shared",
+    "vite.config.ts",
+    "buildInfo.ts",
+    "buildInfo.test.ts",
+    "eslint.config.ts"
+  ]
 }
