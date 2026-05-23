@@ -12,6 +12,13 @@
 
 @import "tailwindcss";
 
+/*
+ * Tailwind v4 defaults the `dark:` variant to `prefers-color-scheme: dark`;
+ * override it to class-based so it tracks `ThemeProvider`'s `.dark` toggle
+ * on `<html>` and an explicit user-selected Light overrides OS Dark (FR-14.3).
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

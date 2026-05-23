@@ -109,3 +109,30 @@ Adding a new annotation token to `theme.css` requires extending the test's
   formally closes the **M7** cross-phase gate.
 - PRD requirement: **FR-14.5** (annotation hues meet AA in both themes).
 - Token definitions: [`../packages/tailwind-config/theme.css`](../packages/tailwind-config/theme.css).
+
+## Dark-mode variant (class-based)
+
+Tailwind v4 ships the `dark:` variant wired to `@media (prefers-color-scheme:
+dark)` by default. symbiot uses class-based theming — `ThemeProvider` toggles
+`.dark` on `<html>` based on the resolved `system | light | dark` choice — so
+the variant is rewired in [`../packages/tailwind-config/theme.css`](../packages/tailwind-config/theme.css):
+
+```css
+@custom-variant dark (&:where(.dark, .dark *));
+```
+
+Class-based wins because it keeps `dark:` utilities in lock-step with the
+`.dark` toggle and the `:root` / `.dark` CSS-variable cascade. With the media
+default, a user on an OS that reports `prefers-color-scheme: dark` who then
+selects **Light** would still see `dark:`-prefixed utilities activate — most
+visibly `dark:prose-invert` on the editor wrapper, which flips
+`--tw-prose-body` to `neutral-300` and `--tw-prose-bold` / `--tw-prose-code`
+to `white`, producing washed-out body text and invisible bold/inline code on
+a white background (regression filed as [symbiot#93](https://github.com/awinogradov/symbiot/issues/93)).
+Class-based variant resolution makes an explicit user-selected Light override
+OS Dark, satisfying **FR-14.3**. The
+[`contrast.test.ts`](../packages/tailwind-config/contrast.test.ts) suite
+locks the directive shape so a formatting drift fails CI before review.
+
+See [`ThemeProvider.tsx`](../packages/symbiot-ui/src/components/ThemeProvider.tsx)
+for the `.dark` toggle source of truth.
