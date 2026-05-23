@@ -16,8 +16,10 @@
  * Tailwind v4 defaults the `dark:` variant to `prefers-color-scheme: dark`;
  * override it to class-based so it tracks `ThemeProvider`'s `.dark` toggle
  * on `<html>` and an explicit user-selected Light overrides OS Dark (FR-14.3).
+ * The `(&:is(.dark *))` selector matches shadcn's Tailwind v4 template — it
+ * carries the `.dark` class specificity that shadcn components expect.
  */
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
