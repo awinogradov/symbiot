@@ -41,9 +41,9 @@ Then("the prose body text uses the light-theme color", async ({ page }) => {
   // Pin the joint invariant: text is clearly dark AND background is clearly
   // light. A single-sided check would also pass when Dark theme accidentally
   // applied (dark text on dark bg). Modern Chromium preserves OKLCH-source
-  // colors in `getComputedStyle`, so parse both `oklch(L C H)` (lightness in
-  // [0, 1]) and `rgb(r, g, b)` (computed via relative luminance) and compare
-  // on a single normalized 0–1 scale.
+  // colors in `getComputedStyle`, so parse `oklch(L C H)` and `lab(L a b)`
+  // (lightness in [0, 1] after normalization) and `rgb(r, g, b)` (computed
+  // via relative luminance) and compare on a single normalized 0–1 scale.
   await expect
     .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
     .toBe(false);
@@ -62,6 +62,8 @@ Then("the prose body text uses the light-theme color", async ({ page }) => {
   const lightness = (color: string): number => {
     const oklch = /oklch\(\s*([\d.]+)/.exec(color);
     if (oklch !== null) return Number(oklch[1]);
+    const lab = /lab\(\s*([\d.]+)/.exec(color);
+    if (lab !== null) return Number(lab[1]) / 100;
     const rgb = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(color);
     if (rgb !== null) {
       const r = Number(rgb[1]) / 255;
