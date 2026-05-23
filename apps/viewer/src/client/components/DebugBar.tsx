@@ -93,11 +93,11 @@ export const DebugBar = ({ mode }: DebugBarProps): React.ReactElement => {
             </button>
           </Badge>
         </TooltipTrigger>
-        <TooltipContent side="top" align="end">
+        <TooltipContent side="top" align="end" className="max-w-[min(20rem,calc(100vw-1.5rem))]">
           <div className="flex flex-col gap-0.5 text-left">
             <span>v{symbiotBuildInfo.version}</span>
-            <span className="font-mono text-xs">SHA: {symbiotBuildInfo.shaFull}</span>
-            <span className="text-xs">Built: {symbiotBuildInfo.builtAt}</span>
+            <span className="font-mono text-xs break-all">SHA: {symbiotBuildInfo.shaFull}</span>
+            <span className="text-xs break-all">Built: {symbiotBuildInfo.builtAt}</span>
             {mode !== undefined && <span className="text-xs">Mode: {mode}</span>}
             <span className="text-primary-foreground/70 text-xs">Click to copy SHA</span>
           </div>
