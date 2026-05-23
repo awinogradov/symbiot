@@ -52,9 +52,23 @@ const getHighlighter = async (): Promise<HighlighterCore> => {
  * Pre-loaded languages: bash, ts, tsx, md, js, jsx, json, html, css. Everything
  * else falls through to `text` (no highlighting).
  */
+// github-light ships #e36209 (orange) for `entity.name.type` etc. — only 3.48:1
+// against white, below WCAG AA. Remap to #c2410c (Tailwind orange-700, ~5.2:1)
+// so the dual-theme remains recognizable while clearing the a11y baseline.
+const colorReplacements = {
+  "github-light": {
+    "#e36209": "#c2410c",
+    "#E36209": "#c2410c",
+  },
+} as const;
+
 export const highlightToHtml = async (code: string, lang: string): Promise<string | null> => {
   const highlighter = await getHighlighter();
   const known = highlighter.getLoadedLanguages().includes(lang);
   const effectiveLang = known ? lang : "text";
-  return highlighter.codeToHtml(code, { lang: effectiveLang, themes: dualThemes });
+  return highlighter.codeToHtml(code, {
+    lang: effectiveLang,
+    themes: dualThemes,
+    colorReplacements,
+  });
 };
