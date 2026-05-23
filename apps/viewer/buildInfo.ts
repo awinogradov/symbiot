@@ -96,7 +96,7 @@ const releaseVersionFromTag = (ref: string | undefined): string | null => {
 
 export const defaultReaders: BuildInfoReaders = {
   readReleaseVersion: () =>
-    releaseVersionFromTag(process.env.SYMBIOT_RELEASE_VERSION ?? process.env.GITHUB_REF_NAME),
+    releaseVersionFromTag(process.env.SYMBIOT_RELEASE_VERSION || process.env.GITHUB_REF_NAME),
   readPluginVersion: () => extractVersion(readPluginJson(pluginJsonPath), pluginJsonPath),
   readGitSha: (kind) => {
     const args = kind === "short" ? ["rev-parse", "--short", "HEAD"] : ["rev-parse", "HEAD"];
