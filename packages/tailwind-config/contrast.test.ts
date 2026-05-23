@@ -42,6 +42,18 @@ const themes = ["light", "dark"] as const;
 const tokens = ["--anno-delete", "--anno-insert", "--anno-replace", "--anno-comment"] as const;
 const cases = themes.flatMap((theme) => tokens.map((token) => ({ theme, token })));
 
+describe("theme.css dark variant", () => {
+  it("declares @custom-variant dark with the class-based selector", () => {
+    // Rewires Tailwind v4's `dark:` from `prefers-color-scheme: dark` to a
+    // class-based selector so it tracks `ThemeProvider`'s `.dark` toggle on
+    // `<html>`. A formatting drift (missing comma, wrong selector) would let
+    // OS-level dark preference override an explicit user-selected Light again.
+    expect(themeCss).toMatch(
+      /@custom-variant\s+dark\s*\(\s*&:where\(\.dark,\s*\.dark\s\*\)\s*\)\s*;/
+    );
+  });
+});
+
 describe("theme.css annotation tokens", () => {
   let dom: JSDOM;
   let window: DOMWindow;
@@ -88,7 +100,8 @@ async function readTheme(): Promise<string> {
 
 function stripUnparseableBlocks(css: string): string {
   const withoutImports = css.replace(/^\s*@import\b[^;]*;\s*$/gm, "");
-  return stripAtThemeBlocks(withoutImports);
+  const withoutCustomVariants = withoutImports.replace(/^\s*@custom-variant\s+[^;]+;\s*$/gm, "");
+  return stripAtThemeBlocks(withoutCustomVariants);
 }
 
 function stripAtThemeBlocks(css: string): string {

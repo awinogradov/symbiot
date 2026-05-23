@@ -28,3 +28,11 @@ Feature: Settings — Theme toggle persists explicit user choice
     Then the html does not have the dark class
     When I reload the viewer
     Then the html does not have the dark class
+
+  Scenario: Explicit Light overrides OS dark in prose colors
+    Given the OS color scheme is "dark"
+    And I open the viewer
+    When I open the Settings dialog
+    And I choose the "Light" theme
+    And I close the Settings dialog
+    Then the prose body text uses the light-theme color
