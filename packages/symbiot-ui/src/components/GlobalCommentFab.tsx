@@ -58,6 +58,7 @@ export const GlobalCommentFab = ({
         <TooltipTrigger asChild>
           <Button
             data-testid="editor-global-comment"
+            variant="outline"
             size="icon"
             onClick={onOpen}
             disabled={disabled}

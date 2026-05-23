@@ -45,7 +45,13 @@ const Actions = ({
 }: ActionsProps): React.ReactElement => {
   if (mode === "plan" && !hasAnnotations) {
     return (
-      <Button data-testid="top-bar-approve" size="sm" onClick={onApprove} disabled={busy}>
+      <Button
+        data-testid="top-bar-approve"
+        variant="outline"
+        size="sm"
+        onClick={onApprove}
+        disabled={busy}
+      >
         <CheckIcon />
         Approve
         <Kbd>{formatHotkey("mod+enter")}</Kbd>
@@ -53,7 +59,7 @@ const Actions = ({
     );
   }
   return (
-    <Button data-testid="top-bar-deny" size="sm" onClick={onDeny} disabled={busy}>
+    <Button data-testid="top-bar-deny" variant="outline" size="sm" onClick={onDeny} disabled={busy}>
       <SendIcon />
       {denyLabel(mode)}
       <Kbd>{formatHotkey("mod+enter")}</Kbd>
