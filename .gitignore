@@ -42,3 +42,7 @@ coverage
 .features-generated
 test-results
 playwright-report
+
+# performance reports
+bundle-stats
+perf-reports
