@@ -36,6 +36,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@commitlint/cli": "21.0.1",
     "@commitlint/config-conventional": "21.0.1",
     "@commitlint/types": "21.0.1",
