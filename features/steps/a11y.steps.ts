@@ -72,7 +72,7 @@ Then("the page has no Critical or Serious WCAG AA violations", async ({ page, $t
   const blocking = results.violations.filter(
     (v) => v.impact === "critical" || v.impact === "serious"
   );
-  if (blocking.length > 0) {
+  if (results.violations.length > 0) {
     await $testInfo.attach("axe-results", {
       body: JSON.stringify(results, null, 2),
       contentType: "application/json",
