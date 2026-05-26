@@ -17,6 +17,7 @@ const planMetaSchema = z.object({
   project: z.string(),
   slug: z.string(),
   version: z.number().int(),
+  displayName: z.string(),
 });
 
 const planResponseSchema = z.object({

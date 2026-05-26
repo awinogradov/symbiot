@@ -1,6 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import type { PlanMeta } from "../shared/apiTypes.ts";
@@ -53,6 +54,109 @@ export const deriveProjectSlug = (cwd: string): string => slugify(basename(cwd))
 export const derivePlanSlug = (plan: string): string =>
   slugify(firstHeading(plan) ?? "untitled-plan");
 
+/**
+ * Extract the plan's H1 (`# Title`) heading, if any. Only matches level 1 —
+ * H2+ are body sections (e.g. `## Pre-Implementation`) and must not be
+ * surfaced as the document title.
+ */
+const h1Pattern = /^# +(.+?)\s*$/;
+
+const h1FromLine = (line: string): string | null => {
+  const title = h1Pattern.exec(line)?.[1]?.trim();
+  return title !== undefined && title.length > 0 ? title : null;
+};
+
+export const extractPlanTitle = (markdown: string): string | null => {
+  for (const line of markdown.split("\n")) {
+    const title = h1FromLine(line);
+    if (title !== null) return title;
+  }
+  return null;
+};
+
+/**
+ * Injectable git reader used by {@link resolveDisplayName}. Returning `null`
+ * means "git is unavailable or this directory is not a working tree" — the
+ * resolver falls through to the next layer.
+ */
+export interface GitReader {
+  /** `git rev-parse --git-common-dir` resolved against the working tree at {@link cwd}. */
+  readCommonDir: (cwd: string) => string | null;
+  /** `git rev-parse --abbrev-ref HEAD`. Returns the literal `HEAD` on detached checkouts. */
+  readBranch: (cwd: string) => string | null;
+}
+
+interface GitExecError {
+  code?: string;
+  status?: number;
+}
+
+// `ENOENT`: `git` binary is missing from PATH. Exit status 128: git ran but
+// reported "not a git repository" or another usage-level failure. Anything
+// else (EACCES, signal kills) is unexpected and propagates.
+const isExpectedGitMissing = (cause: unknown): boolean => {
+  if (typeof cause !== "object" || cause === null) return false;
+  const { code, status } = cause as GitExecError;
+  return code === "ENOENT" || status === 128;
+};
+
+const runGit = (cwd: string, args: string[]): string | null => {
+  try {
+    // eslint-disable-next-line n/no-sync -- resolved once per server boot, mirrors `buildInfo.ts`.
+    return execFileSync("git", args, { cwd, stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch (cause) {
+    if (isExpectedGitMissing(cause)) return null;
+    throw cause;
+  }
+};
+
+export const defaultGitReader: GitReader = {
+  readCommonDir: (cwd) => runGit(cwd, ["rev-parse", "--git-common-dir"]),
+  readBranch: (cwd) => runGit(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]),
+};
+
+const repoNameFromCommonDir = (commonDir: string, cwd: string): string | null => {
+  // `--git-common-dir` returns the path to the canonical `.git` directory
+  // (the *main* worktree's, even when called from a linked worktree). Older
+  // git versions return it relative to `cwd` when called from inside the
+  // working tree (e.g. just `.git`), so resolve to absolute first. Its
+  // parent is the repo root; basename of that is the project.
+  const absolute = resolve(cwd, commonDir);
+  const parent = dirname(absolute);
+  const name = basename(parent);
+  return name.length > 0 && name !== "/" ? name : null;
+};
+
+const gitDisplayName = (cwd: string, git: GitReader): string | null => {
+  const commonDir = git.readCommonDir(cwd);
+  if (commonDir === null) return null;
+  const repoName = repoNameFromCommonDir(commonDir, cwd);
+  if (repoName === null) return null;
+  const rawBranch = git.readBranch(cwd);
+  if (rawBranch === null || rawBranch === "HEAD") return repoName;
+  return `${repoName} · ${rawBranch}`;
+};
+
+/**
+ * Compose a human-readable title for the viewer's top bar from layered
+ * sources, in order of preference:
+ *
+ *   1. The plan markdown's H1 (`# Title`).
+ *   2. `<repo>` (or `<repo> · <branch>` when not on a detached HEAD), derived
+ *      from `git rev-parse` so worktrees resolve to the canonical repo name
+ *      instead of the autopilot-generated worktree directory.
+ *   3. `basename(cwd)` — the legacy fallback when git is unavailable.
+ *
+ * Always returns a non-empty string; never the literal `untitled`.
+ */
+export const resolveDisplayName = (
+  plan: string,
+  cwd: string,
+  git: GitReader = defaultGitReader
+): string => extractPlanTitle(plan) ?? gitDisplayName(cwd, git) ?? basename(cwd);
+
 const padVersion = (n: number): string => String(n).padStart(3, "0");
 
 const planDir = (project: string, slug: string): string => join(historyDir(), project, slug);
@@ -88,9 +192,10 @@ const nextVersionIn = async (dir: string): Promise<number> => {
 export const savePlan = async (plan: string, cwd: string = process.cwd()): Promise<PlanMeta> => {
   const project = deriveProjectSlug(cwd);
   const slug = derivePlanSlug(plan);
+  const displayName = resolveDisplayName(plan, cwd);
   const version = await nextVersionIn(planDir(project, slug));
   await writeAtomic(planFile(project, slug, version), plan);
-  return { project, slug, version };
+  return { project, slug, version, displayName };
 };
 
 export const loadPlan = async (meta: PlanMeta): Promise<string> =>

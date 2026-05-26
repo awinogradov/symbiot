@@ -9,6 +9,13 @@ export interface PlanMeta {
   project: string;
   slug: string;
   version: number;
+  /**
+   * Human-readable label rendered in the viewer's top bar. Derived from the
+   * plan markdown's H1 when present, then `<repo> · <branch>` via `git
+   * rev-parse`, then `basename(cwd)` as a last resort. Decoupled from
+   * `project` so the on-disk slug stays stable across worktrees.
+   */
+  displayName: string;
 }
 
 /** Operating mode of the viewer. `plan` = Approve/Deny; `annotate` = Submit feedback. */
