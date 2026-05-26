@@ -35,7 +35,7 @@ const planDir = join(homeRoot, ".symbiot", "history", project, slug);
 
 const ctx = (): RouteContext => ({
   plan: "boot plan",
-  meta: { project, slug, version: 2 },
+  meta: { project, slug, version: 2, displayName: "Boot Plan" },
   mode: "plan",
   resolve: vi.fn(),
   isResolved: () => false,
@@ -101,6 +101,24 @@ describe("POST /api/plan/vscode-diff", () => {
     expect(command).toBe("code");
     expect(args).toEqual(["--diff", join(planDir, "001.md"), join(planDir, "002.md")]);
     expect(child.unref).toHaveBeenCalledOnce();
+  });
+
+  it("threads meta.displayName through /api/plan and /api/plan/version", async () => {
+    await mkdir(planDir, { recursive: true });
+    await writeFile(join(planDir, "001.md"), "older");
+    await writeFile(join(planDir, "002.md"), "newer");
+
+    const planUrl = new URL("http://test/api/plan");
+    const planRes = await handleApi(new Request(planUrl.toString()), planUrl, ctx());
+    expect(planRes?.status).toBe(200);
+    const planBody = (await planRes?.json()) as { meta: { displayName?: string } };
+    expect(planBody.meta.displayName).toBe("Boot Plan");
+
+    const versionUrl = new URL("http://test/api/plan/version?n=1");
+    const versionRes = await handleApi(new Request(versionUrl.toString()), versionUrl, ctx());
+    expect(versionRes?.status).toBe(200);
+    const versionBody = (await versionRes?.json()) as { meta: { displayName?: string } };
+    expect(versionBody.meta.displayName).toBe("Boot Plan");
   });
 
   it("returns 503 with `code-cli-missing` when `code` is not on PATH", async () => {
