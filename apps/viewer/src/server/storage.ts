@@ -55,26 +55,6 @@ export const derivePlanSlug = (plan: string): string =>
   slugify(firstHeading(plan) ?? "untitled-plan");
 
 /**
- * Extract the plan's H1 (`# Title`) heading, if any. Only matches level 1 —
- * H2+ are body sections (e.g. `## Pre-Implementation`) and must not be
- * surfaced as the document title.
- */
-const h1Pattern = /^# +(.+?)\s*$/;
-
-const h1FromLine = (line: string): string | null => {
-  const title = h1Pattern.exec(line)?.[1]?.trim();
-  return title !== undefined && title.length > 0 ? title : null;
-};
-
-export const extractPlanTitle = (markdown: string): string | null => {
-  for (const line of markdown.split("\n")) {
-    const title = h1FromLine(line);
-    if (title !== null) return title;
-  }
-  return null;
-};
-
-/**
  * Injectable git reader used by {@link resolveDisplayName}. Returning `null`
  * means "git is unavailable or this directory is not a working tree" — the
  * resolver falls through to the next layer.
@@ -140,22 +120,19 @@ const gitDisplayName = (cwd: string, git: GitReader): string | null => {
 };
 
 /**
- * Compose a human-readable title for the viewer's top bar from layered
- * sources, in order of preference:
+ * Compose a human-readable title for the viewer's top bar from git context:
  *
- *   1. The plan markdown's H1 (`# Title`).
- *   2. `<repo>` (or `<repo> · <branch>` when not on a detached HEAD), derived
+ *   1. `<repo>` (or `<repo> · <branch>` when not on a detached HEAD), derived
  *      from `git rev-parse` so worktrees resolve to the canonical repo name
  *      instead of the autopilot-generated worktree directory.
- *   3. `basename(cwd)` — the legacy fallback when git is unavailable.
+ *   2. `basename(cwd)` — the legacy fallback when git is unavailable.
  *
- * Always returns a non-empty string; never the literal `untitled`.
+ * The plan markdown's H1 is intentionally NOT considered here — the editor
+ * renders the H1 inside the document body, so surfacing it in the top bar
+ * would duplicate it.
  */
-export const resolveDisplayName = (
-  plan: string,
-  cwd: string,
-  git: GitReader = defaultGitReader
-): string => extractPlanTitle(plan) ?? gitDisplayName(cwd, git) ?? basename(cwd);
+export const resolveDisplayName = (cwd: string, git: GitReader = defaultGitReader): string =>
+  gitDisplayName(cwd, git) ?? basename(cwd);
 
 const padVersion = (n: number): string => String(n).padStart(3, "0");
 
@@ -192,7 +169,7 @@ const nextVersionIn = async (dir: string): Promise<number> => {
 export const savePlan = async (plan: string, cwd: string = process.cwd()): Promise<PlanMeta> => {
   const project = deriveProjectSlug(cwd);
   const slug = derivePlanSlug(plan);
-  const displayName = resolveDisplayName(plan, cwd);
+  const displayName = resolveDisplayName(cwd);
   const version = await nextVersionIn(planDir(project, slug));
   await writeAtomic(planFile(project, slug, version), plan);
   return { project, slug, version, displayName };

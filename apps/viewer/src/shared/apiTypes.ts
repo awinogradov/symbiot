@@ -10,9 +10,9 @@ export interface PlanMeta {
   slug: string;
   version: number;
   /**
-   * Human-readable label rendered in the viewer's top bar. Derived from the
-   * plan markdown's H1 when present, then `<repo> · <branch>` via `git
-   * rev-parse`, then `basename(cwd)` as a last resort. Decoupled from
+   * Human-readable label rendered in the viewer's top bar. Resolved from git
+   * context as `<repo> · <branch>` (or just `<repo>` on detached HEAD), with
+   * `basename(cwd)` as a fallback when git is unavailable. Decoupled from
    * `project` so the on-disk slug stays stable across worktrees.
    */
   displayName: string;
