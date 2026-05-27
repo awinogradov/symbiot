@@ -1,0 +1,30 @@
+{
+  "encoded": "lY-xbsMgFEV_5enOtFJXlgzZu6Sb5QHDiyEBngs4jmv53ysrY6euV0dH92xIptydLBkaX57pew72TkORJdNVnnSb01RJHlyoeaZoflZyMr5D4WHizNDdhrZODI0JCtaH6Arn187P9l_v3u-9gslZmmlBcoXuOpyh0P5qoHDxMkdHzYdKA5OhReL1hL5XGKMMJp4lJc7t8PQKiZuB3jAVubE93jlOAoUa5xEa1ZvCb1Yc2yORSw2SoT8UXKhTNOunSUfr5eDoxe37Lw",
+  "decoded": {
+    "markdown": "The quick brown fox jumps over the lazy dog.",
+    "value": [
+      {
+        "type": "p",
+        "children": [
+          {
+            "text": "The quick brown fox jumps over the lazy dog."
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      [
+        "C",
+        "the quick brown fox",
+        "Should this be a wolf?"
+      ]
+    ],
+    "globalComments": [],
+    "meta": {
+      "project": "demo",
+      "slug": "share-codec",
+      "version": 1,
+      "displayName": "Share codec"
+    }
+  }
+}

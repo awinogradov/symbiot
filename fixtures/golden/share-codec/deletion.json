@@ -1,0 +1,29 @@
+{
+  "encoded": "XY6xTgQhFEV_hdwaN7Gl1c7EQssJxVt47qDAI_BmdTOZfzdkK21vTs49Owr1ryjfFQ4vzM3omsbJvHGRKxtd2XSOW41U1YRM22Dz0aWYTMr9BIsr5Y3hlh16awyHBouwphw71_vOP_rHjsMf3oJqFSVNUgfcsuAZFv_P4L3FJcuZ8pOUwlUn6y0KK8HtaF0-OUx_5CKwGHm7wGGs1PkhSOQwI7mPJBXu0SKm0TLdXqnM2vfJmTt3HL8",
+  "decoded": {
+    "markdown": "Keep this. Remove the redundant clause from later.",
+    "value": [
+      {
+        "type": "p",
+        "children": [
+          {
+            "text": "Keep this."
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      [
+        "D",
+        "redundant clause"
+      ]
+    ],
+    "globalComments": [],
+    "meta": {
+      "project": "demo",
+      "slug": "share-codec",
+      "version": 1,
+      "displayName": "Share codec"
+    }
+  }
+}

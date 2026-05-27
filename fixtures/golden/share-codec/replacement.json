@@ -1,0 +1,30 @@
+{
+  "encoded": "XY67isMwEEV_xdx6EthWXUi_xW5pVEyswdFGmjGS8sL434Nwt-3l3MNZkbncgj0VDicdLIUhBuEjCA9Od4EbV7T3InBYQJiuMYUiuu_yav9_m988gVWtcYumFW4c8QOCpQCCyhPeE-ZkF05ny1m0dcgTsjSGW7EU-5Opq4NkA6Gm-wyHeuUih8mCTL1PSo2mcF-EEOuS-P3NuYf-dm7YuW37AA",
+  "decoded": {
+    "markdown": "An old idea.",
+    "value": [
+      {
+        "type": "p",
+        "children": [
+          {
+            "text": "An old idea."
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      [
+        "R",
+        "old",
+        "new"
+      ]
+    ],
+    "globalComments": [],
+    "meta": {
+      "project": "demo",
+      "slug": "share-codec",
+      "version": 1,
+      "displayName": "Share codec"
+    }
+  }
+}

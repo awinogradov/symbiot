@@ -1,0 +1,30 @@
+{
+  "encoded": "Zc6xjsIwEATQX4mm3kOidUt1DQ10kYslXkjA9lq2wwVF-feTlZJ29EYzKwLnl9O_CIPrKN1dly7PsRxAeLOfBaZfUT9JYJBAGMbJuyxxz2WpX8XNbpbAMWrlOmksMH2PXxDq7kB4ziEVWEt4eL2xP2kIEmujlhCkMsyKlPUpQ1twEhSE4ucHDMrIWX4GdTK0m5LLpBHmSHBTSZ4_Zw7t76W5bnfb9g8",
+  "decoded": {
+    "markdown": "The fox runs.",
+    "value": [
+      {
+        "type": "p",
+        "children": [
+          {
+            "text": "The fox runs."
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      [
+        "I",
+        "the fox",
+        "jumps"
+      ]
+    ],
+    "globalComments": [],
+    "meta": {
+      "project": "demo",
+      "slug": "share-codec",
+      "version": 1,
+      "displayName": "Share codec"
+    }
+  }
+}
