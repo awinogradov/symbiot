@@ -25,8 +25,23 @@ When("I press {string} in the global comment composer", async ({ page }, combo: 
   await page.keyboard.press(toPlaywrightKey(combo));
 });
 
+When("I press {string}", async ({ page }, combo: string) => {
+  await page.keyboard.press(toPlaywrightKey(combo));
+});
+
 Then("the global comment composer is visible in the viewport", async ({ page }) => {
   await expect(page.getByTestId("global-composer-textarea")).toBeVisible();
+});
+
+Then("the Settings dialog is still visible", async ({ page }) => {
+  await expect(page.getByTestId("settings-dialog")).toBeVisible();
+});
+
+Then("no approval has been recorded", async ({ page }) => {
+  // The viewer writes the reviewer's decision to a file via the keep-alive
+  // server. If approve had fired, the page would redirect to the
+  // SubmittedScreen; assert the editor is still mounted instead.
+  await expect(page.getByTestId("editor-root")).toBeVisible();
 });
 
 /**
