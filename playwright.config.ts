@@ -7,7 +7,7 @@ import { defineBddConfig } from "playwright-bdd";
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const planDecisionFile = join(rootDir, ".features-generated", "last-decision.json");
 const annotateDecisionFile = join(rootDir, ".features-generated", "annotate-decision.json");
-const planPath = join(rootDir, "fixtures", "plans", "elements.md");
+const planPath = join(rootDir, "fixtures", "markdown", "elements.md");
 const planPort = 3210;
 const annotatePort = 3211;
 const baseURL = `http://127.0.0.1:${planPort}`;
