@@ -44,6 +44,12 @@ Then("no approval has been recorded", async ({ page }) => {
   await expect(page.getByTestId("editor-root")).toBeVisible();
 });
 
+Then("the submission was recorded", async ({ page }) => {
+  // After Mod+Enter with annotations queued, useReviewSubmit POSTs the
+  // feedback and the viewer reaches the Submitted screen.
+  await page.getByTestId("submitted-screen").waitFor({ state: "visible", timeout: 5_000 });
+});
+
 /**
  * Translate human shortcut strings ("c", "Mod+Enter") into Playwright's key
  * descriptor format. Playwright understands `ControlOrMeta` as the
