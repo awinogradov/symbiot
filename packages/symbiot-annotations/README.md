@@ -33,11 +33,11 @@ encodeAnnotations()         ──▶  AnnotationTuple[]   ──▶ share URL h
 decodeAnnotations()         ◀─────┘                      (lossless round-trip)
     │
     ▼
-dualAnchor.resolveAnchor()  ──▶  re-attaches anchors against current PlateJS value
-                                  (path/offset + originalText text-quote fallback)
+resolveAnchor()             ──▶  re-attaches anchors against current PlateJS value
+                                  (Plate path + originalText text-quote fallback)
 ```
 
-Anchors are stored as Plate paths/offsets _plus_ an `originalText` snapshot.
+Anchors are stored as a Plate path plus an `originalText` snapshot.
 On load, anchors resolve against the live tree; if the tree shifted (a
 revised plan version), the codec falls back to text-quote matching on
 `originalText`, so annotations survive version changes.
