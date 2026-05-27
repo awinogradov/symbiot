@@ -95,9 +95,10 @@ jobs:
           git checkout -b "$BR"
           cp artifacts/SHA256SUMS apps/hook/bin/SHA256SUMS
           printf '%s\n' "${GITHUB_REF_NAME}" > apps/hook/bin/VERSION
-          # Bump plugin.json version to match (strip leading 'v').
+          # Bump plugin.json version field only. A JSON parse-and-rewrite reformats em-dashes, inline objects, and arrays, which fails `bun run format:check`.
           VER="${GITHUB_REF_NAME#v}"
-          python -c "import json,sys; p=json.load(open('apps/hook/.claude-plugin/plugin.json')); p['version']='${VER}'; json.dump(p, open('apps/hook/.claude-plugin/plugin.json','w'), indent=2); open('apps/hook/.claude-plugin/plugin.json','a').write('\n')"
+          sed -i '1,/"version":/ s/"version": "[^"]*"/"version": "'"$VER"'"/' apps/hook/.claude-plugin/plugin.json
+          grep -q "\"version\": \"$VER\"" apps/hook/.claude-plugin/plugin.json || { echo "plugin.json version bump did not land"; exit 1; }
           git add apps/hook/bin/SHA256SUMS apps/hook/bin/VERSION apps/hook/.claude-plugin/plugin.json
           git commit -m "chore(release): bump to ${GITHUB_REF_NAME}"
           git push -u origin "$BR"
