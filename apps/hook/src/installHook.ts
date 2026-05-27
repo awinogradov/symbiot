@@ -80,9 +80,9 @@ const readSettings = async (): Promise<ClaudeSettings> => {
  *     can short-circuit its native "Accept this plan?" prompt once the event
  *     honors `permissionDecision` for ExitPlanMode. No-op until then.
  *
- * Strips any prior symbiot entries (including the deprecated Stop registration
- * shipped in the first Phase 2 cut), then writes the current absolute-path
- * command. Other hooks in the file are untouched.
+ * Strips any prior symbiot entries (including a deprecated Stop registration
+ * shipped in earlier releases), then writes the current absolute-path command.
+ * Other hooks in the file are untouched.
  */
 export const installHook = async (): Promise<{ path: string; command: string }> => {
   const command = cliCommand();

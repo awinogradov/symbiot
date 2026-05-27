@@ -80,11 +80,10 @@ const decoders: DecoderTable = {
 
 /**
  * Decode a list of compact annotation tuples back into AnnotationEntry
- * objects. C / G / D are plannotator-compatible; I / R are symbiot extensions.
- * Ids are synthesized from the tuple position since the wire format doesn't
- * carry them. Callers that need to re-attach anchors should pair this output
- * with `dualAnchor.resolveAnchor` against the current Plate value (Insertion
- * anchors on `contextText`; Replacement on `originalText`).
+ * objects. Ids are synthesized from the tuple position since the wire format
+ * doesn't carry them. Callers that need to re-attach anchors should pair
+ * this output with `dualAnchor.resolveAnchor` against the current Plate
+ * value (Insertion anchors on `contextText`; Replacement on `originalText`).
  */
 export const decodeAnnotations = (tuples: AnnotationTuple[]): AnnotationEntry[] =>
   tuples.map((tuple, i) =>

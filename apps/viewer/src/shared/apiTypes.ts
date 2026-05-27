@@ -46,9 +46,9 @@ export interface PlanVersionResponse {
  * plain objects on the wire and rebuilt client-side.
  *
  * `commentOriginalTexts` and `suggestionOriginalTexts` are optional so drafts
- * persisted before Phase 4.3 still load — older drafts walk without drift
- * signals (back-compat). Phase 5.2 added the three `insertion*` fields and
- * Phase 5.3 the three `replacement*` fields under the same back-compat rule.
+ * persisted by older viewer builds still load — those drafts walk without
+ * drift signals. The `insertion*` and `replacement*` fields follow the same
+ * back-compat rule.
  */
 export interface DraftPayload {
   value: unknown[];
@@ -56,11 +56,11 @@ export interface DraftPayload {
   commentImages?: Record<string, string[]>;
   commentOriginalTexts?: Record<string, string>;
   suggestionOriginalTexts?: Record<string, string>;
-  /** Per-insertion proposed text + image refs + anchor snapshot (Phase 5.2). Optional for back-compat. */
+  /** Per-insertion proposed text + image refs + anchor snapshot. Optional for back-compat. */
   insertionNewTexts?: Record<string, string>;
   insertionImages?: Record<string, string[]>;
   insertionOriginalTexts?: Record<string, string>;
-  /** Per-replacement proposed text + image refs + anchor snapshot (Phase 5.3). Optional for back-compat. */
+  /** Per-replacement proposed text + image refs + anchor snapshot. Optional for back-compat. */
   replacementTexts?: Record<string, string>;
   replacementImages?: Record<string, string[]>;
   replacementOriginalTexts?: Record<string, string>;

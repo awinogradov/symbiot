@@ -2,6 +2,34 @@
 
 Review and annotate the plans your AI coding agents produce, then send structured feedback back. Symbiot intercepts a plan at the moment the agent presents it, opens a browser editor where you can comment, delete, insert, and replace passages with full markdown fidelity, and returns the resolved feedback as markdown the agent can act on.
 
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│              Claude Code · Codex · OpenCode · Copilot CLI        │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │ PreToolUse(ExitPlanMode)
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ apps/hook                                                        │
+│   intercepts plan → persists to ~/.symbiot/history/.../00N.md    │
+│   spawns apps/viewer on a free port, opens the browser           │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │ HTTP /api/plan, /api/feedback, ...
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ apps/viewer                                                      │
+│   Bun server  ──  React 19 + Vite client                         │
+│                                                                  │
+│      packages/symbiot-editor   ← PlateJS, markdown round-trip    │
+│      packages/symbiot-ui       ← shadcn/ui shell + ThemeProvider │
+│      packages/symbiot-annotations ← walk · serialize · codec     │
+│      packages/tailwind-config  ← design tokens                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+`apps/portal` is the static share-viewer; it consumes the same `symbiot-editor` + `symbiot-ui` packages but reads serialized state from a URL fragment instead of the local server.
+
 ## Tech stack
 
 - Bun — package manager and runtime
@@ -46,12 +74,12 @@ bun run dev      # Vite + servers across workspaces via Turbo
 bun run build    # builds every workspace
 ```
 
-Smoke-run the viewer against a fixture plan:
+Smoke-run the viewer against a sample document:
 
 ```sh
 bun run viewer:smoke
 # or, explicitly:
-bun --filter @symbiot/viewer start --plan fixtures/plans/elements.md
+bun --filter @symbiot/viewer start --plan fixtures/markdown/elements.md
 ```
 
 For contributors who want to wire the dev tree into `~/.claude/settings.json`
@@ -128,10 +156,9 @@ packages/
   prettier-config/      Shared Prettier config
   tailwind-config/      Tailwind v4 tokens (semantic + annotation)
   typescript-config/    tsconfig presets (base / react / node)
+docs/            Cross-cutting architecture, product, and contract docs
 features/        Playwright-BDD scenarios and step helpers
-plans/           Phase-by-phase implementation plans
-fixtures/        Sample plans and wire-format references
-PRD.md           Product requirements
+fixtures/        Sample markdown + golden serializer fixtures
 CLAUDE.md        Codebase conventions for humans and AI assistants
 ```
 
@@ -139,21 +166,22 @@ CLAUDE.md        Codebase conventions for humans and AI assistants
 
 Read this list before touching the code — it's the documentation index CLAUDE.md points contributors at.
 
-- [`PRD.md`](./PRD.md) — product requirements (goals, non-goals, annotation model, server contract).
 - [`CLAUDE.md`](./CLAUDE.md) — core principles, naming, lint/style rules, post-task checks.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — branch, commit, and PR conventions.
 - [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) — community standards.
 - [`LICENSES.md`](./LICENSES.md) — third-party license manifest (distinct from `LICENSE.md`).
-- [`docs`](./docs/README.md) — cross-cutting architecture, package layering, HTTP surface, architectural specials. Start here when a change spans more than one package.
+- [`docs`](./docs/README.md) — cross-cutting architecture, product, and contract docs. Start here when a change spans more than one package.
+- [`docs/product.md`](./docs/product.md) — product goals, non-goals, personas, principles, NFRs, success metrics.
 - [`docs/architecture.md`](./docs/architecture.md) — app composition, package layering, HTTP surface, monorepo invariants, and the architectural specials.
+- [`docs/server-contract.md`](./docs/server-contract.md) — HTTP surface between the hook and the viewer.
 - [`docs/theming.md`](./docs/theming.md) — annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).
 - [`docs/a11y.md`](./docs/a11y.md) — WCAG AA baseline: axe-core scenarios, keyboard nav checklist, focus-ring policy, ARIA-label inventory, screen-reader smoke.
 - [`docs/version-history.md`](./docs/version-history.md) — on-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.
 - [`docs/release.md`](./docs/release.md) — release pipeline + shim/binary contract; cut and roll back releases here.
-- [`docs/perf.md`](./docs/perf.md) — performance budget (interactive ≤ 1 s, Lighthouse ≥ 90/95), bundle visualizer + Lighthouse reproduction.
-- [`plans`](./plans/README.md) — phase table, cross-phase gates, per-phase plans.
+- [`docs/perf.md`](./docs/perf.md) — performance budget, bundle visualizer + Lighthouse reproduction.
 - [`features`](./features/README.md) — Playwright-BDD layout, selector conventions, how to add a scenario.
-- [`fixtures/plans`](./fixtures/plans/README.md) — sample plans + the inline-diff smoke flow.
+- [`fixtures/markdown`](./fixtures/markdown/README.md) — sample markdown fixtures + the inline-diff smoke flow.
+- [`fixtures/golden`](./fixtures/golden/README.md) — byte-equality regression fixtures for the annotation serializer.
 
 Apps:
 

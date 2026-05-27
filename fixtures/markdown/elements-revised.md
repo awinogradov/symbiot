@@ -54,7 +54,7 @@ const greeting = (name: string): string => `hello, ${name}!`;
 
 Final paragraph to make the fixture wrap a horizontal rule.
 
-## Phase 4.2 demo addition
+## Demo addition
 
 This whole section is new in the revised fixture so the diff renderer has at
 least one block-level insertion to surface.

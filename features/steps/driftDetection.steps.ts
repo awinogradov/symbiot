@@ -18,7 +18,7 @@ const draftFile = join(
 
 const seededCommentId = "drift-test-comment";
 const liveAnchor = "live anchor";
-const goneAnchor = "GONE-ANCHOR-PHASE-4-3";
+const goneAnchor = "GONE-ANCHOR-FIXTURE";
 
 interface DraftSeed {
   storedOriginalText: string;

@@ -103,11 +103,8 @@ Adding a new annotation token to `theme.css` requires extending the test's
 
 ## Cross-references
 
-- Phase plan: [`../plans/07-theming.md`](../plans/07-theming.md).
-- Phase 7.4 ([symbiot#52](https://github.com/awinogradov/symbiot/issues/52))
-  lands the automated contrast unit test that locks these values in and
-  formally closes the **M7** cross-phase gate.
-- PRD requirement: **FR-14.5** (annotation hues meet AA in both themes).
+- Automated contrast lock: [`../packages/tailwind-config/contrast.test.ts`](../packages/tailwind-config/contrast.test.ts) — JSDOM test that checks every `--anno-*` token against `--background` in both themes.
+- Product principle: annotation hues meet AA in both themes ([`./product.md`](./product.md), NFR-5).
 - Token definitions: [`../packages/tailwind-config/theme.css`](../packages/tailwind-config/theme.css).
 
 ## Dark-mode variant (class-based)

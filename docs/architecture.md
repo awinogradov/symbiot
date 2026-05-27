@@ -2,8 +2,7 @@
 
 How symbiot is composed, the package layering, the HTTP surface, and the
 "architectural specials" — non-obvious decisions every contributor should
-know before moving code around. Status and scope live in
-[`../plans/README.md`](../plans/README.md); this doc is timeless reference.
+know before moving code around.
 
 ## System shape
 
@@ -192,7 +191,7 @@ obsolete, delete the bullet rather than hedging it.
 
 ## Where to look next
 
-- Phase ledger (status, scope, goals): [`../plans/README.md`](../plans/README.md).
+- Product overview: [`./product.md`](./product.md).
 - Per-package READMEs describe their surface; this doc is the cross-cutting
   layer above them.
 - When new work surfaces an architectural decision worth preserving, append

@@ -4,32 +4,70 @@ Consolidated fullstack app for the symbiot plan-review loop: a Bun HTTP server
 under `src/server/` and a React + Vite client under `src/client/` ship as a
 single binary built by `bun run build`.
 
-Replaces the original `packages/symbiot-server` placeholder per the Phase 2
-architectural decision (see `plans/02-mvp.md`).
+## Architecture
 
-## Scripts
-
-- `bun run dev` — Vite dev server (client) with a `/api/*` proxy to the Bun
-  server (`http://127.0.0.1:5174`). Run the server separately with
-  `bun src/bin.ts --plan fixtures/plans/elements.md`.
-- `bun run build` — `vite build` → `dist/client/`; then `bun build src/bin.ts`
-  → `dist/bin.js`.
-- `bun run start` — run the built binary; reads markdown from `--plan <file>`
-  or stdin and opens the browser.
-- `bun run typecheck` / `bun run lint` / `bun run test`.
-
-## HTTP surface
+```
+┌──────────────────────────────────────────────────────────────┐
+│  React 19 + Vite client                                      │
+│    @symbiot/editor (PlateJS)  ·  @symbiot/ui (shadcn)        │
+│    @symbiot/annotations (walker + serializer)                │
+└──────────────────┬───────────────────────────────────────────┘
+                   │ HTTP /api/*  (single binary serves both)
+┌──────────────────▼───────────────────────────────────────────┐
+│  Bun server                                                  │
+│    src/server/routes.ts   ← dispatch keyed on apiRoutes.ts   │
+│    src/server/storage.ts  ← ~/.symbiot/history/.../00N.md    │
+│    src/server/uploadSecurity.ts                              │
+└──────────────────────────────────────────────────────────────┘
+```
 
 The registry of every `/api/*` route lives in
-[`src/shared/apiRoutes.ts`](./src/shared/apiRoutes.ts). Both the Bun dispatch
-table and the client `apiClient` key off the same source, so paths and
-methods never drift. Full table and per-route semantics are in
-[`docs/architecture.md`](../../docs/architecture.md#server-contract). The
-version-browsing endpoints (`GET /api/plan/versions`,
-`GET /api/plan/version?n=N`) drive the History sidebar tab; full pipeline in
-[`docs/version-history.md`](../../docs/version-history.md).
+[`src/shared/apiRoutes.ts`](./src/shared/apiRoutes.ts). The Bun dispatch
+table and the client `apiClient` import the same source, so paths and
+methods never drift. The full route table and the request/response shapes
+are in [`docs/server-contract.md`](../../docs/server-contract.md).
 
-## Storage
+## Installation
+
+Workspace dependency — no standalone install. The viewer ships as part of
+the `@symbiot/hook` plugin binary; in development it's executed straight
+from source via `bun src/bin.ts`.
+
+## Usage
+
+```sh
+bun src/bin.ts --plan path/to/document.md
+```
+
+The bin accepts markdown on `--plan <path>` or stdin, writes it under
+`~/.symbiot/history/<project>/<slug>/00N.md`, starts the HTTP server on a
+free port, and opens the browser. The user reviews and annotates; the
+server resolves the agent's wait with either an approval or the
+serialized feedback markdown.
+
+## Local development
+
+```sh
+bun run dev
+```
+
+Runs the Vite dev server (client) with a `/api/*` proxy to the Bun server
+on `http://127.0.0.1:5174`. Run the server separately with:
+
+```sh
+bun src/bin.ts --plan ../../fixtures/markdown/elements.md
+```
+
+### Scripts
+
+- `bun run dev` — Vite dev server with `/api/*` proxy.
+- `bun run build` — `vite build` → `dist/client/`; then `bun build src/bin.ts` → `dist/bin.js`.
+- `bun run start` — run the built binary.
+- `bun run smoke` — boot against `../../fixtures/markdown/elements.md`.
+- `bun run typecheck` / `bun run lint` / `bun run test`.
+- `bun run bundle-analyze` — Vite build with the rollup visualizer enabled.
+
+### Storage
 
 Filesystem-only state under `~/.symbiot/` — no database. Plan revisions are
 written atomically as `00N.md` under
@@ -37,10 +75,7 @@ written atomically as `00N.md` under
 image uploads live in sibling directories. Layout details in
 [`docs/version-history.md`](../../docs/version-history.md#on-disk-layout).
 
-Per-phase scope and status live in
-[`../../plans/README.md`](../../plans/README.md).
-
-## Debugging
+### Debugging
 
 Every viewer screen pins a small `<DebugBar>` to the bottom-right that reads
 `v<version> · <short-sha>`. Hover (or keyboard-focus) surfaces a tooltip with
@@ -58,3 +93,14 @@ Implementation lives in
 the build-time constants are resolved in [`buildInfo.ts`](./buildInfo.ts) and
 injected via Vite's `define` (see [`vite.config.ts`](./vite.config.ts)). The
 SHA falls back to `dev` when built outside a git checkout.
+
+## Documentation
+
+- [`docs/server-contract.md`](../../docs/server-contract.md) — full HTTP surface.
+- [`docs/architecture.md`](../../docs/architecture.md) — viewer's place in the monorepo.
+- [`docs/version-history.md`](../../docs/version-history.md) — version layout, diff overlays, drift detection.
+- [`docs/perf.md`](../../docs/perf.md) — bundle and Lighthouse budgets.
+
+## License
+
+MIT — see the root [`LICENSE.md`](../../LICENSE.md).

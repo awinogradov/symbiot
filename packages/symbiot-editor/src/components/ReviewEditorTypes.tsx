@@ -12,16 +12,16 @@ export interface ReviewEditorHandle {
   getValue: () => unknown[];
   getCommentBodies: () => Map<string, string>;
   getCommentImages: () => Map<string, string[]>;
-  /** `originalText` captured at comment creation; drives drift detection. Phase 4.3. */
+  /** `originalText` captured at comment creation; drives drift detection. */
   getCommentOriginalTexts: () => Map<string, string>;
-  /** `originalText` captured at deletion creation; drives drift detection. Phase 4.3. */
+  /** `originalText` captured at deletion creation; drives drift detection. */
   getSuggestionOriginalTexts: () => Map<string, string>;
-  /** `newText` (the proposed insertion) captured at insertion creation. Phase 5.2. */
+  /** `newText` (the proposed insertion) captured at insertion creation. */
   getInsertionNewTexts: () => Map<string, string>;
   getInsertionImages: () => Map<string, string[]>;
   /** `contextText` snapshot captured at insertion creation; drives drift detection. */
   getInsertionOriginalTexts: () => Map<string, string>;
-  /** `replacementText` (the proposed substitution) captured at replacement creation. Phase 5.3. */
+  /** `replacementText` (the proposed substitution) captured at replacement creation. */
   getReplacementTexts: () => Map<string, string>;
   getReplacementImages: () => Map<string, string[]>;
   /** `originalText` snapshot captured at replacement creation; drives drift detection. */

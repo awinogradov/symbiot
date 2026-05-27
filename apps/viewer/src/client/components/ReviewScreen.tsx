@@ -87,9 +87,9 @@ interface DiffOverlayProps {
 // Mounting `EditorMount` here would let its `onChange` persist the historical
 // markdown into the boot-slug's draft.
 //
-// Phase 4.3 — `inCompareOverlay` lifts the same diff render onto the boot
-// version so reviewers can see "what changed in this revision" without
-// remounting against an older boot.
+// `inCompareOverlay` lifts the same diff render onto the boot version so
+// reviewers can see "what changed in this revision" without remounting
+// against an older boot.
 const DiffOverlay = ({ version }: DiffOverlayProps): React.ReactElement => {
   if (version.previousPlan === null && version.previousVersion !== null) {
     return <HistoricalPlaceholder />;

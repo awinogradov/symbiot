@@ -1,7 +1,7 @@
-Feature: M2 gate — all three plannotator-compatible annotation types
+Feature: Three-kind feedback gate
   The reviewer drops one Comment, one Deletion, and one Global Comment,
   then submits Request changes. The resulting feedback markdown contains
-  all three plannotator-compatible kinds.
+  all three annotation kinds.
 
   Scenario: All three annotation types end-to-end in one denial
     Given I open the viewer

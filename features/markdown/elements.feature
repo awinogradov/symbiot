@@ -1,7 +1,7 @@
-Feature: Markdown FR-1.2 element rendering
-  The viewer renders every element type from the FR-1.2 supported subset.
-  Phase 3.1 carries over tables, lists, fenced code, and prose typography
-  that Phase 2 left as raw markdown.
+Feature: Markdown element rendering
+  The viewer renders every element type in its supported markdown subset:
+  headings, paragraphs, lists, fenced code, tables, inline code, and prose
+  typography.
 
   Scenario: Headings render as native HTML headings
     Given I open the viewer

@@ -138,16 +138,15 @@ export interface AnnotationSources {
    * Per-comment snapshot of the anchored text captured at creation time.
    * When supplied, the walker compares each fragment's live text against the
    * snapshot and sets `drifted: true` on entries the dual-anchor resolver
-   * can no longer locate. Absent → walker behaves as before (no drift signal,
-   * `originalText` reconstructed from live leaves). Phase 4.3.
+   * can no longer locate. Absent → walker emits no drift signal and
+   * reconstructs `originalText` from live leaves.
    */
   commentOriginalTexts?: Map<string, string>;
   /** Per-deletion `originalText` snapshot. Parallel to `commentOriginalTexts`. */
   suggestionOriginalTexts?: Map<string, string>;
   /**
    * Per-insertion proposed text (the text to insert after `contextText`).
-   * Editor authoring (Phase 5.2) populates this; walker skips marks without
-   * an entry. Phase 5.1.
+   * Editor authoring populates this; walker skips marks without an entry.
    */
   insertionNewTexts?: Map<string, string>;
   /** Optional per-insertion image refs, parallel to `insertionNewTexts`. */
@@ -156,8 +155,7 @@ export interface AnnotationSources {
   insertionOriginalTexts?: Map<string, string>;
   /**
    * Per-replacement proposed text (substitutes the anchored `originalText`).
-   * Editor authoring (Phase 5.3) populates this; walker skips marks without
-   * an entry. Phase 5.1.
+   * Editor authoring populates this; walker skips marks without an entry.
    */
   replacementTexts?: Map<string, string>;
   /** Optional per-replacement image refs, parallel to `replacementTexts`. */
@@ -394,7 +392,7 @@ const walkGlobalEntries = (globals: GlobalCommentEntry[]): AnnotationEntry[] =>
  * `serializeFeedback` can emit the `(lines N–M)` prefix.
  *
  * Insertion / Replacement walks no-op when their sidecar text maps are
- * absent — Phase 5.2 / 5.3 editor authoring populates them.
+ * absent — the editor populates them when authoring those annotation kinds.
  */
 export const walkAnnotations = (sources: AnnotationSources): AnnotationEntry[] => {
   const entries = collectLeavesWithLines(sources.value);
@@ -471,7 +469,7 @@ const stripReplacementKind = (e: { kind: "replacement" } & ReplacementEntry): Re
   ...(e.drifted === undefined ? {} : { drifted: e.drifted }),
 });
 
-/** Filter a walk to comments only (Phase 2 backwards-compat). */
+/** Filter a walk to comments only — callers that need only the comment subset. */
 export const onlyComments = (entries: AnnotationEntry[]): CommentEntry[] =>
   entries.filter((e) => e.kind === "comment").map(stripCommentKind);
 

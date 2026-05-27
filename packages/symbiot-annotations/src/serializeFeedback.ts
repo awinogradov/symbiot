@@ -11,21 +11,16 @@ import type {
 /**
  * Serialize annotations into feedback markdown.
  *
- * C / G / D match `exportAnnotations()` in plannotator's
- * `packages/ui/utils/parser.ts`: each entry is numbered, gets an optional
- * `(lines N–M)` prefix when block source lines are available, and uses a
- * per-kind heading + body.
+ * Each entry is numbered, gets an optional `(lines N–M)` prefix when block
+ * source lines are available, and uses a per-kind heading + body:
  *
- * Phase 2 shipped Comment-only with no line labels (`fixtures/plannotator-reference/comment.md`).
- * Phase 3.1 extends to G and D and emits `(lines N–M)` when present.
+ * - Comment      → `Feedback on …` + quoted comment body.
+ * - Global       → dedicated global-comments section, no anchor.
+ * - Deletion     → `Suggest removing: "<originalText>"`.
+ * - Insertion    → `Insert after: "<contextText>"` + `> <newText>`.
+ * - Replacement  → `Suggest replacing: "<originalText>"` + `> Replace with: "<replacementText>"`.
  *
- * Phase 5.1 adds Insertion and Replacement as **symbiot-only export forms**
- * (no plannotator parity). They follow the same heading + quoted-body shape
- * as Comment per PRD Appendix A: Insertion → `Insert after: "<ctx>"` /
- * `> <newText>`; Replacement → `Suggest replacing: "<orig>"` /
- * `> Replace with: "<replacementText>"`.
- *
- * @see fixtures/plannotator-reference/README.md
+ * The output is byte-pinned against the fixtures under `fixtures/golden/`.
  */
 export const serializeFeedback = (
   entries: ReadonlyArray<AnnotationEntry | CommentEntry>

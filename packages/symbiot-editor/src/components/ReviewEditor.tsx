@@ -41,21 +41,21 @@ interface ReviewEditorProps {
   initialBodies?: Map<string, string>;
   /** Optional saved comment images, keyed by comment id. */
   initialImages?: Map<string, string[]>;
-  /** Optional saved per-comment `originalText` snapshots (Phase 4.3 drift). */
+  /** Optional saved per-comment `originalText` snapshots — drives drift detection. */
   initialCommentOriginalTexts?: Map<string, string>;
-  /** Optional saved per-deletion `originalText` snapshots (Phase 4.3 drift). */
+  /** Optional saved per-deletion `originalText` snapshots — drives drift detection. */
   initialSuggestionOriginalTexts?: Map<string, string>;
-  /** Optional saved per-insertion `newText` map (Phase 5.2). */
+  /** Optional saved per-insertion `newText` map. */
   initialInsertionNewTexts?: Map<string, string>;
-  /** Optional saved per-insertion image refs (Phase 5.2). */
+  /** Optional saved per-insertion image refs. */
   initialInsertionImages?: Map<string, string[]>;
-  /** Optional saved per-insertion `contextText` snapshots (Phase 5.2 drift). */
+  /** Optional saved per-insertion `contextText` snapshots — drives drift detection. */
   initialInsertionOriginalTexts?: Map<string, string>;
-  /** Optional saved per-replacement `replacementText` map (Phase 5.3). */
+  /** Optional saved per-replacement `replacementText` map. */
   initialReplacementTexts?: Map<string, string>;
-  /** Optional saved per-replacement image refs (Phase 5.3). */
+  /** Optional saved per-replacement image refs. */
   initialReplacementImages?: Map<string, string[]>;
-  /** Optional saved per-replacement `originalText` snapshots (Phase 5.3 drift). */
+  /** Optional saved per-replacement `originalText` snapshots — drives drift detection. */
   initialReplacementOriginalTexts?: Map<string, string>;
   /** Receives the imperative handle once Plate is constructed. */
   onReady?: (handle: ReviewEditorHandle) => void;
@@ -68,10 +68,11 @@ interface ReviewEditorProps {
 /**
  * Read-only Plate editor that renders a markdown plan and lets the reviewer
  * drop anchored Comment / Deletion / Insertion / Replacement marks via a
- * floating selection toolbar. Pattern A: editor stays `readOnly={true}`, marks
- * are applied programmatically through {@link applyAnnotation}.
+ * floating selection toolbar. The editor stays `readOnly={true}`; marks are
+ * applied programmatically through {@link applyAnnotation} via `editor.tf.*`
+ * transforms, which bypass `contenteditable=false`.
  *
- * Phase 5.2: Insertion authoring shares the Comment composer's UX —
+ * Insertion authoring shares the Comment composer's UX —
  * {@link AnnotationComposer} switches accent + labels based on `kind`.
  */
 export const ReviewEditor = ({

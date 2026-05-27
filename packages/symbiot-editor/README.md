@@ -1,10 +1,35 @@
 # @symbiot/editor
 
-The symbiot Plate editor as a reusable React package. Pattern A read-only suggestion authoring per PRD §8.4 (validated in Phase 0).
+The symbiot Plate editor as a reusable React package. Renders markdown as a
+PlateJS value, lets the reviewer drop Comment / Deletion / Insertion /
+Replacement marks via a floating selection toolbar, and exposes a parallel
+read-only diff editor for plan-version comparison.
 
-Embedded in the browser surface that `apps/hook` opens and in `apps/portal`.
+Embedded in the browser surface that `apps/viewer` and `apps/portal` mount.
 
-## Why a separate package
+## Architecture
+
+```
+ReviewEditor                          DiffEditor
+  ├─ SymbiotEditorKit                   ├─ SymbiotDiffKit
+  │   ├─ MarkdownKit                    │   ├─ MarkdownKit (no annotations)
+  │   ├─ CommentPlugin                  │   └─ DiffPlugin  (key "diff")
+  │   ├─ SuggestionMarkPlugin           │
+  │   ├─ InsertionMarkPlugin            └─▶ @platejs/diff computeDiff()
+  │   ├─ ReplacementMarkPlugin              renders insertions / deletions /
+  │   └─ SourceLinesPlugin                  updates as visual marks
+  │
+  ├─ applyAnnotation(editor, kind)        Diff nodes are keyed distinctly
+  │   uses editor.tf.* transforms         from authored suggestions, so
+  │   (bypasses contenteditable=false)    they can never be "accepted" as
+  │                                       feedback by mistake.
+  └─ useTypingGuard                       Both editors share the same
+      blocks beforeinput / paste etc.     `--anno-*` token palette, so
+      at capture phase                    diff and annotated marks have
+                                          a single visual language.
+```
+
+### Why a separate package
 
 Kept distinct from `@symbiot/ui` on purpose:
 
@@ -13,40 +38,48 @@ Kept distinct from `@symbiot/ui` on purpose:
 - **Change cadence.** UI evolves with design tokens; editor evolves with the review/redline domain (suggestions, comments, markdown plugins). Separation lets each move independently.
 - **Reusability.** Other surfaces (settings panels, future apps) can depend on `@symbiot/ui` without inheriting the editor stack.
 
-## Editor surfaces
+### Architectural specials
 
-Two Plate editors live here, each with its own plugin kit:
+Things that look fine on a refactor but break if you change them — full list
+in [`../../docs/architecture.md`](../../docs/architecture.md):
 
-- **`ReviewEditor`** + **`SymbiotEditorKit`** — the editable, annotation-
-  authoring surface for the current plan version. Markdown via
-  `@platejs/markdown` + remark-gfm, suggestion / comment marks, image
-  uploads, fenced code blocks with Shiki dual-themed highlighting, source
-  lines via `SourceLinesPlugin`.
-- **`DiffEditor`** + **`SymbiotDiffKit`** — a read-only Plate editor that
-  renders the inline diff between two markdown versions via `@platejs/diff`.
-  The diff plugin is keyed `"diff"` (distinct from `"suggestion"` /
-  `"comment"`) so diff nodes can never be accidentally "accepted" as
-  feedback. The kit reuses the base markdown plugins but omits
-  `SuggestionMarkPlugin` and `CommentPlugin` to remove any chance of
-  leaf-key collision. Operations render with the same `--anno-*` token
-  palette as reviewer annotations, so diff and authored marks share one
-  visual language. Full pipeline in
-  [`../../docs/version-history.md`](../../docs/version-history.md#diff-editor).
+- `aboveNodes` render hooks return `children` for non-diff elements, not `undefined` — Plate drops the entire element otherwise.
+- The host re-keys `DiffEditor` on `mode` change so `usePlateEditor` builds a fresh editor with the right initial value. Mixing `usePlateEditor`'s `deps` array with conditional value computation produces stale renders.
+- The editor stays mounted as `<Plate readOnly>` for the entire session. Annotation transforms run via `editor.tf.*`, which bypass DOM `contenteditable=false` entirely. No transient readOnly toggling.
 
-Architectural specials that must not be re-introduced (full list in
-[`../../docs/architecture.md`](../../docs/architecture.md#react--plate)):
+## Installation
 
-- `aboveNodes` render hooks return `children` for non-diff elements, not
-  `undefined` — Plate drops the entire element otherwise.
-- The host re-keys `DiffEditor` on `mode` change so `usePlateEditor` builds
-  a fresh editor with the right initial value. Mixing `usePlateEditor`'s
-  `deps` array with conditional value computation produces stale renders.
+Workspace dependency — referenced as `"@symbiot/editor": "workspace:*"`
+from `apps/viewer` and `apps/portal`.
 
-Per-phase scope and status live in
-[`../../plans/README.md`](../../plans/README.md).
+## Usage
 
-## Scripts
+```tsx
+import { ReviewEditor } from "@symbiot/editor";
 
-- `bun run typecheck`
-- `bun run lint`
-- `bun run test`
+<ReviewEditor
+  markdown={plan}
+  onChange={(snapshot) => setEditorSnapshot(snapshot)}
+  onReady={(handle) => (editorHandleRef.current = handle)}
+/>;
+```
+
+The handle exposes the imperative `applyAnnotation` API and getters for
+the annotation sidecar maps that `serializeFeedback` consumes.
+
+## Local development
+
+```sh
+bun run typecheck
+bun run lint
+bun run test
+```
+
+## Documentation
+
+- [`docs/architecture.md`](../../docs/architecture.md) — package layering and the editor's place in the monorepo.
+- [`docs/version-history.md`](../../docs/version-history.md) — diff editor and the inline-diff overlay pipeline.
+
+## License
+
+MIT — see the root [`LICENSE.md`](../../LICENSE.md).
