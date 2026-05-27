@@ -12,16 +12,19 @@ Feature: Version history sidebar tab
     Then the version browser is visible
     And the current version row is marked active
 
-  Scenario: Re-selecting the active version is a no-op
+  Scenario: Re-selecting the active version skips the version fetch
     Given a second version of the plan exists on disk
     And I open the viewer
+    And I am spying on plan-version requests
     When I click the sidebar history tab
     And I click the current version row
     Then the current version row is marked active
+    And no plan-version fetch was triggered
 
   Scenario: Persisted "raw" diff mode is restored from localStorage
     Given a second version of the plan exists on disk
     And localStorage diff mode is set to "raw"
     And I open the viewer
     When I click the sidebar history tab
-    Then the version browser is visible
+    And I select the predecessor version row
+    Then the diff editor is in "raw" mode

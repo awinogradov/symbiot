@@ -1,9 +1,55 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { Given, Then, When } from "../support/bdd.ts";
 
-const badge = (page: import("@playwright/test").Page): ReturnType<typeof page.getByTestId> =>
+const badge = (page: Page): ReturnType<typeof page.getByTestId> =>
   page.getByTestId("debug-bar-badge");
+
+const badgeTextFor = (state: "idle" | "copied" | "failed"): string | RegExp => {
+  if (state === "copied") return "SHA copied";
+  if (state === "failed") return "Copy failed";
+  // idle: "v<version> · <shaShort>". Match the prefix only — the exact build
+  // SHA varies per run.
+  return /^v\d+\.\d+\.\d+ · [0-9a-f]+$/;
+};
+
+/**
+ * Override `navigator.clipboard` before the SHA click handler runs. `value`
+ * is whatever the test wants `navigator.clipboard` to be: a writable stub,
+ * a write-rejecting stub, or `undefined` for the missing-clipboard branch.
+ */
+const stubClipboard = async (page: Page, mode: "reject" | "missing"): Promise<void> => {
+  await page.evaluate((m: "reject" | "missing") => {
+    const value =
+      m === "missing"
+        ? undefined
+        : {
+            writeText: (): Promise<void> => Promise.reject(new Error("denied")),
+            readText: (): Promise<string> => Promise.resolve(""),
+          };
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value });
+  }, mode);
+};
+
+/**
+ * Replace `navigator.clipboard.writeText` with a spy that pushes each written
+ * value onto `window.__clipboardWrites`. The original implementation still
+ * runs so the badge state transitions happen normally.
+ */
+const installClipboardSpy = async (page: Page): Promise<void> => {
+  await page.evaluate(() => {
+    const slot: string[] = [];
+    (window as unknown as { __clipboardWrites: string[] }).__clipboardWrites = slot;
+    const original = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = (text: string): Promise<void> => {
+      slot.push(text);
+      return original(text);
+    };
+  });
+};
+
+const readClipboardWrites = (page: Page): Promise<string[]> =>
+  page.evaluate(() => (window as unknown as { __clipboardWrites: string[] }).__clipboardWrites);
 
 Then("the debug bar badge is visible", async ({ page }) => {
   await expect(badge(page)).toBeVisible();
@@ -13,41 +59,32 @@ When("I click the debug bar badge", async ({ page }) => {
   await badge(page).click();
 });
 
-Then("the debug bar badge announces {string}", async ({ page }, state: string) => {
-  await expect(badge(page)).toHaveAttribute("data-testid-state", state);
+Then("the debug bar badge text shows the {string} state", async ({ page }, state: string) => {
+  const matcher = badgeTextFor(state as "idle" | "copied" | "failed");
+  await expect(badge(page)).toHaveText(matcher);
 });
 
-Then("the badge aria-label confirms the copy", async ({ page }) => {
-  await expect(badge(page)).toHaveAttribute("aria-label", "Full SHA copied to clipboard");
+Given("the clipboard writes are spied on", async ({ page }) => {
+  await installClipboardSpy(page);
 });
 
-When("I wait for the debug bar badge to return to idle", async ({ page }) => {
-  await expect(badge(page)).toHaveAttribute("data-testid-state", "idle", { timeout: 3000 });
+Then("the clipboard received the full build SHA", async ({ page }) => {
+  // The build-time `symbiotBuildInfo.shaFull` is substituted at build time
+  // and is not exposed on `window`, so we verify shape rather than value:
+  // exactly one write of a 40-char lowercase hex string (the git SHA).
+  await expect
+    .poll(() => readClipboardWrites(page))
+    .toEqual([expect.stringMatching(/^[0-9a-f]{40}$/)]);
 });
 
 Given("the clipboard rejects writes", async ({ page }) => {
-  // Stub navigator.clipboard.writeText so it rejects, exercising the failure
-  // path in DebugBar.onCopy. Wrap in an IIFE so the override applies before
-  // any click handler runs.
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        writeText: (): Promise<void> => Promise.reject(new Error("denied")),
-        readText: (): Promise<string> => Promise.resolve(""),
-      },
-    });
-  });
+  await stubClipboard(page, "reject");
 });
 
 Given("the clipboard is unavailable", async ({ page }) => {
-  // Force `navigator.clipboard` to be undefined so DebugBar.onCopy hits the
-  // synchronous fallback branch (no Promise chain).
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
-  });
+  await stubClipboard(page, "missing");
 });
 
-When("I click the debug bar badge again", async ({ page }) => {
-  await badge(page).click();
+When("I wait {int} ms", async ({ page }, ms: number) => {
+  await page.waitForTimeout(ms);
 });

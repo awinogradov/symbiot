@@ -1,6 +1,8 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { Given, When, Then } from "../support/bdd.ts";
+
+const consoleErrorsByPage = new WeakMap<Page, string[]>();
 
 Given("the draft endpoint always returns 500", async ({ page }) => {
   // Intercept GET /api/draft and reply 500 so the load goes down the catch
@@ -13,6 +15,20 @@ Given("the draft endpoint always returns 500", async ({ page }) => {
     }
     await route.continue();
   });
+});
+
+Given("a console error listener is installed", async ({ page }) => {
+  const errors: string[] = [];
+  consoleErrorsByPage.set(page, errors);
+  page.on("console", (msg) => {
+    if (msg.type() === "error") errors.push(msg.text());
+  });
+});
+
+Then("a console error containing {string} was logged", async ({ page }, fragment: string) => {
+  await expect
+    .poll(() => consoleErrorsByPage.get(page) ?? [])
+    .toEqual(expect.arrayContaining([expect.stringContaining(fragment)]));
 });
 
 Then("the editor is still visible", async ({ page }) => {

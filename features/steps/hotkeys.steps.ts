@@ -1,6 +1,9 @@
+import { stat } from "node:fs/promises";
+
 import { expect } from "@playwright/test";
 
 import { Then, When } from "../support/bdd.ts";
+import { decisionFile } from "../support/world.ts";
 
 When("I press {string} anywhere outside the editor", async ({ page }, combo: string) => {
   // Wait until Plate has finished constructing the editor. Reaching this
@@ -25,10 +28,6 @@ When("I press {string} in the global comment composer", async ({ page }, combo: 
   await page.keyboard.press(toPlaywrightKey(combo));
 });
 
-When("I press {string}", async ({ page }, combo: string) => {
-  await page.keyboard.press(toPlaywrightKey(combo));
-});
-
 Then("the global comment composer is visible in the viewport", async ({ page }) => {
   await expect(page.getByTestId("global-composer-textarea")).toBeVisible();
 });
@@ -37,17 +36,15 @@ Then("the Settings dialog is still visible", async ({ page }) => {
   await expect(page.getByTestId("settings-dialog")).toBeVisible();
 });
 
-Then("no approval has been recorded", async ({ page }) => {
-  // The viewer writes the reviewer's decision to a file via the keep-alive
-  // server. If approve had fired, the page would redirect to the
-  // SubmittedScreen; assert the editor is still mounted instead.
-  await expect(page.getByTestId("editor-root")).toBeVisible();
-});
-
-Then("the submission was recorded", async ({ page }) => {
-  // After Mod+Enter with annotations queued, useReviewSubmit POSTs the
-  // feedback and the viewer reaches the Submitted screen.
-  await page.getByTestId("submitted-screen").waitFor({ state: "visible", timeout: 5_000 });
+// eslint-disable-next-line no-empty-pattern -- playwright-bdd requires an object pattern in the first arg
+Then("no plan-review decision was recorded", async ({}) => {
+  // The viewer writes its decision to `decisionFile` only on
+  // approve/deny/feedback. `Given I open the viewer` resets the file before
+  // the scenario, so its presence after the hotkey would mean the hotkey
+  // was not actually suppressed. Allow a short grace period for any racing
+  // write to land before declaring success.
+  await new Promise((r) => setTimeout(r, 200));
+  await expect(stat(decisionFile)).rejects.toThrow(/ENOENT/);
 });
 
 /**
