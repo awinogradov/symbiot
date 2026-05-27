@@ -35,6 +35,10 @@ Then("the version browser is visible", async ({ page }) => {
   await page.getByTestId("version-browser").waitFor({ state: "visible" });
 });
 
+When("I click the current version row", async ({ page }) => {
+  await page.locator('[data-testid^="version-row-"][data-active="true"]').first().click();
+});
+
 Then("the current version row is marked active", async ({ page }) => {
   const activeRows = page.locator('[data-testid^="version-row-"][data-active="true"]');
   await expect(activeRows).toHaveCount(1);

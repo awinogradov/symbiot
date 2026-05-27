@@ -42,6 +42,11 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
     viewport: { width: 1280, height: 800 },
+    // DebugBar copies the build SHA to the clipboard on click; grant the
+    // permission upfront so the success path is exercised in CI (headless
+    // Chromium otherwise blocks `navigator.clipboard.writeText` without a
+    // user gesture even on localhost).
+    permissions: ["clipboard-read", "clipboard-write"],
   },
   webServer: [
     {

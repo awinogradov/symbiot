@@ -87,6 +87,8 @@ export const DebugBar = ({ mode }: DebugBarProps): React.ReactElement => {
               onClick={onCopy}
               aria-label={ariaLabelFor(state)}
               aria-live="polite"
+              data-testid="debug-bar-badge"
+              data-testid-state={state}
               className="bg-background/80 pointer-events-auto cursor-pointer font-mono tabular-nums backdrop-blur"
             >
               {badgeTextFor(state)}

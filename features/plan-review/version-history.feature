@@ -11,3 +11,10 @@ Feature: Version history sidebar tab
     When I click the sidebar history tab
     Then the version browser is visible
     And the current version row is marked active
+
+  Scenario: Re-selecting the active version is a no-op
+    Given a second version of the plan exists on disk
+    And I open the viewer
+    When I click the sidebar history tab
+    And I click the current version row
+    Then the current version row is marked active
