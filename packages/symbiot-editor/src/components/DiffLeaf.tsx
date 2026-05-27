@@ -18,7 +18,8 @@ export const diffClassFor = (type: DiffOperation["type"]): string => {
   }
 };
 
-const semanticTag = (type: DiffOperation["type"]): "ins" | "del" | "span" => {
+/** Maps a diff operation type to the semantic HTML tag used to render it. */
+export const semanticTag = (type: DiffOperation["type"]): "ins" | "del" | "span" => {
   switch (type) {
     case "insert":
       return "ins";
@@ -29,7 +30,11 @@ const semanticTag = (type: DiffOperation["type"]): "ins" | "del" | "span" => {
   }
 };
 
-const describeUpdate = (op: DiffOperation): string | undefined => {
+/**
+ * Build the `title` text for an `update` diff op listing which property names
+ * changed. Returns `undefined` for non-update ops or when there are no keys.
+ */
+export const describeUpdate = (op: DiffOperation): string | undefined => {
   if (op.type !== "update") return undefined;
   const keys = new Set([...Object.keys(op.properties), ...Object.keys(op.newProperties)]);
   if (keys.size === 0) return undefined;
@@ -44,7 +49,13 @@ const describeUpdate = (op: DiffOperation): string | undefined => {
  * the diff and the reviewer-authored suggestion marks read in the same visual
  * language without sharing the same Plate plugin key.
  */
-const elementDiffOperation = (element: PlateElementProps["element"]): DiffOperation | null => {
+/**
+ * Read the diff op off a Plate element when its `diff` flag is set. Returns
+ * `null` when the element is not a diff node (so callers can render unchanged).
+ */
+export const elementDiffOperation = (
+  element: PlateElementProps["element"]
+): DiffOperation | null => {
   const node = element as unknown as Record<string, unknown>;
   if (node["diff"] !== true) return null;
   const op = node["diffOperation"] as DiffOperation | undefined;
