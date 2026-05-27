@@ -49,7 +49,12 @@ export default defineConfig(({ mode }) => {
       outDir: "dist/client",
       emptyOutDir: true,
       target: "es2022",
-      sourcemap: isDev,
+      // Always emit external .js.map files so e2e coverage (Playwright + MCR)
+      // can map inlined single-file JS back to TypeScript sources. The maps are
+      // separate files in dist/client/assets/ and are NOT embedded into the
+      // hook binary (which only ships dist/client/index.html.gz), so binary
+      // size is unaffected.
+      sourcemap: true,
       minify: !isDev,
     },
   };
