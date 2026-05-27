@@ -39,6 +39,14 @@ When("I click the current version row", async ({ page }) => {
   await page.locator('[data-testid^="version-row-"][data-active="true"]').first().click();
 });
 
+Given("localStorage diff mode is set to {string}", async ({ page }, mode: string) => {
+  // Set the persisted diff-mode key BEFORE the viewer's first render so
+  // useVersionState's `readDiffMode` hits the "raw" branch on init.
+  await page.addInitScript((value: string) => {
+    window.localStorage.setItem("symbiot.diffMode", value);
+  }, mode);
+});
+
 Then("the current version row is marked active", async ({ page }) => {
   const activeRows = page.locator('[data-testid^="version-row-"][data-active="true"]');
   await expect(activeRows).toHaveCount(1);
