@@ -32,4 +32,32 @@ describe("resolveAnchor", () => {
     const anchor: DualAnchor = { pathAnchor: [1], originalText: "two" };
     expect(resolveAnchor(value, anchor)).toEqual({ strategy: "missing" });
   });
+
+  it("resolves a multi-segment path that descends through children", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [
+          { type: "span", children: [{ text: "alpha" }] },
+          { type: "span", children: [{ text: "beta" }] },
+        ],
+      },
+    ];
+    const anchor: DualAnchor = { pathAnchor: [0, 1, 0], originalText: "beta" };
+    expect(resolveAnchor(value, anchor)).toEqual({
+      strategy: "path",
+      pathAnchor: [0, 1, 0],
+      text: "beta",
+    });
+  });
+
+  it("falls back to text-quote when the path runs past a text leaf", () => {
+    const value: PlateValue = [{ type: "p", children: [{ text: "alpha" }] }];
+    const anchor: DualAnchor = { pathAnchor: [0, 0, 5], originalText: "alpha" };
+    expect(resolveAnchor(value, anchor)).toEqual({
+      strategy: "text-quote",
+      pathAnchor: [0],
+      text: "alpha",
+    });
+  });
 });
