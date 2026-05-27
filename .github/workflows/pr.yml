@@ -63,12 +63,21 @@ jobs:
       - name: Coverage PR comment
         if: always() && github.event_name == 'pull_request'
         uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          name: Unit Coverage
 
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
 
       - name: BDD
-        run: bun run test:e2e
+        run: bun run test:e2e:coverage
+
+      - name: BDD Coverage PR comment
+        if: always() && github.event_name == 'pull_request' && hashFiles('coverage/e2e/summary.md') != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: BDD Coverage
+          path: coverage/e2e/summary.md
 
       - name: Build
         run: bun run build
