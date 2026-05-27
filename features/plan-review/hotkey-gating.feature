@@ -6,9 +6,9 @@ Feature: Plan-review hotkey gating
   Scenario: Mod+Enter is suppressed while the Settings dialog is open
     Given I open the viewer
     When I open the Settings dialog
-    And I press "Mod+Enter"
-    Then the Settings dialog is still visible
-    And no approval has been recorded
+    And I press "Mod+Enter" anywhere outside the editor
+    Then no plan-review decision was recorded
+    And the Settings dialog is still visible
 
   Scenario: Mod+Enter routes to submit once annotations exist
     Given I open the viewer
@@ -16,5 +16,5 @@ Feature: Plan-review hotkey gating
     And I click the Comment toolbar button
     And I type "Should this be a wolf?" into the comment composer
     And I press Enter in the comment composer
-    And I press "Mod+Enter"
-    Then the submission was recorded
+    And I press "Mod+Enter" anywhere outside the editor
+    Then the recorded decision is "deny"

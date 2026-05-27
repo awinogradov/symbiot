@@ -3,10 +3,12 @@ Feature: Draft persistence across reloads
   restored on reload so they aren't lost. Approve / Submit clear the
   draft via DELETE /api/draft.
 
-  Scenario: A failing draft load surfaces in the console but does not crash the viewer
+  Scenario: A failing draft load is logged to the console without crashing the viewer
     Given the draft endpoint always returns 500
+    And a console error listener is installed
     And I open the viewer
-    Then the editor is still visible
+    Then a console error containing "failed to load draft" was logged
+    And the editor is still visible
 
   Scenario: A draft is POSTed after dropping a comment
     Given I open the viewer

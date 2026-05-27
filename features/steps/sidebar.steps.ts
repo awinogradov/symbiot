@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 
-import { When, Then } from "../support/bdd.ts";
+import { Given, When, Then } from "../support/bdd.ts";
 
 When("I clear all annotations and confirm", async ({ page }) => {
   await page.getByTestId("sidebar-clear-all").click();
@@ -25,6 +25,25 @@ When("I open the remove dialog on card {int} and cancel", async ({ page }, n: nu
 
 When("I click the first sidebar annotation entry", async ({ page }) => {
   await page.locator('[data-testid^="sidebar-entry-"]').first().click();
+});
+
+Given("the scrollIntoView calls are spied on", async ({ page }) => {
+  await page.addInitScript(() => {
+    const counter = { calls: 0 };
+    (window as unknown as { __scrollSpy: { calls: number } }).__scrollSpy = counter;
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element, ...args: unknown[]): void {
+      counter.calls += 1;
+      return original.apply(this, args as Parameters<typeof original>);
+    };
+  });
+});
+
+Then("no annotation anchor was scrolled into view", async ({ page }) => {
+  const calls = await page.evaluate(
+    () => (window as unknown as { __scrollSpy: { calls: number } }).__scrollSpy.calls
+  );
+  expect(calls).toBe(0);
 });
 
 Then("the sidebar total count reads {string}", async ({ page }, expected: string) => {

@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { After, Given, Then, When } from "../support/bdd.ts";
 import { fixturePlanSlug, fixtureProjectSlug } from "../support/testAssets.ts";
@@ -10,6 +10,20 @@ import { fixturePlanSlug, fixtureProjectSlug } from "../support/testAssets.ts";
 const planDir = join(homedir(), ".symbiot", "history", fixtureProjectSlug, fixturePlanSlug);
 const seededVersion = 99;
 const extraVersionFile = (n: number): string => join(planDir, `${String(n).padStart(3, "0")}.md`);
+
+/**
+ * Per-page request log. Keyed by Page so each scenario's spies stay isolated.
+ * WeakMap entries vanish when Playwright tears the page down.
+ */
+const versionFetchesByPage = new WeakMap<Page, string[]>();
+
+const initFetchSpy = async (page: Page): Promise<void> => {
+  const log: string[] = [];
+  versionFetchesByPage.set(page, log);
+  page.on("request", (req) => {
+    if (req.url().includes("/api/plan/version?")) log.push(req.url());
+  });
+};
 
 Given("a second version of the plan exists on disk", async () => {
   await mkdir(planDir, { recursive: true });
@@ -39,12 +53,24 @@ When("I click the current version row", async ({ page }) => {
   await page.locator('[data-testid^="version-row-"][data-active="true"]').first().click();
 });
 
-Given("localStorage diff mode is set to {string}", async ({ page }, mode: string) => {
-  // Set the persisted diff-mode key BEFORE the viewer's first render so
-  // useVersionState's `readDiffMode` hits the "raw" branch on init.
-  await page.addInitScript((value: string) => {
-    window.localStorage.setItem("symbiot.diffMode", value);
-  }, mode);
+Given("I am spying on plan-version requests", async ({ page }) => {
+  await initFetchSpy(page);
+});
+
+Then("no plan-version fetch was triggered", async ({ page }) => {
+  // Allow any racing request that the click could have triggered to actually
+  // fire before we read the log. If a fetch was triggered, this 200ms window
+  // is more than enough for the request to be observed by `page.on`.
+  await page.waitForTimeout(200);
+  expect(versionFetchesByPage.get(page) ?? []).toEqual([]);
+});
+
+Given("localStorage diff mode is set to {string}", async ({ page }, value: string) => {
+  // Seed the persisted diff-mode key BEFORE the viewer's first render so
+  // useVersionState's `readDiffMode` reads it on init.
+  await page.addInitScript((v: string) => {
+    window.localStorage.setItem("symbiot.diffMode", v);
+  }, value);
 });
 
 Then("the current version row is marked active", async ({ page }) => {
