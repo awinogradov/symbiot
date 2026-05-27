@@ -189,7 +189,7 @@ const approveRoute = async (ctx: RouteContext): Promise<Response> => {
 
 const denyRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
   const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
-  const feedback = body?.feedback ?? "";
+  const feedback = rewriteImageRefs(body?.feedback ?? "", ctx.meta);
   await finalize(ctx, { kind: "deny", feedback });
   return new Response(null, { status: 204 });
 };
@@ -292,9 +292,36 @@ const imageRoute = async (req: Request, ctx: RouteContext): Promise<Response> =>
   });
 };
 
+const imageRefRe = /!\[\]\(([^)]+)\)/g;
+
+const tryAbsoluteUploadPath = (meta: PlanMeta, ref: string): string | null => {
+  const dot = ref.lastIndexOf(".");
+  if (dot <= 0) return null;
+  const id = ref.slice(0, dot);
+  if (!isValidUuid(id)) return null;
+  try {
+    assertWhitelistedExtension(ref);
+  } catch {
+    return null;
+  }
+  const target = uploadPath(meta, ref);
+  try {
+    assertNoTraversal(uploadsRoot, target);
+  } catch {
+    return null;
+  }
+  return target;
+};
+
+const rewriteImageRefs = (markdown: string, meta: PlanMeta): string =>
+  markdown.replaceAll(imageRefRe, (match, ref: string) => {
+    const absolute = tryAbsoluteUploadPath(meta, ref);
+    return absolute === null ? match : `![](${absolute})`;
+  });
+
 const feedbackRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
   const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
-  const feedback = body?.feedback ?? "";
+  const feedback = rewriteImageRefs(body?.feedback ?? "", ctx.meta);
   await saveFeedback(ctx.meta, feedback);
   await finalize(ctx, { kind: "feedback", feedback });
   return new Response(null, { status: 204 });
