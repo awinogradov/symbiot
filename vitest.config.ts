@@ -13,6 +13,7 @@ export default defineConfig({
       ".features-generated/**",
     ],
     environment: "node",
+    setupFiles: ["./vitest.setup.js"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary", "json", "html", "lcov"],
