@@ -1,18 +1,18 @@
-name: PR
+name: CI
 
 on:
-  pull_request:
+  push:
     branches: [main]
 
 concurrency:
-  group: pr-${{ github.workflow }}-${{ github.head_ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  pr:
+  ci:
     name: Check
     runs-on: ubuntu-latest
     timeout-minutes: 20
