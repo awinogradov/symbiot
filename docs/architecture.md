@@ -179,6 +179,30 @@ obsolete, delete the bullet rather than hedging it.
   via `{decision: "block", reason}` because that field also blocks the
   tool dispatch entirely — no PermissionRequest, no re-prompt, no race.
 
+### Sharing
+
+- **Share codec lives in `@symbiot/annotations`.** The compact wire format
+  (`AnnotationTuple[]`) is already the source of truth for feedback markdown;
+  reusing it for share keeps a single tuple model. `share.ts` adds
+  `serialize`/`deserialize` (deflate-raw + base64url) and `encrypt`/`decrypt`
+  (AES-256-GCM, random 12-byte IV) on top of the existing tuples — it does
+  NOT re-encode them.
+- **`SymbiotDocument` is the share boundary, not the editor boundary.** The
+  viewer keeps its own `EditorSnapshot` / `DraftPayload` shapes;
+  `SymbiotDocument` (`{ markdown, value, annotations, globalComments, meta }`)
+  is constructed only at share-export and validated at share-import. This
+  prevents wire-format changes from rippling into authoring state.
+- **Share keys live in the URL fragment, never on the wire.** The encrypted
+  path is intended to put the 32-byte AES key in `#k=…` so the paste service
+  (issue #46) only ever sees ciphertext. Losing the fragment means losing
+  the document — by design.
+- **Decoder-pinned goldens, not encoder.** `fixtures/golden/share-codec/`
+  pins `{ encoded, decoded }` pairs because `deflate-raw` output is
+  implementation-defined and shifts across zlib/Node/Bun versions. What
+  matters for compatibility is that any historically valid encoded string
+  still deserializes correctly. New `SymbiotDocument` shapes add new
+  fixtures rather than editing existing ones.
+
 ### Testing harness
 
 - **End-to-end tests are Playwright-BDD.** Features live in `features/` with
