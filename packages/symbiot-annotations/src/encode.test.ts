@@ -51,6 +51,17 @@ describe("encodeAnnotations", () => {
       ["R", "o", "r", "", ["img-3"]],
     ]);
   });
+
+  it("appends images on deletion and global tuples too", () => {
+    const entries: AnnotationEntry[] = [
+      { kind: "deletion", id: "1", originalText: "gone", images: ["img-1"] },
+      { kind: "global", id: "2", body: "msg", images: ["img-2"] },
+    ];
+    expect(encodeAnnotations(entries)).toEqual([
+      ["D", "gone", "", ["img-1"]],
+      ["G", "msg", "", ["img-2"]],
+    ]);
+  });
 });
 
 describe("decodeAnnotations", () => {

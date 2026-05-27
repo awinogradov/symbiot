@@ -302,3 +302,87 @@ describe("walkAnnotations insertions + replacements", () => {
     expect(onlyGlobals(entries)).toEqual([]);
   });
 });
+
+describe("walkAnnotations block-lines + multi-leaf", () => {
+  it("attaches lines when the top-level block is stamped with __symbiotBlockLines", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        __symbiotBlockLines: { startLine: 10, endLine: 12 },
+        children: [{ text: "hello", comment: true, comment_c1: true }],
+      },
+    ];
+    const [entry] = onlyComments(
+      walkAnnotations({
+        value,
+        commentBodies: new Map([["c1", "b"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.lines).toEqual({ startLine: 10, endLine: 12 });
+  });
+
+  it("ignores malformed __symbiotBlockLines values", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        __symbiotBlockLines: { startLine: "x", endLine: 12 },
+        children: [{ text: "hello", comment: true, comment_c1: true }],
+      },
+    ];
+    const [entry] = onlyComments(
+      walkAnnotations({
+        value,
+        commentBodies: new Map([["c1", "b"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.lines).toBeUndefined();
+  });
+
+  it("recurses into nested children to find anchored leaves", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        children: [
+          { type: "span", children: [{ text: "nested", comment: true, comment_c1: true }] },
+        ],
+      },
+    ];
+    const [entry] = onlyComments(
+      walkAnnotations({
+        value,
+        commentBodies: new Map([["c1", "b"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.originalText).toBe("nested");
+  });
+
+  it("merges contiguous leaves sharing the same comment id and picks the earliest lines", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        __symbiotBlockLines: { startLine: 5, endLine: 5 },
+        children: [
+          { text: "part-a", comment: true, comment_c1: true },
+          { text: "part-b", comment: true, comment_c1: true },
+        ],
+      },
+      {
+        type: "p",
+        __symbiotBlockLines: { startLine: 1, endLine: 1 },
+        children: [{ text: "later", comment: true, comment_c1: true }],
+      },
+    ];
+    const [entry] = onlyComments(
+      walkAnnotations({
+        value,
+        commentBodies: new Map([["c1", "b"]]),
+        globalComments: [],
+      })
+    );
+    expect(entry?.originalText).toBe("part-apart-blater");
+    expect(entry?.lines).toEqual({ startLine: 1, endLine: 1 });
+  });
+});
