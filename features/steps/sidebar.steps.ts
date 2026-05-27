@@ -23,6 +23,10 @@ When("I open the remove dialog on card {int} and cancel", async ({ page }, n: nu
   await page.getByTestId("sidebar-entry-remove-cancel").click();
 });
 
+When("I click the first sidebar annotation entry", async ({ page }) => {
+  await page.locator('[data-testid^="sidebar-entry-"]').first().click();
+});
+
 Then("the sidebar total count reads {string}", async ({ page }, expected: string) => {
   await expect(page.getByTestId("sidebar-total-count")).toHaveText(expected);
 });
