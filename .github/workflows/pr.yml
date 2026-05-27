@@ -64,7 +64,7 @@ jobs:
         if: always() && github.event_name == 'pull_request'
         uses: davelosert/vitest-coverage-report-action@v2
         with:
-          name: Unit Coverage
+          name: Unit
 
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
