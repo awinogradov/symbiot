@@ -1,6 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -119,6 +119,35 @@ describe("POST /api/plan/vscode-diff", () => {
     expect(versionRes?.status).toBe(200);
     const versionBody = (await versionRes?.json()) as { meta: { displayName?: string } };
     expect(versionBody.meta.displayName).toBe("Boot Plan");
+  });
+
+  it("rewrites valid markdown image refs in feedback to absolute upload paths before persisting", async () => {
+    const annotationDir = join(homeRoot, ".symbiot", "annotations", project, slug);
+    const uploadDir = join(homeRoot, ".symbiot", "uploads", project, slug);
+    await mkdir(uploadDir, { recursive: true });
+    const validRef = "11111111-2222-4333-8444-555555555555.png";
+    const invalidRef = "../etc/passwd";
+    const feedbackMd = [
+      "# Plan Feedback",
+      "",
+      '## 1. Feedback on: "x"',
+      "> y",
+      `> ![](${validRef})`,
+      `> ![](${invalidRef})`,
+      "",
+    ].join("\n");
+    const url = new URL("http://test/api/feedback");
+    const req = new Request(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feedback: feedbackMd }),
+    });
+    const res = await handleApi(req, url, ctx());
+    expect(res?.status).toBe(204);
+    const saved = await readFile(join(annotationDir, "001.md"), "utf8");
+    const absolute = join(uploadDir, validRef);
+    expect(saved).toContain(`> ![](${absolute})`);
+    expect(saved).toContain(`> ![](${invalidRef})`);
   });
 
   it("returns 503 with `code-cli-missing` when `code` is not on PATH", async () => {

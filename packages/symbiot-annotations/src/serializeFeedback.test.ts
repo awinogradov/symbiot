@@ -109,6 +109,89 @@ describe("serializeFeedback", () => {
     expect(out).toContain('## 1. (lines 12–14) Feedback on: "x"');
   });
 
+  it("emits a markdown image line for a single attached image on a comment", () => {
+    const entries: AnnotationEntry[] = [
+      {
+        kind: "comment",
+        id: "c1",
+        originalText: "the quick brown fox",
+        body: "Should this be a wolf?",
+        images: ["abc.png"],
+      },
+    ];
+    const out = serializeFeedback(entries);
+    expect(out).toContain("> Should this be a wolf?");
+    expect(out).toContain("> ![](abc.png)");
+  });
+
+  it("emits one markdown image line per attached image, in order", () => {
+    const entries: AnnotationEntry[] = [
+      {
+        kind: "comment",
+        id: "c1",
+        originalText: "x",
+        body: "y",
+        images: ["first.png", "second.jpg", "third.webp"],
+      },
+    ];
+    const out = serializeFeedback(entries);
+    const firstIdx = out.indexOf("> ![](first.png)");
+    const secondIdx = out.indexOf("> ![](second.jpg)");
+    const thirdIdx = out.indexOf("> ![](third.webp)");
+    expect(firstIdx).toBeGreaterThan(-1);
+    expect(secondIdx).toBeGreaterThan(firstIdx);
+    expect(thirdIdx).toBeGreaterThan(secondIdx);
+  });
+
+  it("emits image lines for deletion, global, insertion, and replacement entries", () => {
+    const entries: AnnotationEntry[] = [
+      { kind: "deletion", id: "d1", originalText: "redundant clause", images: ["d.png"] },
+      { kind: "global", id: "g1", body: "overall this looks great", images: ["g.png"] },
+      {
+        kind: "insertion",
+        id: "i1",
+        contextText: "the quick brown fox",
+        newText: "jumps",
+        images: ["i.png"],
+      },
+      {
+        kind: "replacement",
+        id: "r1",
+        originalText: "redundant clause",
+        replacementText: "concise note",
+        images: ["r.png"],
+      },
+    ];
+    const out = serializeFeedback(entries);
+    expect(out).toContain("> ![](d.png)");
+    expect(out).toContain("> ![](g.png)");
+    expect(out).toContain("> ![](i.png)");
+    expect(out).toContain("> ![](r.png)");
+  });
+
+  it("emits no image lines when images is undefined or empty (parity with no-images fixture)", async () => {
+    const expected = await loadFixture("plannotator-reference/comment.md");
+    const entriesUndef: AnnotationEntry[] = [
+      {
+        kind: "comment",
+        id: "fixture-comment",
+        originalText: "the quick brown fox",
+        body: "Should this be a wolf?",
+      },
+    ];
+    const entriesEmpty: AnnotationEntry[] = [
+      {
+        kind: "comment",
+        id: "fixture-comment",
+        originalText: "the quick brown fox",
+        body: "Should this be a wolf?",
+        images: [],
+      },
+    ];
+    expect(serializeFeedback(entriesUndef)).toBe(expected);
+    expect(serializeFeedback(entriesEmpty)).toBe(expected);
+  });
+
   it("emits (lines N–M) prefix for insertion and replacement", () => {
     const entries: AnnotationEntry[] = [
       {

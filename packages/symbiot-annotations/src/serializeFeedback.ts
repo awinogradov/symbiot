@@ -54,20 +54,28 @@ const linePrefix = (lines: BlockLines | undefined): string => {
   return `(lines ${lines.startLine}–${lines.endLine}) `;
 };
 
+const formatImages = (images: string[] | undefined): string[] => {
+  if (images === undefined || images.length === 0) return [];
+  return images.map((ref) => `> ![](${ref})`);
+};
+
 const formatComment = (entry: CommentEntry & { kind: "comment" }, index: number): string[] => [
   `## ${index}. ${linePrefix(entry.lines)}Feedback on: "${entry.originalText}"`,
   `> ${entry.body}`,
+  ...formatImages(entry.images),
   "",
 ];
 
 const formatDeletion = (entry: DeletionEntry & { kind: "deletion" }, index: number): string[] => [
   `## ${index}. ${linePrefix(entry.lines)}Suggest deleting: "${entry.originalText}"`,
+  ...formatImages(entry.images),
   "",
 ];
 
 const formatGlobal = (entry: GlobalCommentEntry & { kind: "global" }, index: number): string[] => [
   `## ${index}. General feedback`,
   `> ${entry.body}`,
+  ...formatImages(entry.images),
   "",
 ];
 
@@ -77,6 +85,7 @@ const formatInsertion = (
 ): string[] => [
   `## ${index}. ${linePrefix(entry.lines)}Insert after: "${entry.contextText}"`,
   `> ${entry.newText}`,
+  ...formatImages(entry.images),
   "",
 ];
 
@@ -86,6 +95,7 @@ const formatReplacement = (
 ): string[] => [
   `## ${index}. ${linePrefix(entry.lines)}Suggest replacing: "${entry.originalText}"`,
   `> Replace with: "${entry.replacementText}"`,
+  ...formatImages(entry.images),
   "",
 ];
 
