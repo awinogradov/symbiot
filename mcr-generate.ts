@@ -25,8 +25,9 @@ const main = async (): Promise<void> => {
     files = [];
   }
   if (files.length === 0) {
-    process.stdout.write(`[mcr] no coverage payloads found in ${rawDir}\n`);
-    return;
+    throw new Error(
+      `no coverage payloads found in ${rawDir} — was COVERAGE=1 set when running the BDD suite?`
+    );
   }
   for (const file of files) {
     const raw = await readFile(join(rawDir, file), "utf8");
@@ -34,8 +35,7 @@ const main = async (): Promise<void> => {
   }
   const result = await mcr.generate();
   if (result === undefined) {
-    process.stdout.write("[mcr] no coverage data collected\n");
-    return;
+    throw new Error("MCR returned no result — coverage aggregation produced nothing");
   }
   process.stdout.write(`[mcr] report written to ${result.reportPath}\n`);
 };

@@ -63,26 +63,34 @@ export const coverageOptions: CoverageReportOptions = {
     return isBddOwned(sourcePath);
   },
   onEnd: async (results): Promise<void> => {
-    if (!results) return;
+    if (!results) {
+      await writeFile(
+        bddSummaryPath,
+        [
+          `## Coverage Report for BDD`,
+          "",
+          `_No coverage results produced — Vite build / entry-filter mismatch or no payloads aggregated._`,
+          "",
+        ].join("\n"),
+        "utf8"
+      );
+      throw new Error("BDD coverage produced no results");
+    }
     const { summary } = results;
     const measured = bddMetrics.map((metric) => {
       const pct = summary[metric]?.pct;
       return { metric, pct: Number.isFinite(pct) ? (pct as number) : null };
     });
-    const hasData = measured.some(({ pct }) => pct !== null);
+    const missing = measured.filter(({ pct }) => pct === null).map(({ metric }) => metric);
     const rows = measured.map(({ metric, pct }) => {
-      if (pct === null) return `| ${metric} | n/a | Skip |`;
+      if (pct === null) return `| ${metric} | n/a | Fail |`;
       const status = pct >= bddThreshold ? "Pass" : "Fail";
       return `| ${metric} | ${pct.toFixed(2)}% | ${status} |`;
     });
-    const headline = `## Coverage Report for BDD`;
-    const subhead = hasData
-      ? `_Threshold: ${bddThreshold}% on lines / statements / branches / functions._`
-      : `_No coverage entries captured. Threshold check skipped — likely a Vite build / entry-filter mismatch._`;
     const body = [
-      headline,
+      `## Coverage Report for BDD`,
       "",
-      subhead,
+      `_Threshold: ${bddThreshold}% on lines / statements / branches / functions._`,
       "",
       "| Metric | Coverage | Status |",
       "| --- | --- | --- |",
@@ -91,7 +99,9 @@ export const coverageOptions: CoverageReportOptions = {
     ].join("\n");
     await mkdir(bddSummaryDir, { recursive: true });
     await writeFile(bddSummaryPath, body, "utf8");
-    if (!hasData) return;
+    if (missing.length > 0) {
+      throw new Error(`BDD coverage missing metrics: ${missing.join(", ")}`);
+    }
     const failed = measured.filter(({ pct }) => pct !== null && pct < bddThreshold);
     if (failed.length > 0) {
       const details = failed

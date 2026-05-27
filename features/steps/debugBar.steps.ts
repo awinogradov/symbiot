@@ -5,12 +5,19 @@ import { Given, Then, When } from "../support/bdd.ts";
 const badge = (page: Page): ReturnType<typeof page.getByTestId> =>
   page.getByTestId("debug-bar-badge");
 
+// Version grammar mirrors `apps/viewer/buildInfo.ts`: the plugin.json
+// `version` field flows through verbatim, so prereleases (`0.2.0-rc.1`,
+// `0.2.0+build.5`) are valid. The SHA is whatever `git rev-parse --short HEAD`
+// returns OR the literal `"dev"` fallback when the build runs outside a git
+// checkout (see `apps/viewer/README.md`).
+const versionGrammar = String.raw`\d+\.\d+\.\d+(?:[.\-+][\w.\-+]+)?`;
+const shaShortGrammar = String.raw`[0-9a-f]+|dev`;
+const idleBadgeRegex = new RegExp(`^v(?:${versionGrammar}) · (?:${shaShortGrammar})$`);
+
 const badgeTextFor = (state: "idle" | "copied" | "failed"): string | RegExp => {
   if (state === "copied") return "SHA copied";
   if (state === "failed") return "Copy failed";
-  // idle: "v<version> · <shaShort>". Match the prefix only — the exact build
-  // SHA varies per run.
-  return /^v\d+\.\d+\.\d+ · [0-9a-f]+$/;
+  return idleBadgeRegex;
 };
 
 /**
@@ -71,10 +78,11 @@ Given("the clipboard writes are spied on", async ({ page }) => {
 Then("the clipboard received the full build SHA", async ({ page }) => {
   // The build-time `symbiotBuildInfo.shaFull` is substituted at build time
   // and is not exposed on `window`, so we verify shape rather than value:
-  // exactly one write of a 40-char lowercase hex string (the git SHA).
+  // exactly one write of either a 40-char lowercase hex SHA or the literal
+  // `"dev"` fallback (see `apps/viewer/buildInfo.ts`).
   await expect
     .poll(() => readClipboardWrites(page))
-    .toEqual([expect.stringMatching(/^[0-9a-f]{40}$/)]);
+    .toEqual([expect.stringMatching(/^(?:[0-9a-f]{40}|dev)$/)]);
 });
 
 Given("the clipboard rejects writes", async ({ page }) => {
