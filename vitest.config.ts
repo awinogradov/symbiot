@@ -1,4 +1,12 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
+
+// Resolve the setup file relative to THIS config, not the cwd of the process
+// running vitest. Per-package scripts (`bun --filter @symbiot/<pkg> test`)
+// run vitest with the package directory as cwd; a bare "./vitest.setup.js"
+// would resolve to `packages/<pkg>/vitest.setup.js` and fail to load.
+const setupFilePath = fileURLToPath(new URL("./vitest.setup.js", import.meta.url));
 
 export default defineConfig({
   resolve: {
@@ -13,7 +21,7 @@ export default defineConfig({
       ".features-generated/**",
     ],
     environment: "node",
-    setupFiles: ["./vitest.setup.js"],
+    setupFiles: [setupFilePath],
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary", "json", "html", "lcov"],
