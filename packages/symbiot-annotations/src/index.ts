@@ -37,3 +37,13 @@ export { encodeAnnotations } from "./encode.ts";
 export { decodeAnnotations } from "./decode.ts";
 export { resolveAnchor, type AnchorResolution, type DualAnchor } from "./dualAnchor.ts";
 export { serializeFeedback } from "./serializeFeedback.ts";
+export {
+  serialize,
+  deserialize,
+  encrypt,
+  decrypt,
+  isShareSupported,
+  type EncryptedShare,
+  type SymbiotDocument,
+  type SymbiotDocumentMeta,
+} from "./share.ts";
