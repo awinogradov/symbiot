@@ -64,6 +64,7 @@ export const coverageOptions: CoverageReportOptions = {
   },
   onEnd: async (results): Promise<void> => {
     if (!results) {
+      await mkdir(bddSummaryDir, { recursive: true });
       await writeFile(
         bddSummaryPath,
         [
