@@ -1,0 +1,62 @@
+{
+  "encoded": "lZG9TgMxEIRfxZraiZTWDUWQEAUUpDxdsTkvPhP_yfYRTtG9O_IliEhUdPbszjfa3Qs85ZOO5wCFA_nkWCRHQZxtHYWfXLVNohBipWpjECcbdNlC4pPcxFDdBXVODIUEiWG0TmcOV52_6j-xS7_0Er96geo67CHvKZB4ofnIInMgz6JGoTO917X4gOYn9LLDIyR-wlbhGfdwSLTYtfJ2-5R1smy5Wi5r5QkSJjNVoW3m4WZsEbKD9Waz26Zg0Pe9hHHxSG4fvedQy7oEq6FgdpA4Rj2391_WVMeYoa5QWE-Gm_me3tbiuRLUBSnHDx7aajX7CIniJgOFMlLmzRA1D20KzqXx1U5C25Icza_k26EOrU9c-5blGw",
+  "decoded": {
+    "markdown": "Sample plan with multiple annotation kinds.",
+    "value": [
+      {
+        "type": "p",
+        "children": [
+          {
+            "text": "Sample plan with multiple annotation kinds."
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      [
+        "C",
+        "Sample plan",
+        "Maybe rename to draft plan?",
+        "ana"
+      ],
+      [
+        "D",
+        "multiple"
+      ],
+      [
+        "I",
+        "annotation",
+        "kind"
+      ],
+      [
+        "R",
+        "kinds",
+        "varieties"
+      ],
+      [
+        "G",
+        "great direction",
+        "ana",
+        [
+          "img-1.png"
+        ]
+      ]
+    ],
+    "globalComments": [
+      {
+        "id": "g1",
+        "body": "great direction",
+        "author": "ana",
+        "images": [
+          "img-1.png"
+        ]
+      }
+    ],
+    "meta": {
+      "project": "demo",
+      "slug": "share-codec",
+      "version": 1,
+      "displayName": "Share codec"
+    }
+  }
+}

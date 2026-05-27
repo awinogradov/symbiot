@@ -1,0 +1,34 @@
+{
+  "encoded": "dY-xbsMwEEN_RWBWtUAyais6dGuHjo6Hi3Ww1Uh3hqQ4NQz_e6EGHTuTfCQ3JMpXr3eBw-FgPhbOS-D7Wc7yYuZI8gyLheKN4boNdZ0ZDtMJFsMUos8sD4G_Kxz-8tj7vbcgEa1Ug0qB6zq8wUIXzhSjqVMoJqpeixkzU0XfW4xRLxRfNSWWWn7JwcNhPMLion6F-x_QGhNXgtswZ_3ioU3ynBQWJd5GOJSJMj8N6nloxziXoAJ3tPChzJHWd0rt4WfzmYdv338A",
+  "decoded": {
+    "markdown": "## Overview\n\nA plan.",
+    "value": [
+      {
+        "type": "h2",
+        "children": [
+          {
+            "text": "Overview"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      [
+        "G",
+        "overall this looks great"
+      ]
+    ],
+    "globalComments": [
+      {
+        "id": "g1",
+        "body": "overall this looks great"
+      }
+    ],
+    "meta": {
+      "project": "demo",
+      "slug": "share-codec",
+      "version": 1,
+      "displayName": "Share codec"
+    }
+  }
+}
