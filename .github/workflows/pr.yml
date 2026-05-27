@@ -3,10 +3,12 @@ name: PR
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
-  group: pr-${{ github.workflow }}-${{ github.head_ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
