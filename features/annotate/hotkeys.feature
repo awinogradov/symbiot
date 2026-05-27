@@ -30,6 +30,12 @@ Feature: Keyboard shortcuts — drive the reviewer surface without the mouse
     And I press "r" anywhere outside the editor
     Then the comment composer is visible in the viewport
 
+  Scenario: d with a selection marks the selection for deletion
+    Given I open the viewer in annotate mode
+    When I select the text "quick brown fox" in the editor
+    And I press "d" anywhere outside the editor
+    Then the sidebar total count reads "1"
+
   Scenario: Mod+Enter approves a clean plan
     Given I open the viewer
     When I press "Mod+Enter" anywhere outside the editor

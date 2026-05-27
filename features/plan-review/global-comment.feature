@@ -11,3 +11,11 @@ Feature: Add a global comment
     And I click Request changes
     Then the recorded feedback contains "General feedback"
     And the recorded feedback contains "Overall direction looks great"
+
+  Scenario: Removing a global comment via the sidebar drops it from the list
+    Given I open the viewer
+    When I open the global comment composer
+    And I type "Stub global comment" into the global comment composer
+    And I press Enter in the global comment composer
+    And I remove the annotation on card 1 and confirm
+    Then the sidebar total count reads "0"

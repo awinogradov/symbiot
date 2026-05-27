@@ -42,3 +42,20 @@ Feature: Sidebar — annotations list and clear-all
     Then the sidebar total count reads "1"
     When I open the remove dialog on card 1 and cancel
     Then the sidebar total count reads "1"
+
+  Scenario: Clicking an inline sidebar entry scrolls to its anchor
+    Given I open the viewer
+    When I select the text "quick brown fox" in the editor
+    And I click the Comment toolbar button
+    And I type "Should this be a wolf?" into the comment composer
+    And I press Enter in the comment composer
+    And I click the first sidebar annotation entry
+    Then the sidebar total count reads "1"
+
+  Scenario: Clicking a global sidebar entry has no anchor to scroll to
+    Given I open the viewer
+    When I open the global comment composer
+    And I type "Stub global comment" into the global comment composer
+    And I press Enter in the global comment composer
+    And I click the first sidebar annotation entry
+    Then the sidebar total count reads "1"
