@@ -46,6 +46,16 @@ interface AnnotationSidebarProps {
 type TabValue = "annotations" | "history";
 
 /**
+ * Resolve which tab to render given the user's last-chosen `tab` and whether
+ * History is currently available. When the user is parked on History but
+ * History is no longer rendered (versions dropped below 2), fall back to
+ * Annotations so the sidebar body doesn't go blank. Preserves the user's
+ * stated `tab` so History is restored automatically once it returns.
+ */
+const resolveEffectiveTab = (tab: TabValue, hasHistory: boolean): TabValue =>
+  !hasHistory && tab === "history" ? "annotations" : tab;
+
+/**
  * Right-aligned `<Sidebar>` with a tab bar that always renders the Annotations
  * tab — its title carries the live entry count — and reveals the History tab
  * (a `VersionBrowser` listing every persisted plan version) only when at least
@@ -71,6 +81,7 @@ export const AnnotationSidebar = ({
 }: AnnotationSidebarProps): React.ReactElement => {
   const hasHistory = versions.length >= 2;
   const [tab, setTab] = useState<TabValue>("annotations");
+  const effectiveTab = resolveEffectiveTab(tab, hasHistory);
   const handleTabChange = useCallback((next: string): void => {
     if (next === "annotations" || next === "history") setTab(next);
   }, []);
@@ -80,11 +91,15 @@ export const AnnotationSidebar = ({
     },
     [onDiffModeChange]
   );
-  const showClearAll = entries.length > 0 && tab === "annotations";
+  const showClearAll = entries.length > 0 && effectiveTab === "annotations";
   return (
     <Sidebar side="right" collapsible="offcanvas" data-testid="annotation-sidebar" className="w-80">
       <SidebarContent>
-        <Tabs value={tab} onValueChange={handleTabChange} className="flex w-full flex-col gap-2">
+        <Tabs
+          value={effectiveTab}
+          onValueChange={handleTabChange}
+          className="flex w-full flex-col gap-2"
+        >
           <div className="flex h-14 items-center px-2">
             <TabsList className="flex w-full">
               <TabsTrigger
