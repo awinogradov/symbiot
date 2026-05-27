@@ -1,7 +1,7 @@
-Feature: Annotate mode — all three plannotator-compatible annotation types
+Feature: Annotate mode — three-kind feedback gate
   In annotate mode the reviewer drops one Comment, one Deletion, and one
   Global Comment, then submits. The resulting annotate feedback markdown
-  contains all three plannotator-compatible kinds in one POST /api/feedback.
+  contains all three annotation kinds in one POST /api/feedback.
 
   Scenario: All three annotation types end-to-end in one annotate submission
     Given I open the viewer in annotate mode

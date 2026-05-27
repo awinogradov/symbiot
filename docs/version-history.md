@@ -127,7 +127,8 @@ read-only Plate render
 The diff plugin is keyed `"diff"` — distinct from the reviewer-authored
 `"suggestion"` and `"comment"` marks. Accept/reject UI is wired against
 `"suggestion"`, so diff nodes can never be accidentally "accepted" as
-feedback. This is the mitigation for R-5 in the PRD.
+feedback. This namespacing prevents diff overlays from colliding with
+reviewer-authored suggestions.
 
 `SymbiotDiffKit` (`packages/symbiot-editor/src/utils/diffKit.ts`) mirrors
 `SymbiotEditorKit` for the markdown surface but omits
@@ -157,7 +158,7 @@ reviewer isn't staring at a blank pane wondering whether the renderer
 broke. The flag is `data-diff-empty="true"` on the editor root for BDD
 selectors.
 
-## Compare current with predecessor (Phase 4.3)
+## Compare current with predecessor
 
 The reviewer can also view the diff between the current (boot) version and
 its predecessor without first navigating to a historical row. The History
@@ -178,7 +179,7 @@ selections, and `Back to editing` exits.
 - Sidebar testids: `compare-with-previous` (off) and
   `compare-back-to-editing` (on).
 
-## Drift detection (Phase 4.3)
+## Drift detection
 
 When a draft authored against version N is re-hydrated against a newer
 boot version, the captured anchor text may no longer match the current
@@ -197,20 +198,20 @@ plan. The walker now detects this:
   the entry's `drifted: true` flag is set; the sidebar projection
   surfaces a destructive `drifted` badge
   (`sidebar-entry-<id>-drift`).
-- Back-compat: drafts persisted before Phase 4.3 lack the sidecar maps;
-  the walker emits no drift signal for them and `originalText` is
-  reconstructed from the live leaves (the prior behavior).
+- Back-compat: drafts persisted by older viewer builds lack the sidecar
+  maps; the walker emits no drift signal for them and `originalText` is
+  reconstructed from the live leaves.
 - Drift never affects serialization — only the sidebar UI — because
   `originalText` is still emitted as the second tuple element in the
   C / D tuples. Drifted entries serialize identically; the reviewer just
   knows their snapshot diverged from what's on screen.
 
-## `POST /api/plan/vscode-diff` (Phase 4.3)
+## `POST /api/plan/vscode-diff`
 
-Plannotator-compatible endpoint that spawns `code --diff <from> <to>` on
-the host. No in-app caller (the in-viewer diff is sufficient for human
-reviewers); the route exists for third-party agent integrations (VS Code
-/ Obsidian extensions that target symbiot's HTTP surface).
+Spawns `code --diff <from> <to>` on the host. No in-app caller (the
+in-viewer diff is sufficient for human reviewers); the route exists for
+third-party agent integrations (VS Code / Obsidian extensions that
+target symbiot's HTTP surface).
 
 ```
 POST /api/plan/vscode-diff
@@ -226,7 +227,7 @@ external editor's lifetime — same pattern as `openBrowser.ts`.
 
 ## Smoke flow
 
-See [`fixtures/plans/README.md`](../fixtures/plans/README.md) for the
+See [`fixtures/markdown/README.md`](../fixtures/markdown/README.md) for the
 end-to-end recipe. tl;dr: three boots, ending on the baseline so the
 revision sits one slot back in history, then click the revised row in the
 History tab to see all three diff op types simultaneously (insert, delete,
@@ -263,6 +264,5 @@ scenarios seed a draft directly under `~/.symbiot/drafts/...` in
 ## Cross-references
 
 - Architectural specials: [`./architecture.md`](./architecture.md)
-- Smoke fixtures + flow: [`../fixtures/plans/README.md`](../fixtures/plans/README.md)
-- PRD §11 (annotations across versions): [`../PRD.md`](../PRD.md)
-- Phase plan + status: [`../plans/04-versioning.md`](../plans/04-versioning.md)
+- Smoke fixtures + flow: [`../fixtures/markdown/README.md`](../fixtures/markdown/README.md)
+- Server contract overview: [`./server-contract.md`](./server-contract.md)

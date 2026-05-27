@@ -7,9 +7,9 @@ import { createAnnotationLeaf } from "./createAnnotationLeaf.tsx";
  * "replacement")`. The anchored original span renders with the `--anno-replace`
  * highlight so the reviewer can locate the span the suggestion targets. The
  * proposed `replacementText` is sidebar-only — it is never spliced into the
- * editor value. Per PRD §6.6, original and proposed are both visible: the
- * anchor stays readable in-context (`<mark>`, not `<del>`), and the sidebar
- * entry pairs the original primary line with the replacement body below it.
+ * editor value. Original and proposed are both visible: the anchor stays
+ * readable in-context (`<mark>`, not `<del>`), and the sidebar entry pairs
+ * the original primary line with the replacement body below it.
  */
 export const ReplacementLeaf = createAnnotationLeaf(
   "mark",

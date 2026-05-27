@@ -4,19 +4,34 @@ Claude Code plugin that intercepts plan-mode plans, forwards them to the
 embedded symbiot viewer for annotation, and returns the resolved markdown
 back to Claude Code.
 
+## Architecture
+
+```
+Claude Code
+  │ PreToolUse(ExitPlanMode)
+  ▼
+hooks/hooks.json  ──exec──▶  bin/symbiot (shim)
+                                │
+                                │ downloads + verifies SHA256
+                                ▼
+                             ${CLAUDE_PLUGIN_DATA}/bin/symbiot-<platform>
+                                │ runs the embedded viewer
+                                ▼
+                              apps/viewer  (HTTP server + UI)
+                                │ user reviews, annotates, decides
+                                ▼
+                           feedback markdown → stdout → Claude Code
+```
+
 This directory doubles as the **plugin root** (`${CLAUDE_PLUGIN_ROOT}`):
 
 - `.claude-plugin/plugin.json` — plugin manifest (name, version, repo).
-- `hooks/hooks.json` — registers `SessionStart`,
-  `PreToolUse(ExitPlanMode)`, and `PermissionRequest(ExitPlanMode)`,
-  each invoking `${CLAUDE_PLUGIN_ROOT}/bin/symbiot`.
-- `bin/symbiot` — POSIX shell shim that downloads + execs the
-  platform-specific binary from GitHub Releases.
+- `hooks/hooks.json` — registers `SessionStart`, `PreToolUse(ExitPlanMode)`, and `PermissionRequest(ExitPlanMode)`, each invoking `${CLAUDE_PLUGIN_ROOT}/bin/symbiot`.
+- `bin/symbiot` — POSIX shell shim that downloads and execs the platform-specific binary from GitHub Releases.
 - `bin/symbiot.cmd` — Windows counterpart.
-- `bin/VERSION`, `bin/SHA256SUMS` — the version + hash manifest the
-  shim verifies downloads against.
+- `bin/VERSION`, `bin/SHA256SUMS` — the version + hash manifest the shim verifies downloads against.
 
-## Install
+## Installation
 
 ```
 /plugin marketplace add awinogradov/symbiot
@@ -31,6 +46,19 @@ SHA256 against `bin/SHA256SUMS`.
 See [`docs/release.md`](../../docs/release.md) for the release flow and
 the offline-install path.
 
+## Usage
+
+Once installed, the hook is automatic — exit plan mode in Claude Code and
+the viewer opens in your browser. Approve to continue, or Request changes
+to send markdown feedback back to the agent.
+
+The CLI can also be invoked directly to annotate any markdown file outside
+the plan-mode flow:
+
+```sh
+bin/symbiot annotate path/to/document.md
+```
+
 ## Local development
 
 For contributors iterating on the source tree (no need to compile a
@@ -44,7 +72,7 @@ bun run hook:uninstall   # removes them
 This path requires `bun` on your PATH and runs the TypeScript source
 directly via `bun src/cli.ts run-hook`.
 
-## Build a binary locally
+### Build a binary locally
 
 ```sh
 bun run compile:darwin-arm64   # or :darwin-x64 / :linux-x64 / :windows-x64
@@ -58,7 +86,7 @@ The viewer must be built first (Turborepo handles this via
 bun --filter @symbiot/viewer build
 ```
 
-## Scripts
+### Scripts
 
 - `bun run build` — non-compiled JS bundle of the CLI (dev convenience).
 - `bun run compile:<triple>` — single-file binary for one platform.
@@ -66,3 +94,13 @@ bun --filter @symbiot/viewer build
 - `bun run typecheck` — `tsc --noEmit`.
 - `bun run lint` — `eslint . --max-warnings=0`.
 - `bun run test` — `vitest run --passWithNoTests`.
+
+## Documentation
+
+- [`docs/release.md`](../../docs/release.md) — release pipeline, shim/binary contract.
+- [`docs/server-contract.md`](../../docs/server-contract.md) — HTTP surface the hook talks to.
+- [`docs/architecture.md`](../../docs/architecture.md) — composition across apps and packages.
+
+## License
+
+MIT — see the root [`LICENSE.md`](../../LICENSE.md).

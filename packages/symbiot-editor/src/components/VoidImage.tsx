@@ -16,7 +16,7 @@ interface VoidImageProps {
  * `HrElement`: wrap in a block so the void HTML `<img>` doesn't try to receive
  * Slate's zero-width text child. Source URLs come either from `remark-gfm`
  * deserialize of `![alt](url)` syntax or from `/api/upload` UUIDs threaded
- * into the editor by the composer image-attach flow (Phase 3.3).
+ * into the editor by the composer image-attach flow.
  */
 export const VoidImage = ({
   attributes,

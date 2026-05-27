@@ -12,14 +12,14 @@ export interface SourceWindow {
   commentBodies: Map<string, string>;
   commentImages: Map<string, string[]>;
   globalComments: GlobalCommentEntry[];
-  /** Sidecar maps captured at annotation creation; drive drift detection in the walker. Phase 4.3. */
+  /** Sidecar maps captured at annotation creation; drive drift detection in the walker. */
   commentOriginalTexts?: Map<string, string>;
   suggestionOriginalTexts?: Map<string, string>;
-  /** Per-insertion proposed text + image refs + anchor snapshot (Phase 5.2). */
+  /** Per-insertion proposed text + image refs + anchor snapshot. */
   insertionNewTexts?: Map<string, string>;
   insertionImages?: Map<string, string[]>;
   insertionOriginalTexts?: Map<string, string>;
-  /** Per-replacement proposed text + image refs + anchor snapshot (Phase 5.3). */
+  /** Per-replacement proposed text + image refs + anchor snapshot. */
   replacementTexts?: Map<string, string>;
   replacementImages?: Map<string, string[]>;
   replacementOriginalTexts?: Map<string, string>;
@@ -29,7 +29,7 @@ type SidebarKind = AnnotationSidebarEntry["kind"];
 type SupportedEntry = Extract<AnnotationEntry, { kind: SidebarKind }>;
 
 // Narrows a walked entry to the five sidebar-renderable kinds: Comment,
-// Deletion, Global (Phase 3), Insertion (Phase 5.2), Replacement (Phase 5.3).
+// Deletion, Global, Insertion, Replacement.
 const isSupportedSidebarEntry = (entry: AnnotationEntry): entry is SupportedEntry =>
   entry.kind === "comment" ||
   entry.kind === "deletion" ||

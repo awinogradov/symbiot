@@ -34,10 +34,10 @@ export interface VersionState {
   /** Diff render mode for the History tab toggle. Persisted per browser. */
   diffMode: DiffMode;
   /**
-   * Phase 4.3. When true AND the reviewer is on the boot version with a
-   * predecessor available, the editor pane renders a read-only diff overlay
-   * (current vs predecessor) instead of the editable editor. Auto-resets on
-   * version switch so a stale `true` can't bleed across selections.
+   * When true AND the reviewer is on the boot version with a predecessor
+   * available, the editor pane renders a read-only diff overlay (current vs
+   * predecessor) instead of the editable editor. Auto-resets on version
+   * switch so a stale `true` can't bleed across selections.
    */
   compareWithPredecessor: boolean;
   /** Switch the editor to a previously persisted version. */
@@ -65,8 +65,6 @@ const findPredecessorInIndex = (
  * `GET /api/plan/version?n=N`. `previousPlan` is fetched lazily whenever
  * `activeVersion` changes so the diff editor has both sides available.
  *
- * Drift detection across versions (mapping prior annotations onto the newly
- * rendered text) lands in Phase 4.3.
  */
 export const useVersionState = (plan: PlanResponse): VersionState => {
   const [versions, setVersions] = useState<number[]>([plan.meta.version]);

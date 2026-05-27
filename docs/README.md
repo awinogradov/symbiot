@@ -5,23 +5,28 @@ sources; cross-cutting design notes live here.
 
 | Doc                                          | What it covers                                                                                                                                                                                                          |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`product.md`](./product.md)                 | Product goals, non-goals, personas, principles, NFRs, success metrics.                                                                                                                                                  |
 | [`architecture.md`](./architecture.md)       | App composition, package layering, HTTP surface, monorepo invariants, and the "architectural specials" — non-obvious decisions easy to break by accident.                                                               |
+| [`server-contract.md`](./server-contract.md) | HTTP surface between the agent hook and the viewer: routes, modes, request/response shapes.                                                                                                                             |
 | [`theming.md`](./theming.md)                 | Annotation color tokens — chosen OKLCH values, hex equivalents, contrast ratios against `--background`, and the WCAG 2.1 methodology used to verify them.                                                               |
 | [`a11y.md`](./a11y.md)                       | WCAG AA accessibility — axe-core scenarios, keyboard-nav checklist, focus-ring policy, ARIA-label inventory, screen-reader smoke, and AA-contrast cross-reference.                                                      |
+| [`perf.md`](./perf.md)                       | Performance budget, bundle visualizer, and the Lighthouse reproduction procedure.                                                                                                                                       |
 | [`version-history.md`](./version-history.md) | On-disk version layout, `/api/plan/version[s]` endpoints, History sidebar tab, read-only `DiffEditor`, Clean / Raw toggle, drift detection sidecars, predecessor-diff overlay, `vscode-diff` endpoint, smoke-test flow. |
+| [`release.md`](./release.md)                 | Release pipeline, hook shim ↔ binary contract, cut and rollback procedure.                                                                                                                                              |
 
 Higher-level material lives at the repo root:
 
-- [`../PRD.md`](../PRD.md) — product requirements.
 - [`../CLAUDE.md`](../CLAUDE.md) — naming, lint, post-task checks, AI-assistant workflow.
-- [`../plans/README.md`](../plans/README.md) — phase ledger (status, scope, goals).
+- [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — contribution rules, commit and branch conventions.
 
 Per-area READMEs (each one cites the docs above where relevant):
 
 - [`../apps/viewer/README.md`](../apps/viewer/README.md)
 - [`../apps/hook/README.md`](../apps/hook/README.md)
+- [`../apps/portal/README.md`](../apps/portal/README.md)
 - [`../packages/symbiot-editor/README.md`](../packages/symbiot-editor/README.md)
 - [`../packages/symbiot-ui/README.md`](../packages/symbiot-ui/README.md)
 - [`../packages/symbiot-annotations/README.md`](../packages/symbiot-annotations/README.md)
-- [`../fixtures/plans/README.md`](../fixtures/plans/README.md) — smoke fixtures + diff smoke flow.
+- [`../fixtures/markdown/README.md`](../fixtures/markdown/README.md) — sample markdown fixtures + smoke-test flow.
+- [`../fixtures/golden/README.md`](../fixtures/golden/README.md) — annotation-serializer byte-equality regression fixtures.
 - [`../features/README.md`](../features/README.md) — Playwright-BDD harness.

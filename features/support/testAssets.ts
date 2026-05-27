@@ -14,5 +14,5 @@ export const transparentPng = (): Buffer =>
 /** Project slug used by the smoke / e2e fixture plan. */
 export const fixtureProjectSlug = "symbiot";
 
-/** Plan slug derived from `fixtures/plans/elements.md`'s first H1. */
+/** Slug derived from `fixtures/markdown/elements.md`'s first H1. */
 export const fixturePlanSlug = "example-plan-with-every-supported-markdown-element";

@@ -24,7 +24,7 @@ bun run perf
 # → perf-reports/lighthouse-viewer.json
 ```
 
-`scripts/perf-lighthouse.ts` spawns the viewer server from source (`apps/viewer/src/bin.ts`) against the freshly built static client (`apps/viewer/dist/client/index.html`) on a free localhost port with `--plan fixtures/plans/elements.md --no-open --keep-alive`, launches headless Chrome via `chrome-launcher`, and runs Lighthouse against it for the `performance` + `accessibility` categories. Headline scores (Performance, Accessibility, LCP, TBT, CLS, TTI) are printed to stdout; the full report lands in `perf-reports/lighthouse-viewer.json` and is git-ignored.
+`scripts/perf-lighthouse.ts` spawns the viewer server from source (`apps/viewer/src/bin.ts`) against the freshly built static client (`apps/viewer/dist/client/index.html`) on a free localhost port with `--plan fixtures/markdown/elements.md --no-open --keep-alive`, launches headless Chrome via `chrome-launcher`, and runs Lighthouse against it for the `performance` + `accessibility` categories. Headline scores (Performance, Accessibility, LCP, TBT, CLS, TTI) are printed to stdout; the full report lands in `perf-reports/lighthouse-viewer.json` and is git-ignored.
 
 The spawned viewer's `HOME` is redirected to an ephemeral temp directory for the run and removed afterwards, so repeated `bun run perf` calls do not pollute your real `~/.symbiot/` plan-history store. The script returns exit 0 regardless of the scores — this is a reporting tool, not a CI gate. A hard-fail-on-regression gate is a follow-up.
 
@@ -32,24 +32,24 @@ The spawned viewer's `HOME` is redirected to an ephemeral temp directory for the
 
 ## Baseline
 
-Captured 2026-05-24 against `fixtures/plans/elements.md` (~1 KB markdown) on commit `b3dc798` of `main`.
+Captured 2026-05-24 against `fixtures/markdown/elements.md` (~1 KB markdown) on commit `b3dc798` of `main`.
 
 - **Bundle** (viewer single-file HTML, `apps/viewer/dist/client/index.html`):
   - **3,396.5 KB raw · 857.2 KB gzipped · 602.5 KB brotli**
   - Treemap source of truth: `apps/viewer/bundle-stats/index.html`
 - **Lighthouse** (default mobile profile, simulated Slow 4G + 4× CPU):
-  - **Performance: 39** — below the ≥ 90 target. Expected for the pre-tuned bundle (no editor lazy-load, no highlight-language code-split yet — both Phase 8 tasks).
+  - **Performance: 39** — below the ≥ 90 target. Expected for the current bundle (no editor lazy-load, no highlight-language code-split yet).
   - **Accessibility: 100** — already above the ≥ 95 target.
   - LCP: 18,350 ms · TBT: 642 ms · CLS: 0.000 · TTI: 18,728 ms
 
-The spike (`plans/00-spike.md`) recorded 1,144.9 KB minified / 350.82 KB gzipped outside the monorepo with no code-splitting and a minimal scaffold. The in-repo viewer is heavier because it includes the full editor (Plate kits), shadcn UI, history/diff/share/theming code, etc. Phase 8 tuning (lazy-load editor, code-split highlight languages, tree-shake unused Plate kits) is what closes the gap to NFR-1.
+The full viewer ships Plate kits, shadcn UI, history/diff/share/theming code, etc. Closing the gap to NFR-1 requires editor lazy-loading, code-splitting highlight languages, and tree-shaking unused Plate kits.
 
 ## Deferred
 
 - **`apps/portal` bundle-analyze.** Portal is currently a stub (`build: "echo 'no build yet'"`, single empty `src/index.ts`). Wiring a visualizer there would install a dead devDep on a workspace with no Vite app. Pick this back up once the portal app actually bootstraps.
-- **CI gate on regression.** Issue #55 explicitly scoped out a hard CI fail on score regression; baseline reporting first, gate decision later.
+- **CI gate on regression.** Baseline reporting first; a hard CI fail on score regression is tracked separately.
 
 ## See also
 
-- [`plans/08-hardening.md`](../plans/08-hardening.md) — the parent perf/a11y/CI plan that this tooling unlocks.
-- [`plans/00-spike.md`](../plans/00-spike.md) — original 350.82 KB gzipped baseline measurement.
+- [`product.md`](./product.md) — NFR-1 bundle/perf budget.
+- [`architecture.md`](./architecture.md) — viewer bundling and the single-file HTML constraint.

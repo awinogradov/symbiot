@@ -1,7 +1,7 @@
 Feature: Suggest a replacement
   The reviewer selects text, clicks Replace, types the replacement into the
   popover composer, saves, then Requests changes. The recorded feedback markdown
-  uses the Phase 5.1 "Suggest replacing"/"Replace with:" form for the R tuple.
+  uses the "Suggest replacing"/"Replace with:" form for the R tuple.
 
   Scenario: Drop a replacement via the popover composer
     Given I open the viewer

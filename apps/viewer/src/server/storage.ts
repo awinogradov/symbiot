@@ -11,8 +11,6 @@ import type { PlanMeta } from "../shared/apiTypes.ts";
  * Computed per call from `process.env.HOME` so tests can redirect to a tmpdir
  * by mutating `HOME` and re-importing — necessary under Bun, where
  * `os.homedir()` is captured once at runtime startup.
- *
- * @see plans/02-mvp.md — storage layout for the MVP plan-review loop.
  */
 export const getStorageRoot = (): string => join(process.env.HOME || homedir(), ".symbiot");
 

@@ -127,8 +127,7 @@ export const isFreshFor = (marker: ApproveMarker, planHash: string, now: number)
 // is currently silently ignored for ExitPlanMode in Claude Code, so this
 // PreToolUse payload is a no-op at runtime until upstream ships the fix.
 // The PermissionRequest hook below uses the nested decision.behavior
-// schema (also Anthropic-documented) which IS honored for ExitPlanMode —
-// see backnotprop/plannotator's shipped hook for confirmation.
+// schema (also Anthropic-documented) which IS honored for ExitPlanMode.
 const emitApproveDecision = (): void => {
   const payload = {
     hookSpecificOutput: {
@@ -148,11 +147,10 @@ const emitDenyDecision = (feedback: string): void => {
   process.stdout.write(JSON.stringify(payload));
 };
 
-// PermissionRequest uses a different output schema from PreToolUse:
-// the nested {decision: {behavior: "allow|deny"}} shape — NOT
-// `permissionDecision: "allow|deny|ask"`. The plannotator project ships
-// the same schema, confirming Claude Code honors this form for the
-// ExitPlanMode matcher (the symbiot#1 binary-inspection note that
+// PermissionRequest uses a different output schema from PreToolUse: the
+// nested {decision: {behavior: "allow|deny"}} shape — NOT
+// `permissionDecision: "allow|deny|ask"`. Claude Code honors this form for
+// the ExitPlanMode matcher (the symbiot#1 binary-inspection note that
 // claimed otherwise was misread).
 const emitPermissionRequestAllow = (): void => {
   const payload = {

@@ -6,8 +6,8 @@
  * under `localStorage["symbiot.theme"]`. `"system"` is never persisted —
  * choosing it clears the key, so the next mount falls back to `defaultTheme`.
  *
- * Phase 7.2 will add an inline pre-paint script to eliminate the
- * first-frame FOUC documented at the `useEffect` apply site.
+ * First-frame FOUC is documented at the `useEffect` apply site; eliminating
+ * it requires an inline pre-paint script that sets `.dark` before render.
  */
 import {
   createContext,
@@ -127,7 +127,7 @@ export const ThemeProvider = ({
     setTheme(next);
   }, []);
 
-  // FOUC on initial mount is intentional until Phase 7.2 ships the
+  // FOUC on initial mount is intentional — eliminating it requires an
   // inline pre-paint script that sets `.dark` before first render.
   useEffect(() => {
     applyTheme(resolveTheme(theme));

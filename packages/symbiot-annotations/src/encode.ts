@@ -23,9 +23,8 @@ const encodeOne = (entry: AnnotationEntry): AnnotationTuple =>
   (encoders[entry.kind] as (e: AnnotationEntry) => AnnotationTuple)(entry);
 
 /**
- * Encode a list of walked annotations into their compact tuple forms. C / G /
- * D are plannotator-compatible; I / R are symbiot-only extensions. Order is
- * preserved so callers can rely on document-order semantics for anchored
+ * Encode a list of walked annotations into their compact tuple forms. Order
+ * is preserved so callers can rely on document-order semantics for anchored
  * entries and append-order for Global Comments.
  */
 export const encodeAnnotations = (entries: AnnotationEntry[]): AnnotationTuple[] =>

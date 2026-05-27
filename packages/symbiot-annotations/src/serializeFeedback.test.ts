@@ -15,7 +15,7 @@ describe("serializeFeedback", () => {
     expect(serializeFeedback([])).toBe("No changes detected.");
   });
 
-  it("emits the plannotator Comment format", () => {
+  it("emits the canonical Comment format", () => {
     const entries: CommentEntry[] = [
       { id: "abc", originalText: "the quick brown fox", body: "Should this be a wolf?" },
     ];
@@ -25,8 +25,8 @@ describe("serializeFeedback", () => {
     expect(out).toContain("> Should this be a wolf?");
   });
 
-  it("matches the captured plannotator reference fixture (M2 byte-equality)", async () => {
-    const expected = await loadFixture("plannotator-reference/comment.md");
+  it("matches the captured comment golden fixture byte-for-byte", async () => {
+    const expected = await loadFixture("golden/comment.md");
     const entries: CommentEntry[] = [
       {
         id: "fixture-comment",
@@ -39,7 +39,7 @@ describe("serializeFeedback", () => {
   });
 
   it("matches the synthesized deletion fixture (byte-equality)", async () => {
-    const expected = await loadFixture("plannotator-reference/deletion.md");
+    const expected = await loadFixture("golden/deletion.md");
     const entries: AnnotationEntry[] = [
       { kind: "deletion", id: "1", originalText: "redundant clause" },
     ];
@@ -47,7 +47,7 @@ describe("serializeFeedback", () => {
   });
 
   it("matches the synthesized global-comment fixture (byte-equality)", async () => {
-    const expected = await loadFixture("plannotator-reference/global-comment.md");
+    const expected = await loadFixture("golden/global-comment.md");
     const entries: AnnotationEntry[] = [
       { kind: "global", id: "1", body: "overall this looks great" },
     ];
@@ -55,7 +55,7 @@ describe("serializeFeedback", () => {
   });
 
   it("matches the synthesized mixed fixture (C+D+G byte-equality)", async () => {
-    const expected = await loadFixture("plannotator-reference/mixed.md");
+    const expected = await loadFixture("golden/mixed.md");
     const entries: AnnotationEntry[] = [
       {
         kind: "comment",
@@ -70,7 +70,7 @@ describe("serializeFeedback", () => {
   });
 
   it("matches the synthesized insertion fixture (byte-equality)", async () => {
-    const expected = await loadFixture("plannotator-reference/insertion.md");
+    const expected = await loadFixture("golden/insertion.md");
     const entries: AnnotationEntry[] = [
       {
         kind: "insertion",
@@ -83,7 +83,7 @@ describe("serializeFeedback", () => {
   });
 
   it("matches the synthesized replacement fixture (byte-equality)", async () => {
-    const expected = await loadFixture("plannotator-reference/replacement.md");
+    const expected = await loadFixture("golden/replacement.md");
     const entries: AnnotationEntry[] = [
       {
         kind: "replacement",
@@ -170,7 +170,7 @@ describe("serializeFeedback", () => {
   });
 
   it("emits no image lines when images is undefined or empty (parity with no-images fixture)", async () => {
-    const expected = await loadFixture("plannotator-reference/comment.md");
+    const expected = await loadFixture("golden/comment.md");
     const entriesUndef: AnnotationEntry[] = [
       {
         kind: "comment",
@@ -222,7 +222,7 @@ const loadFixture = async (relativePath: string): Promise<string> => {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw new Error(
-        `Missing fixture ${relativePath}. Capture it per plans/02-mvp.md §7 before running this test.`,
+        `Missing fixture ${relativePath} under fixtures/. Run the serializer and copy the actual output into the fixture to update it intentionally.`,
         { cause: error }
       );
     }

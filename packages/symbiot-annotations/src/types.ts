@@ -1,10 +1,6 @@
 /**
- * Compact tuple wire format (PRD §14 / plannotator parity contract).
- *
- * Phase 2 shipped `['C', …]` only. Phase 3 adds `['G', …]` (Global Comment) and
- * `['D', …]` (Deletion) for full plannotator interop. Phase 5.1 adds
- * `['I', …]` (Insertion) and `['R', …]` (Replacement) as symbiot-only
- * extensions beyond the plannotator-compatible tuple set.
+ * Compact tuple wire format for annotations. Each tuple type maps to one
+ * annotation kind on the wire; the serializer/walker pair owns the round-trip.
  */
 export type CommentTuple = ["C", string, string, string?, string[]?];
 export type GlobalCommentTuple = ["G", string, string?, string[]?];
@@ -36,7 +32,7 @@ export interface CommentEntry {
   /**
    * `true` when the captured `originalText` no longer matches the live anchor
    * AND can't be re-located in the value via text-quote fallback. Set by the
-   * walker when an `originalText` sidecar map is supplied. Phase 4.3.
+   * walker when an `originalText` sidecar map is supplied.
    */
   drifted?: boolean;
 }
@@ -56,14 +52,14 @@ export interface DeletionEntry {
   author?: string;
   images?: string[];
   lines?: BlockLines;
-  /** See {@link CommentEntry.drifted}. Phase 4.3. */
+  /** See {@link CommentEntry.drifted}. */
   drifted?: boolean;
 }
 
 /**
  * Suggested insertion of new text after an anchored context span. The
  * `contextText` snapshot is the anchor (resolved via dual-anchor under drift);
- * `newText` is the proposed insertion. Symbiot-only — no plannotator parity.
+ * `newText` is the proposed insertion.
  */
 export interface InsertionEntry {
   id: string;
@@ -72,14 +68,13 @@ export interface InsertionEntry {
   author?: string;
   images?: string[];
   lines?: BlockLines;
-  /** See {@link CommentEntry.drifted}. Phase 5.1 (drift logic from Phase 4.3). */
+  /** See {@link CommentEntry.drifted}. */
   drifted?: boolean;
 }
 
 /**
  * Suggested replacement of an anchored span with new text. The `originalText`
  * snapshot is the anchor; `replacementText` is the proposed substitution.
- * Symbiot-only — no plannotator parity.
  */
 export interface ReplacementEntry {
   id: string;
@@ -100,7 +95,7 @@ export type AnnotationEntry =
   | ({ kind: "insertion" } & InsertionEntry)
   | ({ kind: "replacement" } & ReplacementEntry);
 
-/** Convert a CommentEntry into its compact tuple form (plannotator parity). */
+/** Convert a CommentEntry into its compact tuple form. */
 export const toCommentTuple = (entry: CommentEntry): CommentTuple => {
   if (entry.images !== undefined)
     return ["C", entry.originalText, entry.body, entry.author ?? "", entry.images];
@@ -123,10 +118,7 @@ export const toDeletionTuple = (entry: DeletionEntry): DeletionTuple => {
   return ["D", entry.originalText];
 };
 
-/**
- * Convert an InsertionEntry into its compact tuple form. Symbiot-only — not
- * plannotator-compatible.
- */
+/** Convert an InsertionEntry into its compact tuple form. */
 export const toInsertionTuple = (entry: InsertionEntry): InsertionTuple => {
   if (entry.images !== undefined)
     return ["I", entry.contextText, entry.newText, entry.author ?? "", entry.images];
@@ -134,10 +126,7 @@ export const toInsertionTuple = (entry: InsertionEntry): InsertionTuple => {
   return ["I", entry.contextText, entry.newText];
 };
 
-/**
- * Convert a ReplacementEntry into its compact tuple form. Symbiot-only — not
- * plannotator-compatible.
- */
+/** Convert a ReplacementEntry into its compact tuple form. */
 export const toReplacementTuple = (entry: ReplacementEntry): ReplacementTuple => {
   if (entry.images !== undefined)
     return ["R", entry.originalText, entry.replacementText, entry.author ?? "", entry.images];

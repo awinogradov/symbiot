@@ -3,7 +3,7 @@
  *
  * Spawns the viewer server (`apps/viewer/src/bin.ts`) against the built
  * client (`apps/viewer/dist/client/index.html`) on a free localhost port,
- * pointed at the reference plan (`fixtures/plans/elements.md`, <50KB), then
+ * pointed at the reference fixture (`fixtures/markdown/elements.md`, <50KB), then
  * runs Lighthouse via `chrome-launcher` + `lighthouse` under the default
  * mobile profile (simulated Slow 4G + 4× CPU throttling) and writes a JSON
  * report to `perf-reports/lighthouse-viewer.json`. Prints headline
@@ -36,7 +36,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // preceding `vite build` to have produced `dist/client/index.html`.
 const viewerSrc = resolve(repoRoot, "apps/viewer/src/bin.ts");
 const viewerDistClient = resolve(repoRoot, "apps/viewer/dist/client/index.html");
-const planFixture = resolve(repoRoot, "fixtures/plans/elements.md");
+const planFixture = resolve(repoRoot, "fixtures/markdown/elements.md");
 const reportDir = resolve(repoRoot, "perf-reports");
 const reportPath = resolve(reportDir, "lighthouse-viewer.json");
 const startupTimeoutMs = 10_000;

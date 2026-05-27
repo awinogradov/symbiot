@@ -32,9 +32,9 @@ interface AnnotationSidebarProps {
   /** Called when the reviewer flips Clean ↔ Raw. */
   onDiffModeChange: (mode: SidebarDiffMode) => void;
   /**
-   * Phase 4.3. When `true`, render a button that flips the editor pane into
-   * a read-only diff overlay of "current vs predecessor". Host gates this on
-   * "active version is the boot version AND a predecessor exists".
+   * When `true`, render a button that flips the editor pane into a read-only
+   * diff overlay of "current vs predecessor". Host gates this on "active
+   * version is the boot version AND a predecessor exists".
    */
   canCompareWithPredecessor: boolean;
   /** Whether the predecessor-diff overlay is currently active. */

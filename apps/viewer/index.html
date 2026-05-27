@@ -10,7 +10,7 @@
     <!--
       Pre-paint theme resolution. Must stay inline and synchronous (no defer/async/type=module)
       so the first painted frame already reflects the resolved theme — prevents FOUC on dark OS.
-      The `symbiot.theme` localStorage key contract is owned by Phase 7.1 (#49).
+      The `symbiot.theme` localStorage key is the persistence contract — see packages/symbiot-ui/src/components/ThemeProvider.tsx.
     -->
     <script>try{var t=localStorage.getItem('symbiot.theme');var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}</script>
   </head>
