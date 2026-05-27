@@ -1,6 +1,23 @@
 import { expect } from "@playwright/test";
 
-import { When, Then } from "../support/bdd.ts";
+import { Given, When, Then } from "../support/bdd.ts";
+
+Given("the draft endpoint always returns 500", async ({ page }) => {
+  // Intercept GET /api/draft and reply 500 so the load goes down the catch
+  // path in useCancelledFetch (with onRejected supplied) and the error
+  // callback in useDraft runs.
+  await page.route("**/api/draft", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ status: 500, body: "boom" });
+      return;
+    }
+    await route.continue();
+  });
+});
+
+Then("the editor is still visible", async ({ page }) => {
+  await expect(page.getByTestId("editor-root")).toBeVisible();
+});
 
 When("I reload the page", async ({ page }) => {
   await page.reload();
