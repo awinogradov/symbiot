@@ -23,7 +23,7 @@ features/
 
 Naming: `features/<area>/<behavior>.feature`. Areas correspond to
 user-facing surfaces: `plan-review/`, `markdown/`, `annotate/`, `server/`,
-`a11y/`, `settings/`.
+`a11y/`, `settings/`, `diagnostics/`.
 
 ## Conventions (enforced by review)
 
