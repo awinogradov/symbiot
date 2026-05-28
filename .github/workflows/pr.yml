@@ -51,6 +51,19 @@ jobs:
       - name: Format check
         run: bun run format:check
 
+      - name: Ban time-based waits in features
+        shell: bash
+        run: |
+          set -euo pipefail
+          feature_hits=$(grep -rEn '^\s*(And |Given |When |Then )?I (wait|pause|sleep)( |$)' features/ --include='*.feature' || true)
+          ts_hits=$(grep -rEn 'waitForTimeout\(|(^|[^.])setTimeout\(' features/ --include='*.ts' || true)
+          if [[ -n "$feature_hits" || -n "$ts_hits" ]]; then
+            echo "::error::Time-based waits found in features/ (issue #131). Wait on selectors, assertions, or page.waitForFunction. See features/README.md."
+            [[ -n "$feature_hits" ]] && echo "$feature_hits"
+            [[ -n "$ts_hits" ]] && echo "$ts_hits"
+            exit 1
+          fi
+
       - name: Lint check
         run: bun run lint
 
