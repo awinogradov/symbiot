@@ -20,32 +20,12 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect } from "@playwright/test";
 
 import { Given, Then } from "../support/bdd.ts";
+import { browserSelect } from "../support/browserSelect.ts";
 
 type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
 
 const annotationFixtureText = "quick brown fox";
 const annotationFixtureBody = "a11y baseline";
-
-// eslint-disable-next-line complexity -- runs in browser context, must be self-contained for page.evaluate
-const browserSelect = (text: string): void => {
-  const root = document.querySelector('[data-testid="editor-root"]');
-  if (root === null) throw new Error("editor-root not found");
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let hit: { node: Text; offset: number } | null = null;
-  let node = walker.nextNode();
-  while (node !== null && hit === null) {
-    const offset = (node.textContent ?? "").indexOf(text);
-    if (offset >= 0) hit = { node: node as Text, offset };
-    node = walker.nextNode();
-  }
-  if (hit === null) throw new Error(`Text "${text}" not found in editor`);
-  const range = document.createRange();
-  range.setStart(hit.node, hit.offset);
-  range.setEnd(hit.node, hit.offset + text.length);
-  const sel = window.getSelection();
-  sel?.removeAllRanges();
-  sel?.addRange(range);
-};
 
 const formatViolations = (violations: AxeViolation[]): string =>
   violations.length === 0
