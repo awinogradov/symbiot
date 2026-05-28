@@ -52,6 +52,51 @@ Radix-based components depend on `ResizeObserver`, `matchMedia`, `scrollIntoView
 
 Run via `bun run coverage` — never `bun test`, which invokes Bun's own runner and does not understand the vitest pragma.
 
+## Playwright-BDD selectors
+
+End-to-end step files in `features/steps/` MUST select elements via
+`data-testid="<kebab-case>"`. Never class names, text content, role names,
+tag names, or framework-internal attributes (`data-slate-*`, `data-radix-*`,
+`data-slot=*`).
+
+### Naming
+
+Area-prefixed kebab-case. The prefix matches a feature directory under
+`features/<area>/` (current set: `plan-review`, `markdown`, `annotate`,
+`server`, `a11y`, `settings`) or a UI surface (`editor-*`, `top-bar-*`,
+`sidebar-*`, `image-preview-*`, `composer-*`, `settings-*`).
+
+Dynamic identifiers follow `<base>-<id>` for entity-keyed elements
+(`sidebar-entry-<id>`) and `<base>-<id>-<action>` for per-entity actions
+(`image-preview-remove-<ref>`, `sidebar-entry-<id>-remove`). The ARIA-label
+inventory in [`a11y.md`](./a11y.md) doubles as a partial testid catalog.
+
+### Placement
+
+Stamp `data-testid` on the interactive element itself, not a wrapper —
+Radix's portaling can otherwise hide the target inside another DOM subtree.
+For Plate element renderers, place the testid AFTER the `{...attributes}`
+spread so it wins over any Slate-internal value
+(see `packages/symbiot-editor/src/components/CodeBlockElement.tsx` for the
+canonical pattern).
+
+### Why
+
+Class names rename, text content changes with copy edits, framework-internal
+attributes shift across upstream releases — only `data-testid` stays stable
+across those. Co-locating the testid with the component keeps test breakage
+co-localized too: a renamed component breaks its own tests, not a sibling.
+
+### Known legacy exceptions
+
+A handful of pre-existing step files still use tag/class selectors — the
+remaining magic-selector lines in `features/steps/markdown.steps.ts`, plus
+selector usages in `sidebar.steps.ts`, `versionHistory.steps.ts`,
+`a11y.steps.ts`, `draft.steps.ts`, `selection.steps.ts`, and
+`settings.steps.ts`. New code MUST follow this rule; cleanup of those legacy
+usages is opportunistic. An ESLint rule to auto-enforce the convention is
+a separate follow-up.
+
 ## PR comments
 
 Every PR run posts two distinct sticky comments. Each comment is keyed by its own sticky marker, updates in place on every push, and posts via `if: always()` so reviewers see the number even when the underlying threshold gate fails. Both comments share the same layout (the `davelosert` action renders both) — only the `name:` and the per-source data differ.
