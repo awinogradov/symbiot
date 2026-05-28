@@ -27,7 +27,7 @@ user-facing surfaces: `plan-review/`, `markdown/`, `annotate/`, `server/`,
 
 ## Conventions (enforced by review)
 
-- **Selectors are `data-testid="<kebab-case>"` only.** Never select by class, text content, or role. Every interactive component adds its own testids.
+- **Selectors are `data-testid` only** — full rule, naming, and placement live in [docs/testing.md § Playwright-BDD selectors](../docs/testing.md#playwright-bdd-selectors). Every interactive component adds its own testids.
 - **Step helpers are pure functions.** No class state, no shared mutable singletons. Pass everything through arguments or the `world.ts` constants.
 - **ES module imports require `.ts` extensions** (per `tsconfig.json`). The harness runs under Bun.
 - **One concept per scenario.** Don't pile assertions; if you need a second behaviour, write a second scenario.
