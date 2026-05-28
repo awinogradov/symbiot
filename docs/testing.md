@@ -63,13 +63,25 @@ tag names, or framework-internal attributes (`data-slate-*`, `data-radix-*`,
 
 Area-prefixed kebab-case. The prefix matches a feature directory under
 `features/<area>/` (current set: `plan-review`, `markdown`, `annotate`,
-`server`, `a11y`, `settings`) or a UI surface (`editor-*`, `top-bar-*`,
-`sidebar-*`, `image-preview-*`, `composer-*`, `settings-*`).
+`server`, `a11y`, `settings`, `diagnostics`) or a UI surface (`editor-*`,
+`top-bar-*`, `sidebar-*`, `image-preview-*`, `composer-*`, `settings-*`).
 
 Dynamic identifiers follow `<base>-<id>` for entity-keyed elements
 (`sidebar-entry-<id>`) and `<base>-<id>-<action>` for per-entity actions
 (`image-preview-remove-<ref>`, `sidebar-entry-<id>-remove`). The ARIA-label
 inventory in [`a11y.md`](./a11y.md) doubles as a partial testid catalog.
+
+### Combining with component state
+
+A `data-testid` selector MAY combine with a component's own data-state
+attribute when state is part of the selection — e.g.
+`[data-testid^="version-row-"][data-active="true"]` for "the active version
+row" or `[data-testid$="-remove"][data-sidebar="menu-action"]` for "the
+remove action on the Nth sidebar card". The testid MUST remain the primary
+selector; the state attribute MUST be one the component itself sets as its
+public API. Never combine with class names, text content, or
+framework-internal attributes (`data-slate-*`, `data-radix-*`,
+`data-slot=*`).
 
 ### Placement
 
@@ -89,13 +101,11 @@ co-localized too: a renamed component breaks its own tests, not a sibling.
 
 ### Known legacy exceptions
 
-A handful of pre-existing step files still use tag/class selectors — the
-remaining magic-selector lines in `features/steps/markdown.steps.ts`, plus
-selector usages in `sidebar.steps.ts`, `versionHistory.steps.ts`,
-`a11y.steps.ts`, `draft.steps.ts`, `selection.steps.ts`, and
-`settings.steps.ts`. New code MUST follow this rule; cleanup of those legacy
-usages is opportunistic. An ESLint rule to auto-enforce the convention is
-a separate follow-up.
+The `When("I wait {int} ms")` step in `features/steps/debugBar.steps.ts`
+is the last remaining magic-timing escape hatch — tracked in
+[#131](https://github.com/awinogradov/symbiot/issues/131) for replacement
+with a state-polling step. An ESLint rule to auto-enforce the
+`data-testid`-exclusively convention is a separate follow-up.
 
 ## PR comments
 
