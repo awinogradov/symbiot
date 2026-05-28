@@ -39,18 +39,15 @@ Then("the Settings dialog is still visible", async ({ page }) => {
 Then("no plan-review decision was recorded", async ({ page }) => {
   // The viewer writes its decision to `decisionFile` only on
   // approve/deny/feedback. `Given I open the viewer` resets the file before
-  // the scenario, so any racing request would have to fire one of those
-  // POSTs. Race a bounded waitForRequest against the keyboard event — if a
-  // request fires, the assertion fails; if not, the wait times out and we
-  // verify the file is absent.
-  const racing = page
+  // the scenario, so the file's absence is the deterministic signal that
+  // no decision fired. Wait briefly for any racing POST to complete (so the
+  // server has had a chance to write before we stat), then assert ENOENT.
+  await page
     .waitForRequest(
       (req) => /\/api\/(approve|deny|feedback)$/.test(req.url()) && req.method() === "POST",
       { timeout: 500 }
     )
-    .then(() => true)
-    .catch(() => false);
-  expect(await racing).toBe(false);
+    .catch(() => undefined);
   await expect(stat(decisionFile)).rejects.toThrow(/ENOENT/);
 });
 

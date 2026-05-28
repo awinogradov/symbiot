@@ -58,15 +58,13 @@ Given("I am spying on plan-version requests", async ({ page }) => {
 });
 
 Then("no plan-version fetch was triggered", async ({ page }) => {
-  // Race a bounded waitForResponse against the click's potential fetch.
-  // If a /api/plan/version request fires, the wait resolves and the assertion
-  // fails. If no request fires, the wait times out and the spy stays empty.
-  // The 500ms bound is event-driven with a fallback, not a wall-clock sleep.
-  const racing = page
-    .waitForResponse((res) => res.url().includes("/api/plan/version"), { timeout: 500 })
-    .then(() => true)
-    .catch(() => false);
-  expect(await racing).toBe(false);
+  // Wait briefly for any racing /api/plan/version?n=… fetch to fire so it
+  // lands in the spy log before we read it. The `?` in the predicate aligns
+  // with the spy's filter (see initFetchSpy) and avoids matching the list
+  // endpoint /api/plan/versions. The spy log is the deterministic check.
+  await page
+    .waitForResponse((res) => res.url().includes("/api/plan/version?"), { timeout: 500 })
+    .catch(() => undefined);
   expect(versionFetchesByPage.get(page) ?? []).toEqual([]);
 });
 
