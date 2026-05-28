@@ -44,10 +44,36 @@ Captured 2026-05-24 against `fixtures/markdown/elements.md` (~1 KB markdown) on 
 
 The full viewer ships Plate kits, shadcn UI, history/diff/share/theming code, etc. Closing the gap to NFR-1 requires editor lazy-loading, code-splitting highlight languages, and tree-shaking unused Plate kits.
 
+## Reporting
+
+`.github/workflows/perf.yml` runs on every PR (and on `push` to `main`), builds the viewer, runs the same `bundle-analyze` + `perf` scripts that you'd run locally, and posts a single sticky comment (`Perf` header) on the PR with bundle and Lighthouse deltas against the latest successful `main` snapshot. The workflow always exits `0` — regressions surface as commentary, not as a merge block. The hard-fail gate is deliberately deferred (see `Deferred` below).
+
+Conventions used in the comment, kept consistent so the numbers are stable to read across PRs:
+
+- **Bundle sizes** are in **KiB** (binary, 1024 bytes), one decimal place.
+- **Lighthouse timings** (LCP, TBT, TTI) are in **ms**, rounded to the nearest 10 ms once values exceed 1,000 ms (otherwise to 1 ms). CLS is shown to three decimals.
+- **Lighthouse scores** (Performance, Accessibility) render as 0-100 integers, matching how Lighthouse itself reports them.
+- **Noise floor.** A delta has to clear an absolute _and_ (where applicable) a relative threshold to count as a regression. Inside the floor the Δ column renders `≈ 0` rather than a signed number, so reviewers don't chase sub-noise variance. Initial bands (kept deliberately wide while we collect variance data):
+
+  | Metric                | Band                   |
+  | --------------------- | ---------------------- |
+  | Bundle (raw/gzip/br)  | ≥ 1 KiB **and** ≥ 5%   |
+  | LH Performance / A11y | ≥ 3 points             |
+  | LH LCP / TBT / TTI    | ≥ 200 ms **and** ≥ 10% |
+  | CLS                   | ≥ 0.01 absolute        |
+
+- **Variants the comment can be in:**
+  - _Within budget_ — every metric is inside the noise floor, or every delta moved in the favorable direction. This is the default.
+  - _Warning: N metric(s) regressed (no hard-fail yet)_ — at least one metric crossed its band in the unfavorable direction. A `**Regressions**` bullet list follows with each breached metric, old → new, the Δ, and the band it crossed.
+  - _No baseline available_ — the latest five successful `main` runs all lack a usable artifact (typical for the very first PR after this workflow merges). The head measurements still render; the Δ column shows `—` until the next `main` run uploads a baseline.
+  - _Lighthouse measurement failed_ — the LH step on the head run errored (Chrome flake, timeout, etc.). The bundle table still renders; the LH table is replaced by a single line pointing at the workflow log.
+
+The baseline SHA is shown verbatim in the summary line so reviewers can tell when the comparison is against a stale main (long-running branches will need a rebase to pick up newer baselines).
+
 ## Deferred
 
 - **`apps/portal` bundle-analyze.** Portal is currently a stub (`build: "echo 'no build yet'"`, single empty `src/index.ts`). Wiring a visualizer there would install a dead devDep on a workspace with no Vite app. Pick this back up once the portal app actually bootstraps.
-- **CI gate on regression.** Baseline reporting first; a hard CI fail on score regression is tracked separately.
+- **Hard-fail CI gate on regression.** The perf workflow now posts bundle and Lighthouse deltas on every PR; enabling a hard fail on score regression is a separate follow-up, gated on collecting baseline variance data (target: 4 weeks of main-branch runs).
 
 ## See also
 
