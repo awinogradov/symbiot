@@ -23,7 +23,12 @@ const ImagePreviewItem = ({ imageRef, onRemove }: ImagePreviewItemProps): React.
       data-testid={`image-preview-${imageRef}`}
       className="border-border bg-card relative h-16 w-16 overflow-hidden rounded border"
     >
-      <img src={buildImageUrl(imageRef)} alt="attached" className="h-full w-full object-cover" />
+      <img
+        src={buildImageUrl(imageRef)}
+        alt="attached"
+        data-testid="image-preview-img"
+        className="h-full w-full object-cover"
+      />
       <button
         type="button"
         data-testid={`image-preview-remove-${imageRef}`}

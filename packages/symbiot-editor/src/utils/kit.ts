@@ -21,6 +21,7 @@ import { CodeBlockElement } from "../components/CodeBlockElement.tsx";
 import { CommentLeaf } from "../components/CommentLeaf.tsx";
 import { SuggestionMarkPlugin } from "../components/DeletionLeaf.tsx";
 import { InsertionMarkPlugin } from "../components/InsertionLeaf.tsx";
+import { ParagraphElement } from "../components/ParagraphElement.tsx";
 import { ReplacementMarkPlugin } from "../components/ReplacementLeaf.tsx";
 import {
   TableCellElement,
@@ -52,13 +53,15 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
  *
  * `ParagraphPlugin` ships without a `render` config, so paragraph nodes fall
  * through to the default `<div>` — breaking semantic HTML and any `.prose p`
- * selector that depends on it. Configure it to render as `<p>`.
+ * selector that depends on it. Wrap it with `ParagraphElement` so paragraphs
+ * render as `<p>` AND expose `data-testid="editor-paragraph"` for the
+ * Playwright-BDD selector rule (`docs/testing.md#playwright-bdd-selectors`).
  */
 const symbiotBaseKit = [
   MarkdownWithGfm,
   SourceLinesPlugin,
   BasicBlocksPlugin,
-  ParagraphPlugin.configure({ render: { as: "p" } }),
+  ParagraphPlugin.withComponent(ParagraphElement),
   BasicMarksPlugin,
   HorizontalRulePlugin.withComponent(HrElement),
   CodeBlockPlugin.withComponent(CodeBlockElement),

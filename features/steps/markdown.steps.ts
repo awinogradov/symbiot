@@ -3,7 +3,7 @@ import { expect } from "@playwright/test";
 import { Then } from "../support/bdd.ts";
 
 Then("I see at least one rendered table", async ({ page }) => {
-  await expect(page.locator('[data-testid="editor-root"] table').first()).toBeVisible();
+  await expect(page.getByTestId("editor-table").first()).toBeVisible();
 });
 
 Then("I see at least one rendered list", async ({ page }) => {
