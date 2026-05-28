@@ -209,7 +209,9 @@ obsolete, delete the bullet rather than hedging it.
   one subdirectory per area (`plan-review/`, `markdown/`, `annotate/`,
   `server/`). Step helpers are **pure functions** — no module-level mutable
   scenario state. Selectors are `data-testid="<kebab-case>"` exclusively;
-  never class names or text content.
+  never class names or text content. Scenarios wait on selectors,
+  assertions, or `waitForFunction` — never on `waitForTimeout`/`setTimeout`.
+  Wall-clock waits flake under CI load and hide real regressions.
 - **Vitest tests are co-located with sources.** `*.test.ts(x)` next to the
   module under test.
 
