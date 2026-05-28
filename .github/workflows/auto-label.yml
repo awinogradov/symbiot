@@ -35,8 +35,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          members=$(jq -r 'select(.name) | .name' apps/*/package.json packages/*/package.json \
-            | sed 's/^@//' | sort -u)
+          members=$(
+            for f in apps/*/package.json packages/*/package.json; do
+              [[ -f "$f" ]] || continue
+              jq -r 'select(.name) | .name' "$f"
+            done | sed 's/^@//' | sort -u
+          )
 
           files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename')
 
@@ -118,8 +122,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          members=$(jq -r 'select(.name) | .name' apps/*/package.json packages/*/package.json \
-            | sed 's/^@//' | sort -u)
+          members=$(
+            for f in apps/*/package.json packages/*/package.json; do
+              [[ -f "$f" ]] || continue
+              jq -r 'select(.name) | .name' "$f"
+            done | sed 's/^@//' | sort -u
+          )
 
           existing=$(gh label list --limit 200 --json name --jq '.[].name' \
             | grep '^symbiot/' | sort -u || true)
