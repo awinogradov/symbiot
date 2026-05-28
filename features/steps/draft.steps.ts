@@ -38,8 +38,13 @@ Then("the editor is still visible", async ({ page }) => {
 When("I reload the page", async ({ page }) => {
   await page.reload();
   await page.getByTestId("editor-root").waitFor({ state: "visible" });
-  // Give Plate time to deserialize and any restored marks to settle.
-  await page.waitForTimeout(150);
+  // Plate stamps `data-slate-node="element"` on every block once mounted,
+  // so the first such node appearing is a deterministic signal that
+  // deserialization has finished and restored marks are rendered.
+  await page
+    .locator('[data-testid="editor-root"] [data-slate-node="element"]')
+    .first()
+    .waitFor({ state: "visible" });
 });
 
 Then("the editor still shows a comment mark on {string}", async ({ page }, text: string) => {
@@ -52,9 +57,17 @@ Then("the editor still shows a comment mark on {string}", async ({ page }, text:
 });
 
 Then("a draft was POSTed at least once", async ({ page }) => {
-  // After a state change, the useDraft hook debounces 1s before POSTing.
-  // Wait for the network call to land via a server-side roundtrip check.
-  await page.waitForTimeout(1_200);
+  // useDraft debounces ~1s before POSTing. Wait for the server's response to
+  // the POST (event-driven, not a wall-clock sleep) so the action under test
+  // has fully completed before we verify it via the GET round-trip.
+  await page.waitForResponse(
+    (res) => res.url().includes("/api/draft") && res.request().method() === "POST" && res.ok(),
+    { timeout: 5_000 }
+  );
+  // The server may return 204 from POST without persisting when the run has
+  // already resolved this plan (see apps/viewer/src/server/routes.ts:210),
+  // so the subsequent GET legitimately returns 204 in that case. When a
+  // draft is persisted, the GET returns 200 and we verify the body.
   const res = await page.request.get("/api/draft");
   expect([200, 204]).toContain(res.status());
   if (res.status() === 200) {

@@ -58,10 +58,15 @@ Given("I am spying on plan-version requests", async ({ page }) => {
 });
 
 Then("no plan-version fetch was triggered", async ({ page }) => {
-  // Allow any racing request that the click could have triggered to actually
-  // fire before we read the log. If a fetch was triggered, this 200ms window
-  // is more than enough for the request to be observed by `page.on`.
-  await page.waitForTimeout(200);
+  // Race a bounded waitForResponse against the click's potential fetch.
+  // If a /api/plan/version request fires, the wait resolves and the assertion
+  // fails. If no request fires, the wait times out and the spy stays empty.
+  // The 500ms bound is event-driven with a fallback, not a wall-clock sleep.
+  const racing = page
+    .waitForResponse((res) => res.url().includes("/api/plan/version"), { timeout: 500 })
+    .then(() => true)
+    .catch(() => false);
+  expect(await racing).toBe(false);
   expect(versionFetchesByPage.get(page) ?? []).toEqual([]);
 });
 

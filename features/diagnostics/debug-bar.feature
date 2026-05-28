@@ -33,12 +33,13 @@ Feature: Diagnostics — Debug bar version badge
     When I click the debug bar badge
     Then the debug bar badge text shows the "failed" state
 
-  Scenario: A second click extends the confirmation past the original timer's deadline
+  Scenario: A second click resets the copy-state timer so the badge stays copied past the original deadline
     Given I open the viewer
+    And the viewer's clock is controlled
     When I click the debug bar badge
     Then the debug bar badge text shows the "copied" state
-    When I wait 900 ms
+    When the clock fast-forwards 900 ms
     Then the debug bar badge text shows the "copied" state
     When I click the debug bar badge
-    And I wait 600 ms
+    And the clock fast-forwards 600 ms
     Then the debug bar badge text shows the "copied" state

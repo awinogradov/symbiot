@@ -55,9 +55,12 @@ const formatViolations = (violations: AxeViolation[]): string =>
 Given("I have at least one annotation persisted", async ({ page }) => {
   await page.evaluate(browserSelect, annotationFixtureText);
   await page.getByTestId("toolbar-comment").waitFor({ state: "visible" });
-  // Match selection.steps.ts: let Plate's batched selection observer settle
-  // before the next click so editor.selection points at the new range.
-  await page.waitForTimeout(50);
+  // Match selection.steps.ts: poll the DOM selection until it matches the
+  // target text so Plate's batched observer has committed the new range.
+  await page.waitForFunction(
+    (text: string): boolean => (window.getSelection()?.toString() ?? "") === text,
+    annotationFixtureText
+  );
   await page.getByTestId("toolbar-comment").click();
   await page.getByTestId("annotation-composer").waitFor({ state: "visible" });
   await page.getByTestId("composer-textarea").fill(annotationFixtureBody);
