@@ -67,7 +67,11 @@ Then("a draft was POSTed at least once", async ({ page }) => {
       (res) => res.url().includes("/api/draft") && res.request().method() === "POST" && res.ok(),
       { timeout: 5_000 }
     )
-    .catch(() => undefined);
+    .catch((error: unknown) => {
+      // Only swallow the wait timeout. Other failures (page crash, navigation,
+      // unexpected reject) must surface so they don't pass on stale GET state.
+      if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
+    });
   // The server may return 204 from POST without persisting when the run has
   // already resolved this plan (see apps/viewer/src/server/routes.ts:210),
   // so the subsequent GET legitimately returns 204 in that case. When a

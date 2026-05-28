@@ -64,7 +64,11 @@ Then("no plan-version fetch was triggered", async ({ page }) => {
   // endpoint /api/plan/versions. The spy log is the deterministic check.
   await page
     .waitForResponse((res) => res.url().includes("/api/plan/version?"), { timeout: 500 })
-    .catch(() => undefined);
+    .catch((error: unknown) => {
+      // Only swallow the wait timeout. Other failures (page crash, navigation)
+      // must surface so the spy check below doesn't pass against a dead page.
+      if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
+    });
   expect(versionFetchesByPage.get(page) ?? []).toEqual([]);
 });
 
