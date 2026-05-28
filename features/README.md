@@ -47,16 +47,42 @@ behaviour and are shared across stories.
 ## Tagging
 
 Every `.feature` carries a **feature-level tag line directly above `Feature:`**, so the
-tag applies to all scenarios in the file. Tags use the stable IDs from
-[`docs/product.md`](../docs/product.md):
+tag applies to all scenarios in the file. Each tag is a stable ID defined in
+[`docs/product.md`](../docs/product.md) — the tag answers _which persona, journey, or
+quality bar this scenario exercises_. Filter a run by any tag with
+`STORY=<expr> bun run test:e2e:story` (see [Running one story or persona](#running-one-story-or-persona)).
 
-- `@P<n>` — persona (`@P1`, `@P2`, `@P3`)
-- `@UC<n>` — use case (`@UC1`..`@UC4`)
-- `@NFR-<n>` — non-functional requirement (`@NFR-3`, `@NFR-5`, `@NFR-9`, …)
+**`@P<n>` — persona** (_who_ the scenario is for):
 
-A file may carry a secondary `@UC<n>` tag when it incidentally exercises another story
-(e.g. `drift-detection.feature` is `@P1 @UC1 @UC2`). Cross-cutting buckets without a
-product-spec ID use a folder-matching tag (`diagnostics/` → `@diagnostics`).
+| Tag   | Persona                                                                 |
+| ----- | ----------------------------------------------------------------------- |
+| `@P1` | Agent-driving developer — reviews and redlines plans inline             |
+| `@P2` | Reviewing teammate — receives a shared plan, annotates, sends back      |
+| `@P3` | Self-hoster — runs the paste service / portal, cares about the contract |
+
+**`@UC<n>` — use case** (_which journey_ the scenario covers):
+
+| Tag    | Use case                                                                  |
+| ------ | ------------------------------------------------------------------------- |
+| `@UC1` | Plan emitted → developer reviews, annotates, approves / requests changes  |
+| `@UC2` | Plan revised → inline diff between version N-1 and N → review the delta   |
+| `@UC3` | Developer annotates an arbitrary markdown document in `annotate` mode     |
+| `@UC4` | Plan shared → teammate imports, annotates, shares back (no scenarios yet) |
+
+**`@NFR-<n>` — non-functional requirement** (_which quality bar_ the scenario locks in):
+
+| Tag      | Requirement                                                         |
+| -------- | ------------------------------------------------------------------- |
+| `@NFR-3` | Privacy & upload security — zero-knowledge guarantees, safe uploads |
+| `@NFR-4` | Determinism — markdown round-trip / rendering is deterministic      |
+| `@NFR-5` | Accessibility — keyboard nav + WCAG AA contrast                     |
+| `@NFR-9` | Theming integrity — no flash of incorrect theme on first paint      |
+
+A file's **first tags name its primary story** (the folder it lives in); it may carry a
+**secondary `@UC<n>`** when it incidentally exercises another journey — e.g.
+`drift-detection.feature` lives under `uc1-*` and is tagged `@P1 @UC1 @UC2` because draft
+drift is what makes annotations survive a version change (UC2). Cross-cutting buckets with
+no product-spec ID use a folder-matching tag (`diagnostics/` → `@diagnostics`).
 
 ## Conventions (enforced by review)
 
