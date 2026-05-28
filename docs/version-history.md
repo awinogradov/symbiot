@@ -244,15 +244,15 @@ authoring keeps working.
     - `pickChangedBlocks` against `fixtures/diff-reference/`.
   - `apps/viewer/src/server/storage.test.ts` — `listVersions` semantics.
 - **Playwright-BDD**
-  - `features/plan-review/version-history.feature` — History tab visibility,
+  - `features/uc2-version-diff/version-history.feature` — History tab visibility,
     version row selection, current-row marker.
-  - `features/plan-review/version-history-diff.feature` — toggle visibility,
+  - `features/uc2-version-diff/version-history-diff.feature` — toggle visibility,
     historical version reveals the diff editor, Clean ↔ Raw flip.
-  - `features/plan-review/predecessor-diff.feature` — `Compare with
+  - `features/uc2-version-diff/predecessor-diff.feature` — `Compare with
 previous` button appears on the current version with a predecessor,
     overlay reveals the diff editor, `Back to editing` restores the
     editor.
-  - `features/plan-review/drift-detection.feature` — seeded draft with a
+  - `features/uc1-review-and-approve/drift-detection.feature` — seeded draft with a
     stored anchor missing from the plan triggers the drift badge;
     matching anchor does not.
 

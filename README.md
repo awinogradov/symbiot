@@ -131,6 +131,7 @@ End-to-end (Playwright-BDD, headless Chromium):
 ```sh
 bun run test:e2e         # bddgen + playwright test
 bun run test:e2e:ui      # interactive debugger
+STORY=@UC1 bun run test:e2e:story   # one story/persona (tag expression via STORY)
 ```
 
 First run needs Chromium installed locally:

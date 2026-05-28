@@ -38,6 +38,8 @@ Core flows:
 - **UC3.** Developer annotates an arbitrary markdown document (`annotate` mode) and routes feedback back to the agent.
 - **UC4.** Developer shares an annotated plan; a teammate imports it, adds annotations, shares back.
 
+The persona (`P1`–`P3`), use-case (`UC1`–`UC4`), and `NFR-*` IDs above are **stable anchors**: the Playwright-BDD suite mirrors this taxonomy — feature files are grouped into `features/uc<n>-*/` and `features/nfr-*/` folders and tagged `@P<n>`/`@UC<n>`/`@NFR-<n>`, so per-persona coverage gaps are visible at the directory level (see [`features/README.md`](../features/README.md)). UC4 has no scenarios yet — that gap is intentional and tracked separately.
+
 ## Product principles
 
 1. **Read-first, edit-on-intent.** The default surface is a clean rendered document. Annotation tools appear on selection; they never clutter the reading experience.
