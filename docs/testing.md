@@ -103,11 +103,14 @@ attributes shift across upstream releases — only `data-testid` stays stable
 across those. Co-locating the testid with the component keeps test breakage
 co-localized too: a renamed component breaks its own tests, not a sibling.
 
-### Follow-up
+### Enforcement
 
-An ESLint rule to auto-enforce the `data-testid`-exclusively convention
-(parallel to the wait-ban guards described in
-[E2E waiting rules](#e2e-waiting-rules) below) is a separate follow-up.
+This convention is auto-enforced for `features/steps/**/*.ts`: the
+`symbiot/features-testid-only` ESLint block in `eslint.config.ts` bans every
+non-`getByTestId` Playwright getter and any `.locator("…")` that does not target
+`[data-testid…]`, and the `Enforce data-testid-only selectors in features` CI
+step in `.github/workflows/pr.yml` fails the build on the same patterns —
+mirroring the wait-ban guards in [E2E waiting rules](#e2e-waiting-rules) below.
 
 ## PR comments
 
