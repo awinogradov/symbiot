@@ -47,7 +47,11 @@ Then("no plan-review decision was recorded", async ({ page }) => {
       (req) => /\/api\/(approve|deny|feedback)$/.test(req.url()) && req.method() === "POST",
       { timeout: 500 }
     )
-    .catch(() => undefined);
+    .catch((error: unknown) => {
+      // Only swallow the wait timeout. Other failures (page crash, navigation)
+      // must surface so the file check below doesn't pass against a dead page.
+      if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
+    });
   await expect(stat(decisionFile)).rejects.toThrow(/ENOENT/);
 });
 
