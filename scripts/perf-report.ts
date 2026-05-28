@@ -253,6 +253,32 @@ const signedCls = (delta: MetricDelta): string => {
 
 const shortSha = (sha: string): string => (sha.length >= 7 ? sha.slice(0, 7) : sha);
 
+// Targets sourced from docs/perf.md. Each defines a `satisfies` predicate
+// over the head value plus a human-readable threshold label rendered in the
+// Target column.
+interface MetricTarget {
+  readonly satisfies: (value: number) => boolean;
+  readonly label: string;
+}
+
+const lhTargets: Partial<Record<keyof LhHeadlines, MetricTarget>> = {
+  performance: { satisfies: (v) => v >= 0.9, label: "≥ 90" },
+  accessibility: { satisfies: (v) => v >= 0.95, label: "≥ 95" },
+  lcpMs: { satisfies: (v) => v <= 1000, label: "≤ 1,000 ms" },
+  ttiMs: { satisfies: (v) => v <= 1000, label: "≤ 1,000 ms" },
+};
+
+const statusFor = (delta: MetricDelta): string => {
+  if (delta.kind === "n/a") return "⚪";
+  return delta.regressed ? "🔴" : "🟢";
+};
+
+const targetCell = (result: MetricResult, target: MetricTarget | undefined): string => {
+  if (target === undefined) return "—";
+  if (!result.ok) return `🎯 ${target.label}`;
+  return `${target.satisfies(result.value) ? "✅" : "❌"} ${target.label}`;
+};
+
 interface Regression {
   metric: string;
   base: string;
@@ -261,59 +287,127 @@ interface Regression {
   band: string;
 }
 
+const bundleLabel = (key: keyof BundleSizes): string =>
+  key === "raw" ? "Raw" : key === "gzip" ? "Gzip" : "Brotli";
+
+const renderBundleRow = (
+  key: keyof BundleSizes,
+  head: BundleSizes,
+  base: BundleSizes | undefined
+): string => {
+  const headStr = kib(head[key]);
+  const label = bundleLabel(key);
+  if (base === undefined) {
+    return `| ⚪ | ${label} | — | ${headStr} | — |`;
+  }
+  const delta = bundleDelta(head[key], base[key]);
+  return `| ${statusFor(delta)} | ${label} | ${kib(base[key])} | ${headStr} | ${signedKib(delta)} |`;
+};
+
 const renderBundleTable = (head: BundleSizes, base: BundleSizes | undefined): string => {
   const headerLines = [
-    "### Bundle — apps/viewer/dist/client/index.html",
+    "### 📦 Bundle — `apps/viewer/dist/client/index.html`",
     "",
-    "| Metric | Base | Head | Δ |",
-    "|--------|------|------|---|",
+    "| Status | Metric | Base | Head | Δ |",
+    "| :---: | :--- | ---: | ---: | ---: |",
   ];
-  const rows = (["raw", "gzip", "brotli"] as const).map((key) => {
-    const headStr = kib(head[key]);
-    const baseStr = base !== undefined ? kib(base[key]) : "—";
-    const deltaStr = base === undefined ? "—" : signedKib(bundleDelta(head[key], base[key]));
-    const label = key === "raw" ? "Raw" : key === "gzip" ? "Gzip" : "Brotli";
-    return `| ${label} | ${baseStr} | ${headStr} | ${deltaStr} |`;
-  });
+  const rows = (["raw", "gzip", "brotli"] as const).map((key) => renderBundleRow(key, head, base));
   return [...headerLines, ...rows].join("\n");
 };
 
+interface LhRowSpec<K extends keyof LhHeadlines> {
+  readonly key: K;
+  readonly label: string;
+  readonly format: (m: MetricResult) => string;
+  readonly signed: (d: MetricDelta) => string;
+  readonly band: NoiseBand;
+  readonly higherIsBetter: boolean;
+}
+
+const lhRowSpecs: ReadonlyArray<LhRowSpec<keyof LhHeadlines>> = [
+  {
+    key: "performance",
+    label: "Performance",
+    format: formatScore,
+    signed: signedScore,
+    band: scoreBand,
+    higherIsBetter: true,
+  },
+  {
+    key: "accessibility",
+    label: "Accessibility",
+    format: formatScore,
+    signed: signedScore,
+    band: scoreBand,
+    higherIsBetter: true,
+  },
+  {
+    key: "lcpMs",
+    label: "LCP",
+    format: formatMs,
+    signed: signedMs,
+    band: timingBand,
+    higherIsBetter: false,
+  },
+  {
+    key: "tbtMs",
+    label: "TBT",
+    format: formatMs,
+    signed: signedMs,
+    band: timingBand,
+    higherIsBetter: false,
+  },
+  {
+    key: "cls",
+    label: "CLS",
+    format: formatCls,
+    signed: signedCls,
+    band: clsBand,
+    higherIsBetter: false,
+  },
+  {
+    key: "ttiMs",
+    label: "TTI",
+    format: formatMs,
+    signed: signedMs,
+    band: timingBand,
+    higherIsBetter: false,
+  },
+];
+
+const renderLhRow = (
+  spec: LhRowSpec<keyof LhHeadlines>,
+  head: LhHeadlines,
+  baseHeadlines: LhHeadlines | undefined
+): string => {
+  const headM = head[spec.key];
+  const headStr = spec.format(headM);
+  const target = targetCell(headM, lhTargets[spec.key]);
+  if (baseHeadlines === undefined) {
+    return `| ⚪ | ${spec.label} | — | ${headStr} | — | ${target} |`;
+  }
+  const baseM = baseHeadlines[spec.key];
+  const delta = deltaFor(headM, baseM, spec.band, spec.higherIsBetter);
+  return `| ${statusFor(delta)} | ${spec.label} | ${spec.format(baseM)} | ${headStr} | ${spec.signed(delta)} | ${target} |`;
+};
+
 const renderLhTable = (head: LhSection, base: LhSection | undefined): string => {
+  const sectionHeader = "### ⚡ Lighthouse — viewer (mobile, Slow 4G + 4× CPU)";
   if (!head.ok) {
     return [
-      "### Lighthouse — viewer (mobile, Slow 4G + 4× CPU)",
+      sectionHeader,
       "",
-      `Lighthouse measurement failed on this run (${head.reason}) — see workflow log.`,
+      `💔 Lighthouse measurement failed on this run (${head.reason}) — see workflow log.`,
     ].join("\n");
   }
   const baseHeadlines = base?.ok === true ? base.headlines : undefined;
-  const rowFor = <K extends keyof LhHeadlines>(
-    key: K,
-    label: string,
-    format: (m: MetricResult) => string,
-    signed: (d: MetricDelta) => string,
-    band: NoiseBand,
-    higherIsBetter: boolean
-  ): string => {
-    const headStr = format(head.headlines[key]);
-    const baseStr = baseHeadlines === undefined ? "—" : format(baseHeadlines[key]);
-    const deltaStr =
-      baseHeadlines === undefined
-        ? "—"
-        : signed(deltaFor(head.headlines[key], baseHeadlines[key], band, higherIsBetter));
-    return `| ${label} | ${baseStr} | ${headStr} | ${deltaStr} |`;
-  };
+  const rows = lhRowSpecs.map((spec) => renderLhRow(spec, head.headlines, baseHeadlines));
   return [
-    "### Lighthouse — viewer (mobile, Slow 4G + 4× CPU)",
+    sectionHeader,
     "",
-    "| Metric | Base | Head | Δ |",
-    "|--------|------|------|---|",
-    rowFor("performance", "Performance", formatScore, signedScore, scoreBand, true),
-    rowFor("accessibility", "Accessibility", formatScore, signedScore, scoreBand, true),
-    rowFor("lcpMs", "LCP", formatMs, signedMs, timingBand, false),
-    rowFor("tbtMs", "TBT", formatMs, signedMs, timingBand, false),
-    rowFor("cls", "CLS", formatCls, signedCls, clsBand, false),
-    rowFor("ttiMs", "TTI", formatMs, signedMs, timingBand, false),
+    "| Status | Metric | Base | Head | Δ | Target |",
+    "| :---: | :--- | ---: | ---: | ---: | :--- |",
+    ...rows,
   ].join("\n");
 };
 
@@ -380,29 +474,49 @@ const renderRegressionList = (regressions: Regression[]): string => {
   return ["", "**Regressions**", "", ...lines].join("\n");
 };
 
+const gzipHighlight = (head: BundleSizes, base: BundleSizes): string => {
+  const delta = bundleDelta(head.gzip, base.gzip);
+  if (!isMeaningful(delta, bundleBand)) return `gzip ${kib(head.gzip)}`;
+  return `gzip ${kib(base.gzip)} → ${kib(head.gzip)}`;
+};
+
+const perfHighlight = (headM: MetricResult, baseM: MetricResult): string => {
+  if (!headM.ok) return "";
+  const head = formatScore(headM);
+  if (!baseM.ok) return `Perf ${head}`;
+  const delta = deltaFor(headM, baseM, scoreBand, true);
+  if (!isMeaningful(delta, scoreBand)) return `Perf ${head}`;
+  return `Perf ${formatScore(baseM)} → ${head}`;
+};
+
 const renderHeadlineHighlight = (head: Snapshot, base: Snapshot): string => {
-  const bundle = `gzip ${kib(base.bundle.gzip)} → ${kib(head.bundle.gzip)}`;
+  const bundle = gzipHighlight(head.bundle, base.bundle);
   if (!head.lighthouse.ok || !base.lighthouse.ok) return bundle;
-  const perfHead = formatScore(head.lighthouse.headlines.performance);
-  const perfBase = formatScore(base.lighthouse.headlines.performance);
-  if (perfHead === "—" || perfBase === "—") return bundle;
-  return `Perf ${perfBase} → ${perfHead} · ${bundle}`;
+  const perf = perfHighlight(
+    head.lighthouse.headlines.performance,
+    base.lighthouse.headlines.performance
+  );
+  if (perf === "") return bundle;
+  return `${perf} · ${bundle}`;
 };
 
 const renderHeadline = (head: Snapshot, base: BaseSnapshot, regressions: Regression[]): string => {
   if (!base.ok) {
-    return "Baseline: — · no baseline available (this PR will establish one once main has a successful perf run)";
+    return "🆕 **no baseline available** — this PR will establish one once main has a successful perf run.";
   }
-  const sha = `\`${shortSha(base.snapshot.meta.sha)}\``;
   if (regressions.length > 0) {
-    return `Baseline: ${sha} · warning: ${regressions.length.toString()} metric(s) regressed (no hard-fail yet)`;
+    return `⚠️ **warning** — ${regressions.length.toString()} metric(s) regressed (no hard-fail yet).`;
   }
-  return `Baseline: ${sha} · within budget · ${renderHeadlineHighlight(head, base.snapshot)}`;
+  return `✅ **within budget** · ${renderHeadlineHighlight(head, base.snapshot)}`;
 };
 
-const renderFooter = (head: Snapshot): string => {
-  const link = `[Workflow run](${head.meta.runUrl})`;
-  return `${link} · artifacts: bundle-stats.html · lighthouse-viewer.json`;
+const renderFooter = (head: Snapshot, base: BaseSnapshot): string => {
+  const headSha = `<code>${shortSha(head.meta.sha)}</code>`;
+  const compare = base.ok
+    ? `Baseline <code>${shortSha(base.snapshot.meta.sha)}</code> → Head ${headSha}`
+    : `Head ${headSha}`;
+  const link = `<a href="${head.meta.runUrl}">workflow run</a>`;
+  return `<sub>${compare} · ${link} · artifacts: <code>bundle-stats.html</code>, <code>lighthouse-viewer.json</code></sub>`;
 };
 
 const renderComment = (head: Snapshot, base: BaseSnapshot): string => {
@@ -418,7 +532,7 @@ const renderComment = (head: Snapshot, base: BaseSnapshot): string => {
   ];
   const regressionBlock = renderRegressionList(regressions);
   if (regressionBlock !== "") sections.push(regressionBlock);
-  sections.push("", renderFooter(head));
+  sections.push("", renderFooter(head, base));
   return `${sections.join("\n")}\n`;
 };
 

@@ -62,13 +62,26 @@ Conventions used in the comment, kept consistent so the numbers are stable to re
   | LH LCP / TBT / TTI    | ≥ 200 ms **and** ≥ 10% |
   | CLS                   | ≥ 0.01 absolute        |
 
-- **Variants the comment can be in:**
-  - _Within budget_ — every metric is inside the noise floor, or every delta moved in the favorable direction. This is the default.
-  - _Warning: N metric(s) regressed (no hard-fail yet)_ — at least one metric crossed its band in the unfavorable direction. A `**Regressions**` bullet list follows with each breached metric, old → new, the Δ, and the band it crossed.
-  - _No baseline available_ — the latest five successful `main` runs all lack a usable artifact (typical for the very first PR after this workflow merges). The head measurements still render; the Δ column shows `—` until the next `main` run uploads a baseline.
-  - _Lighthouse measurement failed_ — the LH step on the head run errored (Chrome flake, timeout, etc.). The bundle table still renders; the LH table is replaced by a single line pointing at the workflow log.
+- **Verdict prefix** (first line of the comment) summarises the run at a glance:
+  - ✅ `within budget` — every metric is inside the noise floor or moved in the favorable direction. Default state.
+  - ⚠️ `warning — N metric(s) regressed (no hard-fail yet)` — at least one metric crossed its band in the unfavorable direction. A `**Regressions**` bullet list follows, naming each breached metric (old → new, Δ, and the band it crossed).
+  - 🆕 `no baseline available` — the latest five successful `main` runs all lack a usable artifact (typical for the very first PR after this workflow merges). Head measurements still render; the Δ column shows `—` until the next `main` run uploads a baseline.
+  - 💔 `Lighthouse measurement failed` — the LH step errored (Chrome flake, timeout, etc.). The bundle table still renders; the LH table is replaced by a single line pointing at the workflow log.
 
-The baseline SHA is shown verbatim in the summary line so reviewers can tell when the comparison is against a stale main (long-running branches will need a rebase to pick up newer baselines).
+- **Status column** (per row, leftmost in each table) shows whether this PR moved the metric in a meaningful direction:
+  - 🟢 inside the noise floor, OR a meaningful improvement
+  - 🔴 regression (crossed the band in the unfavorable direction)
+  - ⚪ no baseline available — head value rendered without comparison
+
+- **Target column** (Lighthouse table only) compares the head value against the documented budget:
+  - ✅ head meets target
+  - ❌ head misses target
+  - 🎯 (with no check) — head is unmeasured but the budget itself applies
+  - `—` — no documented budget for this metric (TBT, CLS)
+
+  Targets sourced from this file's `## Targets` section: Performance ≥ 90, Accessibility ≥ 95, LCP and TTI ≤ 1,000 ms. The Target column makes the gap to budget visible on every PR without requiring a regression.
+
+The footer (HTML `<sub>` block) renders the baseline and head short SHAs, the workflow run link, and the artifact filenames. Reviewers can tell when the comparison is against a stale main (long-running branches will need a rebase to pick up newer baselines).
 
 ## Deferred
 
