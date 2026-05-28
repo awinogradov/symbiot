@@ -73,11 +73,14 @@ jobs:
         run: bun run test:e2e:coverage
 
       - name: BDD Coverage PR comment
-        if: always() && github.event_name == 'pull_request' && hashFiles('coverage/e2e/summary.md') != ''
-        uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && github.event_name == 'pull_request' && hashFiles('coverage/e2e/coverage-summary.json') != ''
+        uses: davelosert/vitest-coverage-report-action@v2
         with:
-          header: BDD Coverage
-          path: coverage/e2e/summary.md
+          name: BDD
+          json-summary-path: coverage/e2e/coverage-summary.json
+          json-final-path: coverage/e2e/coverage-final.json
+          vite-config-path: vitest.config.ts
+          file-coverage-root-path: ${{ github.workspace }}
 
       - name: Build
         run: bun run build
