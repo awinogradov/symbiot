@@ -34,7 +34,7 @@ const featuresNoTimingSelectors = [
 const featuresTestidOnlySelectors = [
   {
     selector:
-      "CallExpression[callee.property.name=/^getBy(Role|Text|Label|AltText|Title|PlaceholderText|DisplayValue)$/]",
+      "CallExpression[callee.property.name=/^getBy(Role|Text|Label|Placeholder|AltText|Title)$/]",
     message:
       "BDD steps must select via data-testid (issue #132). Use page.getByTestId(...) instead. See docs/testing.md#playwright-bdd-selectors.",
   },
