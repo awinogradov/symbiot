@@ -1,0 +1,165 @@
+name: Perf
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# PR runs are cancelled by newer pushes to the same branch. Main runs are
+# never cancelled — every commit on main must produce its own baseline
+# snapshot, otherwise downstream PRs lose comparison points.
+concurrency:
+  group: >-
+    ${{
+      github.event_name == 'pull_request'
+        && format('perf-pr-{0}', github.head_ref)
+        || format('perf-main-{0}', github.sha)
+    }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pull-requests: write
+  # gh run download / gh run list in the baseline-fetch step needs read
+  # access to prior workflow runs and their artifacts.
+  actions: read
+
+jobs:
+  perf:
+    name: Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      HUSKY: "0"
+      # Required by the gh CLI in Actions; the default GITHUB_TOKEN is sufficient
+      # for gh run list / gh run download against this repository.
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      # Cache key intentionally matches .github/workflows/pr.yml so both
+      # workflows share entries instead of evicting each other.
+      - name: Restore Turborepo + Bun cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .turbo
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-turbo-${{ hashFiles('bun.lock', 'turbo.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build viewer
+        run: bun run --filter @symbiot/viewer build
+
+      - name: Bundle analyze
+        run: bun run --filter @symbiot/viewer bundle-analyze
+
+      # Lighthouse can flake on shared runners. Continue on error so a bad LH
+      # run degrades the comment to "measurement failed" instead of failing
+      # the whole workflow.
+      - name: Run Lighthouse
+        id: lighthouse
+        continue-on-error: true
+        run: bun run perf
+
+      - name: Snapshot head perf outputs
+        run: |
+          set -eo pipefail
+          mkdir -p perf-snapshot
+          cp apps/viewer/dist/client/index.html perf-snapshot/index.html
+          if [ -f apps/viewer/bundle-stats/index.html ]; then
+            cp apps/viewer/bundle-stats/index.html perf-snapshot/bundle-stats.html
+          fi
+          if [ "${{ steps.lighthouse.outcome }}" = "success" ] && [ -f perf-reports/lighthouse-viewer.json ]; then
+            cp perf-reports/lighthouse-viewer.json perf-snapshot/lighthouse-viewer.json
+            LH_STATUS="success"
+          else
+            LH_STATUS="failed"
+          fi
+          cat > perf-snapshot/meta.json <<META
+          {
+            "sha": "${{ github.event.pull_request.head.sha || github.sha }}",
+            "ref": "${{ github.head_ref || github.ref_name }}",
+            "runId": "${{ github.run_id }}",
+            "runUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "lhStatus": "$LH_STATUS"
+          }
+          META
+
+      # Walk back through up to 5 recent successful main runs and pull the first
+      # one that still has the artifact (older runs may have expired). Always
+      # exit 0 — a missing baseline must not fail the workflow.
+      - name: Find baseline (main)
+        if: github.event_name == 'pull_request'
+        run: |
+          set +e
+          mkdir -p perf-baseline
+          RUN_IDS=$(gh run list \
+            --branch main \
+            --workflow perf.yml \
+            --status success \
+            --limit 5 \
+            --json databaseId \
+            --jq '.[].databaseId' 2>/dev/null)
+          if [ -z "$RUN_IDS" ]; then
+            echo "No successful main runs yet — head-only mode."
+            exit 0
+          fi
+          for id in $RUN_IDS; do
+            echo "Trying baseline from run $id..."
+            if gh run download "$id" --name perf-snapshot-main --dir perf-baseline/ 2>/dev/null; then
+              echo "Baseline downloaded from run $id."
+              exit 0
+            fi
+          done
+          echo "All recent main runs had no usable artifact — head-only mode."
+          rm -rf perf-baseline
+          mkdir -p perf-baseline
+          exit 0
+
+      # MUST exit 0 — the gate lives in a future issue; do not add
+      # --fail-on-regression here.
+      - name: Generate comment
+        if: github.event_name == 'pull_request'
+        run: |
+          bun run scripts/perf-report.ts \
+            --head perf-snapshot \
+            --base perf-baseline \
+            > perf-comment.md || true
+
+      # Sticky comment posts once per PR and updates in place on subsequent
+      # pushes. Fork PRs run with a read-only GITHUB_TOKEN; this step fails
+      # silently in that case — same pattern as the coverage sticky in pr.yml.
+      - name: Sticky perf comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: Perf
+          path: perf-comment.md
+
+      - name: Upload perf snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: >-
+            ${{
+              github.event_name == 'pull_request'
+                && format('perf-snapshot-pr-{0}', github.event.pull_request.number)
+                || 'perf-snapshot-main'
+            }}
+          path: perf-snapshot/
+          retention-days: 30
+          if-no-files-found: error
