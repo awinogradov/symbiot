@@ -30,34 +30,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
       - name: Sync workspace labels on PR
         shell: bash
         run: |
           set -euo pipefail
 
-          members=$(
-            for f in apps/*/package.json packages/*/package.json; do
-              [[ -f "$f" ]] || continue
-              jq -r 'select(.name) | .name' "$f"
-            done | sed 's/^@//' | sort -u
-          )
+          turbo_ver=$(jq -r '.devDependencies.turbo' package.json)
+          packages=$(bunx --bun "turbo@${turbo_ver}" ls --output=json)
+
+          members=$(jq -r '.packages.items[].name' <<<"$packages" \
+            | sed 's/^@//' | sort -u)
+
+          path_label_map=$(jq -r '.packages.items[] | "\(.path)\t\(.name | sub("^@"; ""))"' <<<"$packages")
 
           files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename')
 
           touched=()
           while IFS= read -r f; do
             [[ -z "$f" ]] && continue
-            case "$f" in
-              apps/*/*|packages/*/*)
-                dir=$(printf '%s' "$f" | cut -d/ -f1-2)
-                pkg="${dir}/package.json"
-                if [[ -f "$pkg" ]]; then
-                  name=$(jq -r 'select(.name) | .name' "$pkg")
-                  [[ -n "$name" ]] && touched+=("${name#@}")
-                fi
-                ;;
-            esac
-          done <<< "$files"
+            while IFS=$'\t' read -r path label; do
+              if [[ "$f" == "$path"/* ]]; then
+                touched+=("$label")
+                break
+              fi
+            done <<<"$path_label_map"
+          done <<<"$files"
 
           touched_unique=$(printf '%s\n' "${touched[@]+"${touched[@]}"}" | sort -u | sed '/^$/d')
 
@@ -66,7 +67,7 @@ jobs:
               [[ -z "$label" ]] && continue
               gh label create "$label" --color "$LABEL_COLOR" \
                 --description "Auto-applied: PR touches @${label}" --force
-            done <<< "$touched_unique"
+            done <<<"$touched_unique"
           fi
 
           current=$(gh pr view "$PR" --json labels --jq '.labels[].name' \
@@ -105,7 +106,7 @@ jobs:
             echo ""
             echo "**Added:** ${to_add:-_(none)_}"
             echo "**Removed:** ${to_remove:-_(none)_}"
-          } >> "$GITHUB_STEP_SUMMARY"
+          } >>"$GITHUB_STEP_SUMMARY"
 
   prune-labels:
     name: Prune orphan workspace labels
@@ -117,17 +118,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
       - name: Delete orphan symbiot/* labels
         shell: bash
         run: |
           set -euo pipefail
 
-          members=$(
-            for f in apps/*/package.json packages/*/package.json; do
-              [[ -f "$f" ]] || continue
-              jq -r 'select(.name) | .name' "$f"
-            done | sed 's/^@//' | sort -u
-          )
+          turbo_ver=$(jq -r '.devDependencies.turbo' package.json)
+          packages=$(bunx --bun "turbo@${turbo_ver}" ls --output=json)
+
+          members=$(jq -r '.packages.items[].name' <<<"$packages" \
+            | sed 's/^@//' | sort -u)
 
           existing=$(gh label list --limit 200 --json name --jq '.[].name' \
             | grep '^symbiot/' | sort -u || true)
@@ -136,11 +140,11 @@ jobs:
           if [[ -n "$existing" ]]; then
             while IFS= read -r label; do
               [[ -z "$label" ]] && continue
-              if ! grep -qFx "$label" <<< "$members"; then
+              if ! grep -qFx "$label" <<<"$members"; then
                 gh label delete "$label" --yes
                 deleted+=("$label")
               fi
-            done <<< "$existing"
+            done <<<"$existing"
           fi
 
           {
@@ -162,4 +166,4 @@ jobs:
             else
               echo "_(none)_"
             fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          } >>"$GITHUB_STEP_SUMMARY"
