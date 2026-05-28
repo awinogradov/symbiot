@@ -1,0 +1,157 @@
+name: Auto Label
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+concurrency:
+  group: auto-label-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  label-pr:
+    name: Label PR by workspace
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      LABEL_COLOR: "5319e7"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync workspace labels on PR
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          members=$(jq -r 'select(.name) | .name' apps/*/package.json packages/*/package.json \
+            | sed 's/^@//' | sort -u)
+
+          files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename')
+
+          touched=()
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            case "$f" in
+              apps/*/*|packages/*/*)
+                dir=$(printf '%s' "$f" | cut -d/ -f1-2)
+                pkg="${dir}/package.json"
+                if [[ -f "$pkg" ]]; then
+                  name=$(jq -r 'select(.name) | .name' "$pkg")
+                  [[ -n "$name" ]] && touched+=("${name#@}")
+                fi
+                ;;
+            esac
+          done <<< "$files"
+
+          touched_unique=$(printf '%s\n' "${touched[@]+"${touched[@]}"}" | sort -u | sed '/^$/d')
+
+          if [[ -n "$touched_unique" ]]; then
+            while IFS= read -r label; do
+              [[ -z "$label" ]] && continue
+              gh label create "$label" --color "$LABEL_COLOR" \
+                --description "Auto-applied: PR touches @${label}" --force
+            done <<< "$touched_unique"
+          fi
+
+          current=$(gh pr view "$PR" --json labels --jq '.labels[].name' \
+            | grep '^symbiot/' | sort -u || true)
+
+          if [[ -z "$current" ]]; then
+            to_add="$touched_unique"
+            to_remove=""
+          elif [[ -z "$touched_unique" ]]; then
+            to_add=""
+            to_remove="$current"
+          else
+            to_add=$(comm -23 <(printf '%s\n' "$touched_unique") <(printf '%s\n' "$current"))
+            to_remove=$(comm -13 <(printf '%s\n' "$touched_unique") <(printf '%s\n' "$current"))
+          fi
+
+          if [[ -n "$to_add" ]]; then
+            gh pr edit "$PR" --add-label "$(printf '%s' "$to_add" | paste -sd, -)"
+          fi
+          if [[ -n "$to_remove" ]]; then
+            gh pr edit "$PR" --remove-label "$(printf '%s' "$to_remove" | paste -sd, -)"
+          fi
+
+          {
+            echo "### Auto Label · PR #${PR}"
+            echo ""
+            echo "**Workspace members:**"
+            printf '%s\n' "$members" | sed 's/^/- /'
+            echo ""
+            echo "**Touched:**"
+            if [[ -n "$touched_unique" ]]; then
+              printf '%s\n' "$touched_unique" | sed 's/^/- /'
+            else
+              echo "_(none)_"
+            fi
+            echo ""
+            echo "**Added:** ${to_add:-_(none)_}"
+            echo "**Removed:** ${to_remove:-_(none)_}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  prune-labels:
+    name: Prune orphan workspace labels
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Delete orphan symbiot/* labels
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          members=$(jq -r 'select(.name) | .name' apps/*/package.json packages/*/package.json \
+            | sed 's/^@//' | sort -u)
+
+          existing=$(gh label list --limit 200 --json name --jq '.[].name' \
+            | grep '^symbiot/' | sort -u || true)
+
+          deleted=()
+          if [[ -n "$existing" ]]; then
+            while IFS= read -r label; do
+              [[ -z "$label" ]] && continue
+              if ! grep -qFx "$label" <<< "$members"; then
+                gh label delete "$label" --yes
+                deleted+=("$label")
+              fi
+            done <<< "$existing"
+          fi
+
+          {
+            echo "### Auto Label · Prune"
+            echo ""
+            echo "**Current workspace members:**"
+            printf '%s\n' "$members" | sed 's/^/- /'
+            echo ""
+            echo "**Existing symbiot/* labels:**"
+            if [[ -n "$existing" ]]; then
+              printf '%s\n' "$existing" | sed 's/^/- /'
+            else
+              echo "_(none)_"
+            fi
+            echo ""
+            echo "**Deleted:**"
+            if [[ ${#deleted[@]} -gt 0 ]]; then
+              printf '%s\n' "${deleted[@]}" | sed 's/^/- /'
+            else
+              echo "_(none)_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
