@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,8 +11,6 @@ const viewerDist = join(rootDir, "apps", "viewer", "dist", "client");
 
 const bddThreshold = 90;
 const bddMetrics = ["lines", "statements", "branches", "functions"] as const;
-const bddSummaryDir = "./coverage/e2e";
-const bddSummaryPath = `${bddSummaryDir}/summary.md`;
 
 /**
  * Match V8 coverage entries against the two shapes the viewer build can take:
@@ -53,7 +51,20 @@ const localSourceMapResolver = async (
 export const coverageOptions: CoverageReportOptions = {
   name: "symbiot — e2e coverage",
   outputDir: "./coverage/e2e",
-  reports: ["v8", "html", "lcovonly", "console-summary"],
+  // Istanbul-format `json-summary` + `json` outputs are consumed by
+  // `davelosert/vitest-coverage-report-action@v2` in `.github/workflows/pr.yml`
+  // so the BDD sticky PR comment mirrors the Unit comment's layout. Filenames
+  // are pinned so an upstream MCR default change cannot silently break the
+  // workflow's `hashFiles(...)` guard. `console-summary` stays last so its
+  // stdout output doesn't interleave with file-write reporters in CI logs.
+  reports: [
+    "v8",
+    "html",
+    "lcovonly",
+    ["json", { file: "coverage-final.json" }],
+    ["json-summary", { file: "coverage-summary.json" }],
+    "console-summary",
+  ],
   cleanCache: false,
   sourceMapResolver: localSourceMapResolver,
   entryFilter: (entry): boolean => entryPathnameMatches(entry.url ?? ""),
@@ -63,43 +74,18 @@ export const coverageOptions: CoverageReportOptions = {
     return isBddOwned(sourcePath);
   },
   onEnd: async (results): Promise<void> => {
-    if (!results) {
-      await mkdir(bddSummaryDir, { recursive: true });
-      await writeFile(
-        bddSummaryPath,
-        [
-          `## Coverage Report for BDD`,
-          "",
-          `_No coverage results produced — Vite build / entry-filter mismatch or no payloads aggregated._`,
-          "",
-        ].join("\n"),
-        "utf8"
-      );
-      throw new Error("BDD coverage produced no results");
-    }
+    // MCR ≥2.12 short-circuits in `generate()` before invoking `onEnd` when
+    // no payloads aggregated, but the parameter is still typed as optional.
+    // Keep a minimal throw so the BDD step fails loudly; the davelosert PR
+    // comment is suppressed naturally by the workflow's `hashFiles` guard
+    // (no `coverage-summary.json` is written when MCR has nothing to report).
+    if (!results) throw new Error("BDD coverage produced no results");
     const { summary } = results;
     const measured = bddMetrics.map((metric) => {
       const pct = summary[metric]?.pct;
       return { metric, pct: Number.isFinite(pct) ? (pct as number) : null };
     });
     const missing = measured.filter(({ pct }) => pct === null).map(({ metric }) => metric);
-    const rows = measured.map(({ metric, pct }) => {
-      if (pct === null) return `| ${metric} | n/a | Fail |`;
-      const status = pct >= bddThreshold ? "Pass" : "Fail";
-      return `| ${metric} | ${pct.toFixed(2)}% | ${status} |`;
-    });
-    const body = [
-      `## Coverage Report for BDD`,
-      "",
-      `_Threshold: ${bddThreshold}% on lines / statements / branches / functions._`,
-      "",
-      "| Metric | Coverage | Status |",
-      "| --- | --- | --- |",
-      ...rows,
-      "",
-    ].join("\n");
-    await mkdir(bddSummaryDir, { recursive: true });
-    await writeFile(bddSummaryPath, body, "utf8");
     if (missing.length > 0) {
       throw new Error(`BDD coverage missing metrics: ${missing.join(", ")}`);
     }

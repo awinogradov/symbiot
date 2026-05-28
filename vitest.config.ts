@@ -30,6 +30,10 @@ export default defineConfig({
       reportOnFailure: true,
       include: [...unitInclude],
       exclude: [...unitExclude],
+      // `davelosert/vitest-coverage-report-action@v2` regex-parses this block
+      // for BOTH the Unit and the BDD sticky PR comments (the BDD step points
+      // its `vite-config-path` here). If Unit and BDD thresholds ever diverge,
+      // split this into a BDD-specific config rather than mutating in place.
       thresholds: {
         lines: 90,
         statements: 90,
