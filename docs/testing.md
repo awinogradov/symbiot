@@ -101,11 +101,15 @@ co-localized too: a renamed component breaks its own tests, not a sibling.
 
 ### Known legacy exceptions
 
-The `When("I wait {int} ms")` step in `features/steps/debugBar.steps.ts`
-is the last remaining magic-timing escape hatch — tracked in
-[#131](https://github.com/awinogradov/symbiot/issues/131) for replacement
-with a state-polling step. An ESLint rule to auto-enforce the
-`data-testid`-exclusively convention is a separate follow-up.
+The `When("I wait {int} ms")` Gherkin step in
+`features/steps/debugBar.steps.ts` is the only magic-timing escape hatch
+exposed to scenarios; replacement with a state-polling step is tracked in
+[#131](https://github.com/awinogradov/symbiot/issues/131). Step
+implementations may still call `setTimeout` / `waitForTimeout` internally
+where the assertion is "X did NOT happen" (e.g. the 200 ms grace window in
+`hotkeys.steps.ts`) — those have no event to poll on, so a fixed wait is
+acceptable. An ESLint rule to auto-enforce the `data-testid`-exclusively
+convention is a separate follow-up.
 
 ## PR comments
 
