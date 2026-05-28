@@ -1,4 +1,6 @@
-import { rm, readFile, stat } from "node:fs/promises";
+import { rm, readFile } from "node:fs/promises";
+
+import { expect } from "@playwright/test";
 
 import { annotateDecisionFile, decisionFile } from "./world.ts";
 
@@ -19,16 +21,27 @@ const readRecord = async (path: string): Promise<DecisionRecord> => {
 };
 
 const waitForRecord = async (path: string, timeoutMs: number): Promise<DecisionRecord> => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      await stat(path);
-      return await readRecord(path);
-    } catch {
-      await new Promise((r) => setTimeout(r, 50));
-    }
+  let result: DecisionRecord | undefined;
+  await expect
+    .poll(
+      async (): Promise<boolean> => {
+        try {
+          result = await readRecord(path);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      {
+        timeout: timeoutMs,
+        message: `No decision recorded at ${path} within ${timeoutMs}ms`,
+      }
+    )
+    .toBe(true);
+  if (result === undefined) {
+    throw new Error(`No decision recorded at ${path}`);
   }
-  throw new Error(`No decision recorded at ${path} within ${timeoutMs}ms`);
+  return result;
 };
 
 /** Remove the plan-mode decision file so a scenario starts from a clean slate. Idempotent. */

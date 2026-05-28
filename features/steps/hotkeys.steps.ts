@@ -36,14 +36,21 @@ Then("the Settings dialog is still visible", async ({ page }) => {
   await expect(page.getByTestId("settings-dialog")).toBeVisible();
 });
 
-// eslint-disable-next-line no-empty-pattern -- playwright-bdd requires an object pattern in the first arg
-Then("no plan-review decision was recorded", async ({}) => {
+Then("no plan-review decision was recorded", async ({ page }) => {
   // The viewer writes its decision to `decisionFile` only on
   // approve/deny/feedback. `Given I open the viewer` resets the file before
-  // the scenario, so its presence after the hotkey would mean the hotkey
-  // was not actually suppressed. Allow a short grace period for any racing
-  // write to land before declaring success.
-  await new Promise((r) => setTimeout(r, 200));
+  // the scenario, so any racing request would have to fire one of those
+  // POSTs. Race a bounded waitForRequest against the keyboard event — if a
+  // request fires, the assertion fails; if not, the wait times out and we
+  // verify the file is absent.
+  const racing = page
+    .waitForRequest(
+      (req) => /\/api\/(approve|deny|feedback)$/.test(req.url()) && req.method() === "POST",
+      { timeout: 500 }
+    )
+    .then(() => true)
+    .catch(() => false);
+  expect(await racing).toBe(false);
   await expect(stat(decisionFile)).rejects.toThrow(/ENOENT/);
 });
 

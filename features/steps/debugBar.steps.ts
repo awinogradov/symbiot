@@ -93,6 +93,10 @@ Given("the clipboard is unavailable", async ({ page }) => {
   await stubClipboard(page, "missing");
 });
 
-When("I wait {int} ms", async ({ page }, ms: number) => {
-  await page.waitForTimeout(ms);
+Given("the viewer's clock is controlled", async ({ page }) => {
+  await page.clock.install();
+});
+
+When("the clock fast-forwards {int} ms", async ({ page }, ms: number) => {
+  await page.clock.fastForward(ms);
 });
