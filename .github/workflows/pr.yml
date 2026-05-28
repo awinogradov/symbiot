@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          getter_hits=$(grep -rPn 'getBy(Role|Text|Label|AltText|Title|PlaceholderText|DisplayValue)\(' features/steps/ --include='*.ts' || true)
+          getter_hits=$(grep -rPn 'getBy(Role|Text|Label|Placeholder|AltText|Title)\(' features/steps/ --include='*.ts' || true)
           locator_hits=$(grep -rPn '\.locator\(\s*["'\''`](?!\[data-testid)' features/steps/ --include='*.ts' || true)
           if [[ -n "$getter_hits" || -n "$locator_hits" ]]; then
             echo "::error::Non-data-testid selectors found in features/steps (issues #141/#132). Use getByTestId or .locator('[data-testid=...]'). See docs/testing.md#playwright-bdd-selectors."
