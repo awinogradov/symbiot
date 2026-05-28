@@ -10,12 +10,8 @@ Given("I open the viewer in annotate mode", async ({ page }) => {
   await page.getByTestId("editor-root").waitFor({ state: "visible" });
 });
 
-Then(
-  "the recorded annotate feedback contains {string}",
-  // eslint-disable-next-line no-empty-pattern -- playwright-bdd requires an object pattern
-  async ({}, snippet: string) => {
-    const decision = await waitForAnnotateDecision();
-    expect(decision.kind).toBe("feedback");
-    expect(decision.feedback ?? "").toContain(snippet);
-  }
-);
+Then("the recorded annotate feedback contains {string}", async ({}, snippet: string) => {
+  const decision = await waitForAnnotateDecision();
+  expect(decision.kind).toBe("feedback");
+  expect(decision.feedback ?? "").toContain(snippet);
+});
