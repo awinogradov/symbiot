@@ -31,6 +31,7 @@ user-facing surfaces: `plan-review/`, `markdown/`, `annotate/`, `server/`,
 - **Step helpers are pure functions.** No class state, no shared mutable singletons. Pass everything through arguments or the `world.ts` constants.
 - **ES module imports require `.ts` extensions** (per `tsconfig.json`). The harness runs under Bun.
 - **One concept per scenario.** Don't pile assertions; if you need a second behaviour, write a second scenario.
+- **No time-based waits.** Wait on a selector, an assertion, or `waitForFunction` — never on the clock. Wall-clock waits flake under CI load and hide real regressions; see `eslint.config.ts` and `.github/workflows/pr.yml` for the guards.
 
 ## Running
 
