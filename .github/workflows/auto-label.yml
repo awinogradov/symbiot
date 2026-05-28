@@ -75,6 +75,9 @@ jobs:
           files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate \
             --jq '.[] | .filename, (.previous_filename // empty)')
 
+          # Apply every label whose path matches; an in-place package rename produces
+          # the same path with two different labels in the base/head union, and both
+          # should be applied so the PR is tagged with both the old and new identity.
           touched=()
           while IFS= read -r f; do
             [[ -z "$f" ]] && continue
@@ -82,7 +85,6 @@ jobs:
               [[ -z "$path" ]] && continue
               if [[ "$f" == "$path"/* ]]; then
                 touched+=("$label")
-                break
               fi
             done <<<"$path_label_map"
           done <<<"$files"
