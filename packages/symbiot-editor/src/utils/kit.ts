@@ -1,6 +1,13 @@
 import {
   BasicBlocksPlugin,
   BasicMarksPlugin,
+  CodePlugin,
+  H1Plugin,
+  H2Plugin,
+  H3Plugin,
+  H4Plugin,
+  H5Plugin,
+  H6Plugin,
   HorizontalRulePlugin,
 } from "@platejs/basic-nodes/react";
 import { CodeBlockPlugin } from "@platejs/code-block/react";
@@ -20,7 +27,10 @@ import remarkGfm from "remark-gfm";
 import { CodeBlockElement } from "../components/CodeBlockElement.tsx";
 import { CommentLeaf } from "../components/CommentLeaf.tsx";
 import { SuggestionMarkPlugin } from "../components/DeletionLeaf.tsx";
+import { HeadingElement } from "../components/HeadingElement.tsx";
+import { InlineCodeLeaf } from "../components/InlineCodeLeaf.tsx";
 import { InsertionMarkPlugin } from "../components/InsertionLeaf.tsx";
+import { ListElement } from "../components/ListElement.tsx";
 import { ParagraphElement } from "../components/ParagraphElement.tsx";
 import { ReplacementMarkPlugin } from "../components/ReplacementLeaf.tsx";
 import {
@@ -56,16 +66,33 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
  * selector that depends on it. Wrap it with `ParagraphElement` so paragraphs
  * render as `<p>` AND expose `data-testid="editor-paragraph"` for the
  * Playwright-BDD selector rule (`docs/testing.md#playwright-bdd-selectors`).
+ *
+ * `H1Plugin`..`H6Plugin`, `ListPlugin`, and `CodePlugin` (inline) are
+ * registered AFTER `BasicBlocksPlugin` / `BasicMarksPlugin` so the explicit
+ * `.withComponent` overrides win over the meta-plugins' defaults — each adds
+ * the `data-testid` BDD specs select on (`editor-heading-N`, `editor-list`,
+ * `editor-code-inline`).
  */
 const symbiotBaseKit = [
   MarkdownWithGfm,
   SourceLinesPlugin,
   BasicBlocksPlugin,
   ParagraphPlugin.withComponent(ParagraphElement),
+  H1Plugin.withComponent(HeadingElement),
+  H2Plugin.withComponent(HeadingElement),
+  H3Plugin.withComponent(HeadingElement),
+  H4Plugin.withComponent(HeadingElement),
+  H5Plugin.withComponent(HeadingElement),
+  H6Plugin.withComponent(HeadingElement),
   BasicMarksPlugin,
+  CodePlugin.withComponent(InlineCodeLeaf),
   HorizontalRulePlugin.withComponent(HrElement),
   CodeBlockPlugin.withComponent(CodeBlockElement),
-  ListPlugin,
+  ListPlugin.configure({
+    render: {
+      belowNodes: ({ element }) => (element.listStyleType ? ListElement : undefined),
+    },
+  }),
   TablePlugin.withComponent(TableElement),
   TableRowPlugin.withComponent(TableRowElement),
   TableCellPlugin.withComponent(TableCellElement),

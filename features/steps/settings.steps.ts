@@ -49,9 +49,7 @@ Then("the prose body text uses the light-theme color", async ({ page }) => {
     .toBe(false);
   await page.getByTestId("editor-root").waitFor({ state: "visible" });
   const sample = await page.evaluate(() => {
-    const root = document.querySelector('[data-testid="editor-root"]');
-    if (root === null) return null;
-    const paragraph = root.querySelector("p");
+    const paragraph = document.querySelector('[data-testid="editor-paragraph"]');
     if (paragraph === null) return null;
     return {
       color: getComputedStyle(paragraph).color,

@@ -25,7 +25,7 @@ When("I press Escape in the comment composer", async ({ page }) => {
 When("I close the comment composer via the overlay", async ({ page }) => {
   // Click the top-left corner of the overlay — the dialog content is centered,
   // so this coordinate is overlay-only and not intercepted by the dialog.
-  await page.locator('[data-slot="dialog-overlay"]').click({ position: { x: 5, y: 5 } });
+  await page.getByTestId("dialog-overlay").click({ position: { x: 5, y: 5 } });
 });
 
 When("I click the comment composer Cancel button", async ({ page }) => {
