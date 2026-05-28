@@ -24,6 +24,7 @@
     "test": "turbo run test",
     "test:e2e": "bddgen && playwright test",
     "test:e2e:ui": "bddgen && playwright test --ui",
+    "test:e2e:story": ": \"${STORY:?set STORY to a tag expression, e.g. STORY=@UC4}\" && bddgen --tags \"$STORY\" && playwright test",
     "test:e2e:coverage": "rm -rf coverage/e2e coverage/raw && COVERAGE=1 bddgen && COVERAGE=1 playwright test && node --experimental-strip-types mcr-generate.ts",
     "coverage": "vitest run --coverage",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,json,md,css}\"",

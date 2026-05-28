@@ -1,3 +1,4 @@
+@diagnostics
 Feature: Diagnostics — Debug bar version badge
   The bottom-right debug bar shows the running build's version + git SHA on
   every viewer screen. Clicking the badge copies the full SHA to the clipboard

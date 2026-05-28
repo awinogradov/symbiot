@@ -1,5 +1,5 @@
 /**
- * Step definitions for the axe-core baseline scan (`features/a11y/a11y-baseline.feature`).
+ * Step definitions for the axe-core baseline scan (`features/nfr-a11y/a11y-baseline.feature`).
  *
  * Two new steps:
  * - `Given I have at least one annotation persisted` — drops a comment so the
@@ -13,7 +13,7 @@
  *     Given I open the viewer
  *     Then the page has no Critical or Serious WCAG AA violations
  *
- * @see ../a11y/a11y-baseline.feature
+ * @see ../nfr-a11y/a11y-baseline.feature
  * @see ../../docs/a11y.md
  */
 import AxeBuilder from "@axe-core/playwright";
