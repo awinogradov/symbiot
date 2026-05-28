@@ -26,33 +26,60 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
       PR: ${{ github.event.pull_request.number }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       LABEL_COLOR: "5319e7"
     steps:
       - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: package.json
+          fetch-depth: 0
 
       - name: Sync workspace labels on PR
         shell: bash
         run: |
           set -euo pipefail
 
-          turbo_ver=$(jq -r '.devDependencies.turbo' package.json)
-          packages=$(bunx --bun "turbo@${turbo_ver}" ls --output=json)
+          # Enumerate workspaces at a git ref using jq over package.json files.
+          # No PR-controlled code is executed: only `git show` and `jq` data parsing run,
+          # so a malicious package.json in the PR cannot trigger arbitrary tooling.
+          enumerate_ref() {
+            local ref="$1"
+            local patterns
+            patterns=$(git show "${ref}:package.json" 2>/dev/null | jq -r '.workspaces[]?' 2>/dev/null) || return 0
+            [[ -z "$patterns" ]] && return 0
 
-          members=$(jq -r '.packages.items[].name' <<<"$packages" \
-            | sed 's/^@//' | sort -u)
+            while IFS= read -r pattern; do
+              [[ -z "$pattern" ]] && continue
+              # Only handle direct `<parent>/*` workspace patterns (matches the repo's `apps/*` and `packages/*`)
+              [[ "$pattern" == */\* ]] || continue
+              local parent="${pattern%/\*}"
+              git ls-tree -d --name-only "$ref" "${parent}/" 2>/dev/null | while IFS= read -r dir; do
+                [[ -z "$dir" ]] && continue
+                local pkg
+                pkg=$(git show "${ref}:${dir}/package.json" 2>/dev/null) || continue
+                local name
+                name=$(jq -r 'select(.name) | .name' <<<"$pkg" 2>/dev/null) || continue
+                [[ -z "$name" ]] && continue
+                printf '%s\t%s\n' "$dir" "${name#@}"
+              done
+            done <<<"$patterns"
+          }
 
-          path_label_map=$(jq -r '.packages.items[] | "\(.path)\t\(.name | sub("^@"; ""))"' <<<"$packages")
+          base_map=$(enumerate_ref "$BASE_SHA")
+          head_map=$(enumerate_ref "$HEAD_SHA")
+          path_label_map=$(printf '%s\n%s\n' "$base_map" "$head_map" | sort -u | sed '/^$/d')
 
-          files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename')
+          members=$(awk -F'\t' '{print $2}' <<<"$path_label_map" | sort -u | sed '/^$/d')
+
+          # Include previous_filename so renamed files still resolve to their source workspace
+          files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate \
+            --jq '.[] | .filename, (.previous_filename // empty)')
 
           touched=()
           while IFS= read -r f; do
             [[ -z "$f" ]] && continue
             while IFS=$'\t' read -r path label; do
+              [[ -z "$path" ]] && continue
               if [[ "$f" == "$path"/* ]]; then
                 touched+=("$label")
                 break
@@ -94,7 +121,7 @@ jobs:
           {
             echo "### Auto Label · PR #${PR}"
             echo ""
-            echo "**Workspace members:**"
+            echo "**Workspace members (base ∪ head):**"
             printf '%s\n' "$members" | sed 's/^/- /'
             echo ""
             echo "**Touched:**"
@@ -118,20 +145,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
       - name: Delete orphan symbiot/* labels
         shell: bash
         run: |
           set -euo pipefail
 
-          turbo_ver=$(jq -r '.devDependencies.turbo' package.json)
-          packages=$(bunx --bun "turbo@${turbo_ver}" ls --output=json)
-
-          members=$(jq -r '.packages.items[].name' <<<"$packages" \
-            | sed 's/^@//' | sort -u)
+          members=$(
+            jq -r '.workspaces[]?' package.json | while IFS= read -r pattern; do
+              [[ -z "$pattern" ]] && continue
+              [[ "$pattern" == */\* ]] || continue
+              for dir in $pattern; do
+                [[ -f "$dir/package.json" ]] || continue
+                jq -r 'select(.name) | .name' "$dir/package.json"
+              done
+            done | sed 's/^@//' | sort -u
+          )
 
           existing=$(gh label list --limit 200 --json name --jq '.[].name' \
             | grep '^symbiot/' | sort -u || true)
