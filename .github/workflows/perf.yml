@@ -10,10 +10,13 @@ on:
 # never cancelled — every commit on main must produce its own baseline
 # snapshot, otherwise downstream PRs lose comparison points.
 concurrency:
+  # PR runs are keyed by PR number (unique across forks) so fork PRs cannot
+  # collide with same-named branches in other repos. Main runs are keyed by
+  # commit SHA so each main commit produces its own baseline run.
   group: >-
     ${{
       github.event_name == 'pull_request'
-        && format('perf-pr-{0}', github.head_ref)
+        && format('perf-pr-{0}', github.event.pull_request.number)
         || format('perf-main-{0}', github.sha)
     }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -76,7 +79,17 @@ jobs:
         continue-on-error: true
         run: bun run perf
 
+      # head_ref is attacker-controllable on PRs (a fork can name its branch
+      # `foo"$(cmd)`). Route ref-derived values through env vars and build
+      # meta.json via jq so values are JSON-escaped and never re-evaluated by
+      # the shell.
       - name: Snapshot head perf outputs
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+          HEAD_RUN_ID: ${{ github.run_id }}
+          HEAD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          LH_OUTCOME: ${{ steps.lighthouse.outcome }}
         run: |
           set -eo pipefail
           mkdir -p perf-snapshot
@@ -84,27 +97,32 @@ jobs:
           if [ -f apps/viewer/bundle-stats/index.html ]; then
             cp apps/viewer/bundle-stats/index.html perf-snapshot/bundle-stats.html
           fi
-          if [ "${{ steps.lighthouse.outcome }}" = "success" ] && [ -f perf-reports/lighthouse-viewer.json ]; then
+          LH_STATUS="failed"
+          if [ "$LH_OUTCOME" = "success" ] && [ -f perf-reports/lighthouse-viewer.json ]; then
             cp perf-reports/lighthouse-viewer.json perf-snapshot/lighthouse-viewer.json
             LH_STATUS="success"
-          else
-            LH_STATUS="failed"
           fi
-          cat > perf-snapshot/meta.json <<META
-          {
-            "sha": "${{ github.event.pull_request.head.sha || github.sha }}",
-            "ref": "${{ github.head_ref || github.ref_name }}",
-            "runId": "${{ github.run_id }}",
-            "runUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "lhStatus": "$LH_STATUS"
-          }
-          META
+          jq -n \
+            --arg sha "$HEAD_SHA" \
+            --arg ref "$HEAD_REF" \
+            --arg runId "$HEAD_RUN_ID" \
+            --arg runUrl "$HEAD_RUN_URL" \
+            --arg lhStatus "$LH_STATUS" \
+            '{sha: $sha, ref: $ref, runId: $runId, runUrl: $runUrl, lhStatus: $lhStatus}' \
+            > perf-snapshot/meta.json
 
       # Walk back through up to 5 recent successful main runs and pull the first
       # one that still has the artifact (older runs may have expired). Always
       # exit 0 — a missing baseline must not fail the workflow.
+      #
+      # Fork PR guard: `pull-requests: write` is not granted to fork
+      # `pull_request` runs, so anything that posts to the API would fail with
+      # 403. Skip the baseline-fetch + comment-generate + sticky-comment steps
+      # entirely on fork PRs.
       - name: Find baseline (main)
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
         run: |
           set +e
           mkdir -p perf-baseline
@@ -134,7 +152,9 @@ jobs:
       # MUST exit 0 — the gate lives in a future issue; do not add
       # --fail-on-regression here.
       - name: Generate comment
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
         run: |
           bun run scripts/perf-report.ts \
             --head perf-snapshot \
@@ -142,10 +162,14 @@ jobs:
             > perf-comment.md || true
 
       # Sticky comment posts once per PR and updates in place on subsequent
-      # pushes. Fork PRs run with a read-only GITHUB_TOKEN; this step fails
-      # silently in that case — same pattern as the coverage sticky in pr.yml.
+      # pushes. Gated to same-repo PRs because fork PRs do not get
+      # `pull-requests: write` on the default GITHUB_TOKEN. `continue-on-error`
+      # is a belt-and-suspenders safety net for token edge cases.
       - name: Sticky perf comment
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: Perf

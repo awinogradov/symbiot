@@ -110,6 +110,15 @@ const extractHeadlines = (lhr: LhrLike): LhHeadlines => {
   };
 };
 
+const requiredHeadlines: readonly (keyof LhHeadlines)[] = [
+  "performance",
+  "accessibility",
+  "lcpMs",
+  "tbtMs",
+  "cls",
+  "ttiMs",
+];
+
 const readLighthouse = async (
   path: string,
   lhStatus: SnapshotMeta["lhStatus"]
@@ -117,7 +126,12 @@ const readLighthouse = async (
   if (lhStatus !== "success") return { ok: false, reason: "measurement failed" };
   try {
     const lhr = await readJson<LhrLike>(path);
-    return { ok: true, headlines: extractHeadlines(lhr) };
+    const headlines = extractHeadlines(lhr);
+    const missing = requiredHeadlines.filter((key) => !headlines[key].ok);
+    if (missing.length > 0) {
+      return { ok: false, reason: `partial measurement (missing ${missing.join(", ")})` };
+    }
+    return { ok: true, headlines };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     return { ok: false, reason: `parse error: ${message}` };
@@ -193,10 +207,16 @@ const deltaFor = (
 const bundleDelta = (head: number, base: number): MetricDelta =>
   deltaFor({ ok: true, value: head }, { ok: true, value: base }, bundleBand, false);
 
+// Display helpers reuse the same `outsideBand` decision as the regression
+// classifier — a delta inside the noise floor renders `≈ 0` regardless of
+// direction, so the table can never advertise sub-noise variance.
+const isMeaningful = (delta: MetricDelta, band: NoiseBand): boolean =>
+  delta.kind === "ok" && outsideBand(delta.absolute, delta.relative, band);
+
 const kib = (bytes: number): string => `${(bytes / 1024).toFixed(1)} KiB`;
 const signedKib = (delta: MetricDelta): string => {
   if (delta.kind === "n/a") return "—";
-  if (!delta.regressed && Math.abs(delta.absolute) < bundleBand.absolute) return "≈ 0";
+  if (!isMeaningful(delta, bundleBand)) return "≈ 0";
   const sign = delta.absolute >= 0 ? "+" : "-";
   return `${sign}${(Math.abs(delta.absolute) / 1024).toFixed(1)} KiB`;
 };
@@ -205,8 +225,8 @@ const formatScore = (result: MetricResult): string =>
   result.ok ? Math.round(result.value * 100).toString() : "—";
 const signedScore = (delta: MetricDelta): string => {
   if (delta.kind === "n/a") return "—";
+  if (!isMeaningful(delta, scoreBand)) return "≈ 0";
   const points = Math.round(delta.absolute * 100);
-  if (!delta.regressed && Math.abs(points) < Math.round(scoreBand.absolute * 100)) return "≈ 0";
   const sign = points >= 0 ? "+" : "-";
   return `${sign}${Math.abs(points)}`;
 };
@@ -218,16 +238,15 @@ const formatMs = (result: MetricResult): string =>
 
 const signedMs = (delta: MetricDelta): string => {
   if (delta.kind === "n/a") return "—";
-  const absMs = Math.abs(delta.absolute);
-  if (!delta.regressed && absMs < timingBand.absolute) return "≈ 0";
+  if (!isMeaningful(delta, timingBand)) return "≈ 0";
   const sign = delta.absolute >= 0 ? "+" : "-";
-  return `${sign}${roundMs(absMs).toLocaleString("en-US")} ms`;
+  return `${sign}${roundMs(Math.abs(delta.absolute)).toLocaleString("en-US")} ms`;
 };
 
 const formatCls = (result: MetricResult): string => (result.ok ? result.value.toFixed(3) : "—");
 const signedCls = (delta: MetricDelta): string => {
   if (delta.kind === "n/a") return "—";
-  if (Math.abs(delta.absolute) < clsBand.absolute) return "—";
+  if (!isMeaningful(delta, clsBand)) return "—";
   const sign = delta.absolute >= 0 ? "+" : "-";
   return `${sign}${Math.abs(delta.absolute).toFixed(3)}`;
 };
