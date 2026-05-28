@@ -13,7 +13,11 @@ interface TableElementProps {
  * styles them correctly.
  */
 export const TableElement = ({ attributes, children }: TableElementProps): React.ReactElement => (
-  <table {...attributes} className="border-border my-4 w-full border-collapse border text-sm">
+  <table
+    {...attributes}
+    data-testid="editor-table"
+    className="border-border my-4 w-full border-collapse border text-sm"
+  >
     {children}
   </table>
 );

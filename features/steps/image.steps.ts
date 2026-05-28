@@ -18,5 +18,5 @@ When("I attach a PNG via the composer image button", async ({ page }) => {
 Then("the composer shows an image preview", async ({ page }) => {
   const preview = page.getByTestId("image-preview-list");
   await expect(preview).toBeVisible();
-  await expect(preview.locator("img")).toHaveCount(1);
+  await expect(preview.getByTestId("image-preview-img")).toHaveCount(1);
 });
