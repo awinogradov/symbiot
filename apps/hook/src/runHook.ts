@@ -3,7 +3,7 @@ import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { startServer } from "@symbiot/viewer";
+import { runPlanReview } from "@symbiot/agent-runtime";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
 import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
@@ -162,21 +162,24 @@ const emitPermissionRequestAllow = (): void => {
   process.stdout.write(JSON.stringify(payload));
 };
 
-const runPreToolUse = async (plan: string): Promise<number> => {
+const runPreToolUse = (plan: string): Promise<number> => {
   const planHash = hashPlan(plan);
-  const server = await startServer({ plan, indexHtmlGz: viewerHtmlGz });
-  process.stderr.write(`symbiot: review plan at ${server.url}\n`);
-  const decision = await server.resolved;
-  await server.stop();
-  if (decision.kind === "approve") {
-    await writeApproveMarker(planHash);
-    emitApproveDecision();
-    await logEvent({ event: "PreToolUse", planHash, emitted: "allow" });
-    return 0;
-  }
-  emitDenyDecision(decision.feedback);
-  await logEvent({ event: "PreToolUse", planHash, emitted: "block" });
-  return 0;
+  return runPlanReview({
+    plan,
+    serverOptions: { indexHtmlGz: viewerHtmlGz },
+    onStart: (url) => process.stderr.write(`symbiot: review plan at ${url}\n`),
+    onResolved: async (decision) => {
+      if (decision.kind === "approve") {
+        await writeApproveMarker(planHash);
+        emitApproveDecision();
+        await logEvent({ event: "PreToolUse", planHash, emitted: "allow" });
+        return 0;
+      }
+      emitDenyDecision(decision.feedback);
+      await logEvent({ event: "PreToolUse", planHash, emitted: "block" });
+      return 0;
+    },
+  });
 };
 
 const runPermissionRequest = async (plan: string): Promise<number> => {

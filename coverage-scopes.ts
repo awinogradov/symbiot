@@ -17,6 +17,7 @@
 
 /** Vitest `coverage.include` — files the unit gate measures. */
 export const unitInclude: readonly string[] = [
+  "packages/symbiot-agent-runtime/src/**/*.ts",
   "packages/symbiot-annotations/src/**/*.ts",
   "packages/symbiot-editor/src/utils/**/*.ts",
   "packages/symbiot-editor/src/components/**/*.{ts,tsx}",
