@@ -33,11 +33,10 @@ export const firstMarkdownHeading = (markdown: string): string | null => {
 
 /**
  * Compose the tab title: `Symbiot · {displayName}` mirrors the TopBar context,
- * with ` — {planTitle}` appended when the plan has an H1. Drops the ` · `
- * separator (and any dangle) when `displayName` is empty/whitespace.
+ * with ` — {planTitle}` appended when the plan has an H1. `displayName` is the
+ * server's git-resolved label and is always non-empty, so it is used verbatim.
  */
 export const buildDocumentTitle = (displayName: string, planTitle: string | null): string => {
-  const project = displayName.trim();
-  const base = project.length > 0 ? `Symbiot · ${project}` : "Symbiot";
+  const base = `Symbiot · ${displayName}`;
   return planTitle ? `${base} — ${planTitle}` : base;
 };
