@@ -192,6 +192,7 @@ Apps:
 
 Packages:
 
+- [`packages/symbiot-agent-runtime`](./packages/symbiot-agent-runtime/README.md) — shared spawn-and-decide loop (`runPlanReview`) for agent integrations.
 - [`packages/symbiot-annotations`](./packages/symbiot-annotations/README.md) — annotation tuples + codec.
 - [`packages/symbiot-editor`](./packages/symbiot-editor/README.md) — Plate editor package, kits, modes.
 - [`packages/symbiot-ui`](./packages/symbiot-ui/README.md) — shared UI primitives.

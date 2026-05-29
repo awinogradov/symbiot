@@ -15,7 +15,10 @@ hooks/hooks.json  ──exec──▶  bin/symbiot (shim)
                                 │ downloads + verifies SHA256
                                 ▼
                              ${CLAUDE_PLUGIN_DATA}/bin/symbiot-<platform>
-                                │ runs the embedded viewer
+                                │ runHook / runAnnotate
+                                ▼
+                             @symbiot/agent-runtime  runPlanReview()
+                                │ spawns the embedded viewer
                                 ▼
                               apps/viewer  (HTTP server + UI)
                                 │ user reviews, annotates, decides

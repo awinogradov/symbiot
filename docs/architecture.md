@@ -24,30 +24,38 @@ know before moving code around.
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-All agent integrations spawn the same `apps/viewer` binary; they differ only
-in CLI shape (`apps/hook` for Claude Code, future `apps/copilot`,
-`apps/gemini`, ...).
+All agent integrations spawn the same `apps/viewer` binary through the shared
+`runPlanReview` loop in `@symbiot/agent-runtime`; they differ only in CLI shape
+(`apps/hook` for Claude Code, future `apps/copilot`, `apps/gemini`, ...) — how
+they parse stdin and emit their own decision JSON.
 
 ## Package layering
 
 ```
-            ┌─ apps/viewer ─────────────────────────────────┐
-            │   apps/hook (spawns viewer)                    │
-            │                                                │
-            ▼                                                │
-   @symbiot/editor  ──────▶  @symbiot/ui  ──▶  @symbiot/tailwind-config
-            │                                                │
-            ▼                                                │
-   @symbiot/annotations                                      │
-                                                             │
-                          (shared)                           │
+   apps/hook  (Claude Code; future apps/codex, apps/gemini, apps/copilot, ...)
+        │ depends on
+        ▼
+   @symbiot/agent-runtime   ──  runPlanReview: spawn → await → decide loop
+        │ startServer / RunningServer
+        ▼
+   apps/viewer  (HTTP server + UI — the single binary every agent spawns)
+        │
+        ▼
+   @symbiot/editor  ──▶  @symbiot/ui  ──▶  @symbiot/tailwind-config
+        │
+        ▼
+   @symbiot/annotations          (no UI deps — tuple model + Plate shape)
+
+   (shared tooling)
    @symbiot/eslint-config, /prettier-config, /typescript-config
 ```
 
-One-way arrows. The editor consumes UI primitives; UI never imports the
-editor. The annotation package has no UI dependencies — it only knows about
-the tuple model and the Plate value shape (typed locally to keep slate out of
-its dep surface).
+One-way arrows. Every agent integration depends on `@symbiot/agent-runtime`,
+which owns the spawn-and-decide loop and depends on `apps/viewer` only through
+its `startServer` / `RunningServer` boundary. The editor consumes UI
+primitives; UI never imports the editor. The annotation package has no UI
+dependencies — it only knows about the tuple model and the Plate value shape
+(typed locally to keep slate out of its dep surface).
 
 ## Server contract
 
@@ -152,6 +160,14 @@ obsolete, delete the bullet rather than hedging it.
 
 ### Hook semantics
 
+- **The spawn-and-decide loop lives once in `@symbiot/agent-runtime`.** The
+  `runPlanReview` helper owns `startServer → onStart(url) → await resolved →
+stop → onResolved`. Each agent injects only stdin parsing and decision
+  emission via the `onResolved` callback (whose return value is the process
+  exit code); Claude-specific glue — `emitApproveDecision` / `emitDenyDecision`,
+  the approve marker, the `claude-code#50660` workaround — stays in
+  `apps/hook/src/runHook.ts`. `@symbiot/viewer` (`startServer` /
+  `RunningServer`) is the boundary; storage namespacing is out of scope here.
 - **Two events under one matcher.** The installer registers
   `PreToolUse(ExitPlanMode)` AND `PermissionRequest(ExitPlanMode)` against the
   same `symbiot run-hook` command. `PreToolUse` drives the viewer (single

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import { startServer } from "@symbiot/viewer";
+import { runPlanReview } from "@symbiot/agent-runtime";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
 import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
@@ -18,17 +18,17 @@ export const runAnnotate = async (filePath: string | undefined): Promise<number>
     return 64;
   }
   const plan = await readFile(filePath, "utf8");
-  const server = await startServer({
+  return runPlanReview({
     plan,
     mode: "annotate",
-    indexHtmlGz: viewerHtmlGz,
+    serverOptions: { indexHtmlGz: viewerHtmlGz },
+    onStart: (url) => process.stderr.write(`symbiot: annotate ${filePath} at ${url}\n`),
+    onResolved: (decision) => {
+      if (decision.kind === "feedback") {
+        process.stdout.write(`${decision.feedback}\n`);
+        return 0;
+      }
+      return 1;
+    },
   });
-  process.stderr.write(`symbiot: annotate ${filePath} at ${server.url}\n`);
-  const decision = await server.resolved;
-  await server.stop();
-  if (decision.kind === "feedback") {
-    process.stdout.write(`${decision.feedback}\n`);
-    return 0;
-  }
-  return 1;
 };
