@@ -142,8 +142,9 @@ ${CLAUDE_PLUGIN_ROOT}                       ${CLAUDE_PLUGIN_DATA}
   binary the plugin's current `SHA256SUMS` expects"
 - ④ Fast path: every invocation after the first is a single `exec`
 - ⑤ Slow path is guarded by a **portable `mkdir` lock** on
-  `.download.lock` (atomic on macOS + Linux, unlike `flock`, which is a
-  no-op in macOS's default shell). The lock winner downloads; a racing
+  `.download.lock` (atomic on macOS + Linux, unlike `flock`, which is not
+  shipped on macOS, so the old guard never actually locked there). The
+  lock winner downloads; a racing
   invocation (e.g. `run-hook` while `prepare` is still fetching) **waits**
   on the same download and then exec's the freshly cached binary instead
   of starting its own. A holder that dies is detected via its PID
