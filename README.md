@@ -55,8 +55,17 @@ Claude Code clones the repo and registers three hooks: `SessionStart`
 `PermissionRequest(ExitPlanMode)`. The first session after install
 downloads a ~60 MB platform binary into `${CLAUDE_PLUGIN_DATA}/bin/`
 (verified by SHA256 against the manifest shipped with the plugin).
-Subsequent sessions exec the cached binary directly — no Bun, no Node,
-no other runtime required.
+This cold download takes ~44 s on a normal connection; `SessionStart`
+pre-warms it so your first plan review opens instantly. Subsequent
+sessions exec the cached binary directly — no Bun, no Node, no other
+runtime required.
+
+The `ExitPlanMode` hooks carry a 1-hour timeout because `run-hook`
+blocks while you review the plan in the viewer — take as long as you
+need to decide. One caveat: `/reload-plugins` updates the plugin
+**without** re-firing `SessionStart`, so a freshly updated binary is not
+pre-warmed until your next session, and the first plan review afterward
+may incur a (now survivable) cold download.
 
 Supported platforms: **macOS arm64**, **macOS x64**, **Linux x64**,
 **Windows x64**. See [`docs/release.md`](docs/release.md) for the

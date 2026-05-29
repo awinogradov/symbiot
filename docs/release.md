@@ -102,7 +102,7 @@ ${CLAUDE_PLUGIN_ROOT}                       ${CLAUDE_PLUGIN_DATA}
 │   symbiot.cmd       (Win32)  │            │   symbiot-darwin-x64         │
 │   VERSION           v0.2.0   │            │   symbiot-linux-x64          │
 │   SHA256SUMS                 │            │   symbiot-windows-x64.exe    │
-└──────────────┬───────────────┘            │   .download.lock             │
+└──────────────┬───────────────┘            │   .download.lock/  (lock dir)│
                │                            └──────────────────────────────┘
                │
                │  ① hooks.json invokes "${CLAUDE_PLUGIN_ROOT}/bin/symbiot"
@@ -123,7 +123,7 @@ ${CLAUDE_PLUGIN_ROOT}                       ${CLAUDE_PLUGIN_DATA}
                 ┌────────────────────┴────────────────────┐
                 ▼                                         ▼
             match                                  mismatch / missing
-        ④ exec the cached binary                ⑤ flock-guarded download:
+        ④ exec the cached binary                ⑤ mkdir-lock download:
             (or exit 0 for `prepare`)              curl -fsSL  \\
                                                      https://github.com/  \\
                                                        awinogradov/symbiot/ \\
@@ -141,10 +141,16 @@ ${CLAUDE_PLUGIN_ROOT}                       ${CLAUDE_PLUGIN_DATA}
 - ② / ③ Hash check is the single source of truth for "is this the
   binary the plugin's current `SHA256SUMS` expects"
 - ④ Fast path: every invocation after the first is a single `exec`
-- ⑤ Slow path is guarded by `flock` on `.download.lock` so concurrent
-  SessionStart + PreToolUse never race
+- ⑤ Slow path is guarded by a **portable `mkdir` lock** on
+  `.download.lock` (atomic on macOS + Linux, unlike `flock`, which is a
+  no-op in macOS's default shell). The lock winner downloads; a racing
+  invocation (e.g. `run-hook` while `prepare` is still fetching) **waits**
+  on the same download and then exec's the freshly cached binary instead
+  of starting its own. A holder that dies is detected via its PID
+  (`kill -0`) and the lock is stolen
 - ⑥ Hash mismatch on the downloaded artifact aborts the install
-- ⑦ Atomic rename means the shim never exec's a half-written file
+- ⑦ Download lands in a PID-unique temp; atomic rename means the shim
+  never exec's a half-written file even if two downloads overlap
 - ⑧ All args from the original shim invocation are forwarded
 
 ## Step-by-step checklist

@@ -34,6 +34,40 @@ This directory doubles as the **plugin root** (`${CLAUDE_PLUGIN_ROOT}`):
 - `bin/symbiot.cmd` — Windows counterpart.
 - `bin/VERSION`, `bin/SHA256SUMS` — the version + hash manifest the shim verifies downloads against.
 
+## Hook lifecycle & timeouts
+
+```text
+┌───────────────┐                     ┌────────────────────────────┐
+│ SessionStart  │                     │ ExitPlanMode               │
+└───────┬───────┘                     └──────────────┬─────────────┘
+        │ ①                                          │ ③
+        ▼                                            ▼
+┌────────────────────────┐           ┌────────────────────────────┐
+│ symbiot prepare        │           │ symbiot run-hook           │
+│ timeout 120s           │           │ timeout 3600s (1 hour)     │
+│ download-only · exit 0 │           │ spawn viewer · BLOCK       │
+└───────┬────────────────┘           └──────────────┬─────────────┘
+        │ ②                                          │ ④
+        ▼                                            ▼
+┌─────────────────────────────┐      ┌────────────────────────────┐
+│ ${DATA}/bin/symbiot-<triple> │◀─warm│ binary present?            │
+│ (sha-verified cache)         │      └──────────────┬─────────────┘
+└─────────────────────────────┘                     │ ⑤
+                                                     ▼
+                                     ┌────────────────────────────┐
+                                     │ reviewer reads & decides   │
+                                     │ approve / request changes  │
+                                     └────────────────────────────┘
+```
+
+**Flow Legend:**
+
+- ① `SessionStart` pre-warms the cache before any tool runs.
+- ② `prepare` downloads the ~60 MB binary (≤120 s budget) and exits 0 — it never blocks on a human.
+- ③ `ExitPlanMode` fires `run-hook` to open the plan-review viewer.
+- ④ A warm cache execs instantly; a cold cache absorbs a ~44 s download first.
+- ⑤ `run-hook` **blocks until the reviewer decides** — open-ended human time, so its hook entry carries a **1-hour** `timeout` (`3600`). The default command-hook timeout (600 s) would kill a slow review or a cold download; `prepare` keeps the shorter 120 s budget because it only downloads.
+
 ## Installation
 
 ```
@@ -44,7 +78,18 @@ This directory doubles as the **plugin root** (`${CLAUDE_PLUGIN_ROOT}`):
 No Bun, no Node, no other runtime needed on the user side. On the first
 session after install the shim downloads a ~60 MB binary for the
 current platform into `${CLAUDE_PLUGIN_DATA}/bin/` and verifies its
-SHA256 against `bin/SHA256SUMS`.
+SHA256 against `bin/SHA256SUMS`. This cold download takes ~44 s on a
+normal connection; `SessionStart` pre-warms it so the first
+`ExitPlanMode` is usually instant. If a cold download does land on a
+`run-hook` invocation, the 1-hour hook timeout lets it finish rather
+than being killed silently.
+
+> **Mid-session updates:** `/reload-plugins` swaps in a new plugin
+> version **without re-firing `SessionStart`**, so the new binary is not
+> pre-warmed until the next session. The first `ExitPlanMode` after such
+> an update may incur a cold (but now survivable) download. Concurrent
+> `prepare` + `run-hook` downloads coordinate through a portable `mkdir`
+> lock — the second waits on the first instead of racing it.
 
 See [`docs/release.md`](../../docs/release.md) for the release flow and
 the offline-install path.
