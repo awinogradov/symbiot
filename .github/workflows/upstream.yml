@@ -23,9 +23,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
       - uses: awinogradov/code-assistants/.github/actions/agents-rules-sync@main
         with:
-          bot_token: ${{ secrets.BOT_TOKEN }}
+          bot_token: ${{ steps.app-token.outputs.token }}
           bot_username: ${{ vars.BOT_USERNAME }}
 
   sync-contributing:
@@ -33,7 +38,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
       - uses: awinogradov/code-assistants/.github/actions/contributing-sync@main
         with:
-          bot_token: ${{ secrets.BOT_TOKEN }}
+          bot_token: ${{ steps.app-token.outputs.token }}
           bot_username: ${{ vars.BOT_USERNAME }}
