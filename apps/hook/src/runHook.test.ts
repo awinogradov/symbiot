@@ -12,6 +12,7 @@ const {
   hashPlan,
   isFreshFor,
   markerPath,
+  permissionRequestAllowPayload,
   readApproveMarker,
   writeApproveMarker,
 } = await import("./runHook.ts");
@@ -30,6 +31,18 @@ describe("hashPlan", () => {
 
   it("differs across distinct inputs", () => {
     expect(hashPlan("a")).not.toBe(hashPlan("b"));
+  });
+});
+
+describe("permissionRequestAllowPayload", () => {
+  it("allows ExitPlanMode and switches the session to auto mode", () => {
+    const { decision } = permissionRequestAllowPayload().hookSpecificOutput;
+    expect(decision.behavior).toBe("allow");
+    expect(decision.updatedPermissions).toContainEqual({
+      type: "setMode",
+      mode: "auto",
+      destination: "session",
+    });
   });
 });
 

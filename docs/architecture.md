@@ -178,8 +178,11 @@ stop → onResolved`. Each agent injects only stdin parsing and decision
   this short-circuits tool dispatch, so `PermissionRequest` does not fire
   on the deny path. `PermissionRequest` is a viewer-less reader that
   consults the marker (60 s TTL, plan-hash gated) and emits the nested
-  `{decision: {behavior: "allow"}}` schema Claude Code honors for this
-  event — suppressing the native "Accept this plan?" prompt.
+  `{decision: {behavior: "allow", updatedPermissions: [{type: "setMode",
+mode: "auto", destination: "session"}]}}` schema Claude Code honors for
+  this event — suppressing the native "Accept this plan?" prompt and, in its
+  place, switching the session to `auto` mode (the prompt's "start in auto
+  mode" choice) instead of Claude Code's post-approval `acceptEdits` default.
 - **Two schemas — `PreToolUse` ≠ `PermissionRequest`.** The two events do
   NOT share an output shape. `PreToolUse` expects
   `hookSpecificOutput.permissionDecision` (`allow` / `deny` / `ask`) which
