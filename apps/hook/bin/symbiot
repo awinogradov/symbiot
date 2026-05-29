@@ -5,6 +5,12 @@
 #   prepare   → SessionStart  (ensure cached; no exec)
 #   run-hook  → ExitPlanMode  (ensure cached; exec binary run-hook)
 #   <other>   → manual CLI    (ensure cached; exec binary with args)
+#
+# Concurrency: a cold cache can have SessionStart `prepare` and an ExitPlanMode
+# `run-hook` download at the same time. They coordinate through a portable
+# mkdir lock — the loser waits for the winner's download instead of starting
+# its own. (The previous flock guard was a silent no-op on macOS, whose default
+# shell has no flock, so both sides raced and clobbered a shared temp file.)
 set -e
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -28,35 +34,72 @@ if [ -z "$EXPECTED" ]; then
   exit 1
 fi
 
-# Cache-hit fast path.
-if [ -x "$BIN" ]; then
-  ACTUAL="$(shasum -a 256 "$BIN" | awk '{ print $1 }')"
-  if [ "$EXPECTED" = "$ACTUAL" ]; then
-    if [ "$1" = "prepare" ]; then exit 0; fi
-    exec "$BIN" "$@"
+# True when the cached binary exists and matches the expected hash.
+binary_valid() {
+  [ -x "$BIN" ] && [ "$(shasum -a 256 "$BIN" 2>/dev/null | awk '{ print $1 }')" = "$EXPECTED" ]
+}
+
+# Download, verify, and atomically install the binary. Uses a PID-unique temp
+# so concurrent downloaders can never clobber a shared file.
+download_binary() {
+  VERSION="$(cat "$PLUGIN_ROOT/bin/VERSION")"
+  URL="https://github.com/awinogradov/symbiot/releases/download/$VERSION/symbiot-$TRIPLE"
+  TMP="$BIN.tmp.$$"
+  echo "symbiot: downloading $URL …" >&2
+  curl -fsSL "$URL" -o "$TMP"
+  ACTUAL="$(shasum -a 256 "$TMP" | awk '{ print $1 }')"
+  if [ "$EXPECTED" != "$ACTUAL" ]; then
+    rm -f "$TMP"
+    echo "symbiot: sha256 mismatch (expected $EXPECTED, got $ACTUAL)" >&2
+    exit 1
   fi
+  chmod +x "$TMP"
+  mv "$TMP" "$BIN"
+}
+
+# Hold the lock for the duration of a download, then release it.
+hold_and_download() {
+  I_HOLD_LOCK=1
+  echo "$$" > "$LOCKDIR/pid"
+  binary_valid || download_binary
+  rm -rf "$LOCKDIR"
+  I_HOLD_LOCK=""
+}
+
+# Cache-hit fast path — no lock needed.
+if binary_valid; then
+  if [ "$1" = "prepare" ]; then exit 0; fi
+  exec "$BIN" "$@"
 fi
 
 mkdir -p "$DATA_DIR/bin"
-LOCK="$DATA_DIR/bin/.download.lock"
+LOCKDIR="$DATA_DIR/bin/.download.lock"
+I_HOLD_LOCK=""
+# Only the holder removes the lock dir; a waiter must never delete it.
+trap '[ -n "$I_HOLD_LOCK" ] && rm -rf "$LOCKDIR" 2>/dev/null || true' EXIT INT TERM
 
-(
-  if command -v flock >/dev/null 2>&1; then flock -x 9; fi
-  if [ ! -x "$BIN" ] || [ "$(shasum -a 256 "$BIN" | awk '{ print $1 }')" != "$EXPECTED" ]; then
-    VERSION="$(cat "$PLUGIN_ROOT/bin/VERSION")"
-    URL="https://github.com/awinogradov/symbiot/releases/download/$VERSION/symbiot-$TRIPLE"
-    echo "symbiot: downloading $URL …" >&2
-    curl -fsSL "$URL" -o "$BIN.tmp"
-    ACTUAL="$(shasum -a 256 "$BIN.tmp" | awk '{ print $1 }')"
-    if [ "$EXPECTED" != "$ACTUAL" ]; then
-      rm -f "$BIN.tmp"
-      echo "symbiot: sha256 mismatch (expected $EXPECTED, got $ACTUAL)" >&2
-      exit 1
+if mkdir "$LOCKDIR" 2>/dev/null; then
+  hold_and_download
+else
+  # Another process is downloading — wait for it rather than racing.
+  echo "symbiot: waiting for in-progress download …" >&2
+  waited=0
+  while ! binary_valid; do
+    if [ "$waited" -ge 300 ]; then
+      download_binary
+      break
     fi
-    chmod +x "$BIN.tmp"
-    mv "$BIN.tmp" "$BIN"
-  fi
-) 9>"$LOCK"
+    HOLDER="$(cat "$LOCKDIR/pid" 2>/dev/null || true)"
+    if [ -n "$HOLDER" ] && ! kill -0 "$HOLDER" 2>/dev/null; then
+      # Holder died without cleaning up — steal the lock and download.
+      rm -rf "$LOCKDIR"
+      if mkdir "$LOCKDIR" 2>/dev/null; then hold_and_download; fi
+      break
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+fi
 
 if [ "$1" = "prepare" ]; then exit 0; fi
 exec "$BIN" "$@"

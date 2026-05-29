@@ -17,7 +17,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" run-hook"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" run-hook",
+            "timeout": 3600
           }
         ]
       }
@@ -28,7 +29,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" run-hook"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" run-hook",
+            "timeout": 3600
           }
         ]
       }
