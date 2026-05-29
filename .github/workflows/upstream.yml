@@ -25,7 +25,8 @@ jobs:
     steps:
       - uses: awinogradov/code-assistants/.github/actions/agents-rules-sync@main
         with:
-          token: ${{ secrets.GH_TOKEN }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          bot_username: ${{ vars.BOT_USERNAME }}
 
   sync-contributing:
     name: Sync contributing files
@@ -34,4 +35,5 @@ jobs:
     steps:
       - uses: awinogradov/code-assistants/.github/actions/contributing-sync@main
         with:
-          token: ${{ secrets.GH_TOKEN }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          bot_username: ${{ vars.BOT_USERNAME }}
