@@ -8,8 +8,10 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
 const planDecisionFile = join(rootDir, ".features-generated", "last-decision.json");
 const annotateDecisionFile = join(rootDir, ".features-generated", "annotate-decision.json");
 const planPath = join(rootDir, "fixtures", "markdown", "elements.md");
+const noHeadingPlanPath = join(rootDir, "fixtures", "markdown", "no-heading.md");
 const planPort = 3210;
 const annotatePort = 3211;
+const noHeadingPort = 3212;
 const baseURL = `http://127.0.0.1:${planPort}`;
 
 const testDir = defineBddConfig({
@@ -60,6 +62,17 @@ export default defineConfig({
     {
       command: viewerCommand(annotatePort, annotateDecisionFile, "annotate"),
       url: `http://127.0.0.1:${annotatePort}`,
+      reuseExistingServer: process.env["CI"] !== "true",
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+    {
+      // Serves a plan with no H1 so `page-title.feature` can assert the
+      // document-title collapses to the project context. A fresh plan needs no
+      // predecessor seeding, so it skips the mkdir/cp the others require.
+      command: `bun apps/viewer/src/bin.ts --plan ${noHeadingPlanPath} --port ${noHeadingPort} --no-open --keep-alive --mode plan`,
+      url: `http://127.0.0.1:${noHeadingPort}`,
       reuseExistingServer: process.env["CI"] !== "true",
       stdout: "pipe",
       stderr: "pipe",
