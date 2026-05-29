@@ -5,6 +5,7 @@ import { SidebarInset } from "@symbiot/ui/components/SidebarChrome";
 import { SidebarProvider } from "@symbiot/ui/components/SidebarProvider";
 import { TopBar } from "@symbiot/ui/components/TopBar";
 
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 import { useReviewHotkeys } from "../hooks/useReviewHotkeys.ts";
 import { useReviewState } from "../hooks/useReviewState.ts";
 import { useReviewSubmit } from "../hooks/useReviewSubmit.ts";
@@ -148,6 +149,9 @@ export const ReviewScreen = ({
 }: ReviewScreenProps): React.ReactElement => {
   const state = useReviewState({ draft, saveDraft });
   const version = useVersionState(plan);
+  // Mirror the TopBar context + plan H1 in the browser tab. Boot `plan.plan` per
+  // issue #148 scope; pass `version.activePlan` to instead track the on-screen version.
+  useDocumentTitle(plan.meta.displayName, plan.plan);
   const { phase, onApprove, onSubmit } = useReviewSubmit({
     planMode: plan.mode,
     editorHandle: state.editorHandle,
