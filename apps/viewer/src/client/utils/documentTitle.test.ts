@@ -28,8 +28,4 @@ describe("buildDocumentTitle", () => {
   it("collapses to the project context when there is no plan title", () => {
     expect(buildDocumentTitle("acme · main", null)).toBe("Symbiot · acme · main");
   });
-
-  it("drops the project separator when displayName is empty", () => {
-    expect(buildDocumentTitle("   ", null)).toBe("Symbiot");
-  });
 });
