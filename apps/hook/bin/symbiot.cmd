@@ -41,6 +41,10 @@ if %errorlevel%==0 goto :run
 
 if not exist "%DATA_DIR%\bin" mkdir "%DATA_DIR%\bin"
 
+REM A pre-0.3.0 shim may have left .download.lock as a regular file; `md` can
+REM never acquire over a non-directory, so remove any squatting the path first.
+if exist "%LOCKDIR%" if not exist "%LOCKDIR%\" del /q "%LOCKDIR%" 2>nul
+
 REM Try to acquire the lock; if held, wait for the in-progress download.
 md "%LOCKDIR%" 2>nul
 if %errorlevel%==0 (
@@ -50,6 +54,9 @@ if %errorlevel%==0 (
   goto :verify_and_run
 )
 
+REM SessionStart `prepare` is best-effort and time-boxed; don't block on the
+REM holder — run-hook owns the reliable download.
+if "%~1"=="prepare" exit /b 0
 echo symbiot: waiting for in-progress download ... 1>&2
 set /a waited=0
 :waitloop

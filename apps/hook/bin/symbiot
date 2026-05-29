@@ -16,6 +16,15 @@ set -e
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA_DIR="${CLAUDE_PLUGIN_DATA:-$HOME/.symbiot/plugin-data}"
 
+# Durable shim-side log. The compiled binary writes events.log only AFTER it is
+# exec'd, so pre-exec failures (download, lock, verify) would otherwise leave no
+# trace. shim_log is best-effort and never fails the script under `set -e`.
+SHIM_LOG="${HOME:-/tmp}/.symbiot/hook-state/shim.log"
+shim_log() {
+  mkdir -p "${SHIM_LOG%/*}" 2>/dev/null || true
+  printf '%s pid=%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)" "$$" "$1" >> "$SHIM_LOG" 2>/dev/null || true
+}
+
 case "$(uname -s)-$(uname -m)" in
   Darwin-arm64)    TRIPLE="darwin-arm64" ;;
   Darwin-x86_64)   TRIPLE="darwin-x64"   ;;
@@ -46,15 +55,25 @@ download_binary() {
   URL="https://github.com/awinogradov/symbiot/releases/download/$VERSION/symbiot-$TRIPLE"
   TMP="$BIN.tmp.$$"
   echo "symbiot: downloading $URL …" >&2
-  curl -fsSL "$URL" -o "$TMP"
+  shim_log "download: start $URL"
+  rc=0
+  curl -fsSL "$URL" -o "$TMP" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$TMP"
+    shim_log "download: curl failed rc=$rc url=$URL"
+    echo "symbiot: download failed (curl rc=$rc)" >&2
+    exit 1
+  fi
   ACTUAL="$(shasum -a 256 "$TMP" | awk '{ print $1 }')"
   if [ "$EXPECTED" != "$ACTUAL" ]; then
     rm -f "$TMP"
+    shim_log "download: sha256 mismatch expected=$EXPECTED got=$ACTUAL"
     echo "symbiot: sha256 mismatch (expected $EXPECTED, got $ACTUAL)" >&2
     exit 1
   fi
   chmod +x "$TMP"
   mv "$TMP" "$BIN"
+  shim_log "download: installed $BIN"
 }
 
 # Hold the lock for the duration of a download, then release it.
@@ -75,14 +94,28 @@ fi
 mkdir -p "$DATA_DIR/bin"
 LOCKDIR="$DATA_DIR/bin/.download.lock"
 I_HOLD_LOCK=""
-# Only the holder removes the lock dir; a waiter must never delete it.
-trap '[ -n "$I_HOLD_LOCK" ] && rm -rf "$LOCKDIR" 2>/dev/null || true' EXIT INT TERM
+TMP=""
+# Only the holder removes the lock dir; a waiter must never delete it. The trap
+# also clears this process's partial download on interrupt.
+trap '[ -n "$I_HOLD_LOCK" ] && rm -rf "$LOCKDIR" 2>/dev/null; [ -n "$TMP" ] && rm -f "$TMP" 2>/dev/null; true' EXIT INT TERM
+
+# A pre-0.3.0 shim created .download.lock as a regular FILE (fd-redirect lock).
+# The mkdir lock below can never acquire over a non-directory and would wedge
+# every upgrade, so reap any non-directory squatting the path first.
+if [ -e "$LOCKDIR" ] && [ ! -d "$LOCKDIR" ]; then
+  rm -f "$LOCKDIR"
+  shim_log "lock: reaped non-directory .download.lock"
+fi
 
 if mkdir "$LOCKDIR" 2>/dev/null; then
   hold_and_download
 else
-  # Another process is downloading — wait for it rather than racing.
+  # Another process is downloading. SessionStart `prepare` is best-effort and
+  # time-boxed (120s), so it must not block on the holder — run-hook (3600s)
+  # owns the reliable download.
+  if [ "$1" = "prepare" ]; then exit 0; fi
   echo "symbiot: waiting for in-progress download …" >&2
+  shim_log "lock: waiting for in-progress download"
   waited=0
   while ! binary_valid; do
     if [ "$waited" -ge 300 ]; then
@@ -102,4 +135,5 @@ else
 fi
 
 if [ "$1" = "prepare" ]; then exit 0; fi
+shim_log "exec $BIN $*"
 exec "$BIN" "$@"
