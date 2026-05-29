@@ -1,7 +1,7 @@
 {
   "name": "symbiot",
   "description": "Interactive plan review for Claude Code — intercept ExitPlanMode, annotate, and return structured feedback.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": { "name": "awinogradov" },
   "repository": "https://github.com/awinogradov/symbiot",
   "keywords": ["planning", "review", "ExitPlanMode", "hooks", "annotation"]
