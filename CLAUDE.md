@@ -272,7 +272,7 @@ Choose ONE backend based on the project's needs. Do not mix.
 
 - 👤 Features in features/ directory
 - 👤 All helpers must be pure functions
-- 👤 BDD selectors: see [docs/testing.md § Playwright-BDD selectors](./docs/testing.md#playwright-bdd-selectors)
+- 👤 Use data-testid for stable selectors
 - 👤 ES module imports require .js extensions
 - 👤 Uses Playwright under the hood, use Playwright MCP for UI tests
 - 👤 IMPORTANT: Use browser_snapshot before ANY UI work
