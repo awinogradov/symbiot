@@ -4,7 +4,7 @@
  * include them without cross-project file references.
  */
 
-/** Identifies a plan revision in `~/.symbiot/history/{project}/{slug}/00N.md`. */
+/** Identifies a plan revision in `~/.symbiot/agents/{agentId}/history/{project}/{slug}/00N.md`. */
 export interface PlanMeta {
   project: string;
   slug: string;

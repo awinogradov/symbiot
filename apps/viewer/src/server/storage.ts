@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -21,13 +21,81 @@ export const getStorageRoot = (): string => join(process.env.HOME || homedir(), 
  */
 export const storageRoot = getStorageRoot();
 
-const historyDir = (): string => join(getStorageRoot(), "history");
-const annotationsDir = (): string => join(getStorageRoot(), "annotations");
-const draftsDir = (): string => join(getStorageRoot(), "drafts");
-const uploadsDir = (): string => join(getStorageRoot(), "uploads");
+/**
+ * Default agent slug. Single-agent (Claude Code only) installs and the bare
+ * `symbiot` CLI use this, so `startServer({ agentId })` stays optional and
+ * pre-namespacing data migrates into this namespace (see {@link migrateLegacyTree}).
+ */
+export const defaultAgentId = "claude-code";
 
-/** Root directory for `/api/upload` writes. Exposed for security guards. */
-export const uploadsRoot = uploadsDir();
+const agentIdRe = /^[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * Guard the `<agent-id>` path segment. Slugs come from trusted callers
+ * (`startServer({ agentId })`, defaulting to `claude-code`), but validating
+ * here stops a malformed slug from escaping the `agents/` namespace.
+ */
+export const assertValidAgentId = (agentId: string): void => {
+  if (!agentIdRe.test(agentId)) throw new Error(`invalid agentId: ${JSON.stringify(agentId)}`);
+};
+
+const agentDir = (agentId: string): string => {
+  assertValidAgentId(agentId);
+  return join(getStorageRoot(), "agents", agentId);
+};
+
+const historyDir = (agentId: string): string => join(agentDir(agentId), "history");
+const annotationsDir = (agentId: string): string => join(agentDir(agentId), "annotations");
+const draftsDir = (agentId: string): string => join(agentDir(agentId), "drafts");
+const uploadsDir = (agentId: string): string => join(agentDir(agentId), "uploads");
+
+/** Root directory for a given agent's `/api/upload` writes. Exposed for security guards. */
+export const agentUploadsRoot = (agentId: string): string => uploadsDir(agentId);
+
+/** Per-agent subtrees relocated by {@link migrateLegacyTree} from the flat root. */
+const legacySubdirs = ["history", "annotations", "drafts", "uploads"] as const;
+
+const pathExists = async (target: string): Promise<boolean> => {
+  try {
+    await stat(target);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+};
+
+// A concurrent boot can win the rename: it may populate `to` (EEXIST/ENOTEMPTY)
+// or move `from` away first (ENOENT). `rename` is only reached after we confirm
+// `from` existed and `to` did not, so any of these means another boot already
+// completed this subtree's migration — idempotent, not an error to propagate.
+const isBenignRenameRace = (code: string | undefined): boolean =>
+  code === "EEXIST" || code === "ENOTEMPTY" || code === "ENOENT";
+
+const moveLegacySubdir = async (from: string, to: string, agentRoot: string): Promise<void> => {
+  if (!(await pathExists(from)) || (await pathExists(to))) return;
+  await mkdir(agentRoot, { recursive: true });
+  try {
+    await rename(from, to);
+  } catch (error) {
+    if (!isBenignRenameRace((error as NodeJS.ErrnoException).code)) throw error;
+  }
+};
+
+/**
+ * One-shot migration of pre-namespacing state into the {@link defaultAgentId}
+ * namespace. Old installs wrote per-plan state flat under `~/.symbiot/<subdir>`;
+ * it all belonged to Claude Code (the only agent then). Each subtree moves only
+ * when the legacy path exists and the namespaced target does not, so this is
+ * idempotent and never clobbers already-namespaced state. Runs on every boot.
+ */
+export const migrateLegacyTree = async (): Promise<void> => {
+  const root = getStorageRoot();
+  const target = agentDir(defaultAgentId);
+  await Promise.all(
+    legacySubdirs.map((sub) => moveLegacySubdir(join(root, sub), join(target, sub), target))
+  );
+};
 
 export type { PlanMeta };
 
@@ -134,10 +202,11 @@ export const resolveDisplayName = (cwd: string, git: GitReader = defaultGitReade
 
 const padVersion = (n: number): string => String(n).padStart(3, "0");
 
-const planDir = (project: string, slug: string): string => join(historyDir(), project, slug);
+const planDir = (agentId: string, project: string, slug: string): string =>
+  join(historyDir(agentId), project, slug);
 
-const planFile = (project: string, slug: string, version: number): string =>
-  join(planDir(project, slug), `${padVersion(version)}.md`);
+const planFile = (agentId: string, project: string, slug: string, version: number): string =>
+  join(planDir(agentId, project, slug), `${padVersion(version)}.md`);
 
 const writeAtomic = async (target: string, content: string | Uint8Array): Promise<void> => {
   await mkdir(dirname(target), { recursive: true });
@@ -161,20 +230,25 @@ const nextVersionIn = async (dir: string): Promise<number> => {
 };
 
 /**
- * Persist a fresh plan version under ~/.symbiot/history/{project}/{slug}/00N.md.
+ * Persist a fresh plan version under
+ * ~/.symbiot/agents/{agentId}/history/{project}/{slug}/00N.md.
  * Atomic-write semantics (write to .tmp + rename).
  */
-export const savePlan = async (plan: string, cwd: string = process.cwd()): Promise<PlanMeta> => {
+export const savePlan = async (
+  agentId: string,
+  plan: string,
+  cwd: string = process.cwd()
+): Promise<PlanMeta> => {
   const project = deriveProjectSlug(cwd);
   const slug = derivePlanSlug(plan);
   const displayName = resolveDisplayName(cwd);
-  const version = await nextVersionIn(planDir(project, slug));
-  await writeAtomic(planFile(project, slug, version), plan);
+  const version = await nextVersionIn(planDir(agentId, project, slug));
+  await writeAtomic(planFile(agentId, project, slug, version), plan);
   return { project, slug, version, displayName };
 };
 
-export const loadPlan = async (meta: PlanMeta): Promise<string> =>
-  readFile(planFile(meta.project, meta.slug, meta.version), "utf8");
+export const loadPlan = async (agentId: string, meta: PlanMeta): Promise<string> =>
+  readFile(planFile(agentId, meta.project, meta.slug, meta.version), "utf8");
 
 /**
  * Resolve the absolute on-disk path of a specific plan version. Used by the
@@ -182,17 +256,23 @@ export const loadPlan = async (meta: PlanMeta): Promise<string> =>
  * verify both files exist (e.g. via {@link loadPlan}) before invoking VS Code,
  * because `code` exits silently on missing inputs.
  */
-export const planFilePath = (meta: Pick<PlanMeta, "project" | "slug">, version: number): string =>
-  planFile(meta.project, meta.slug, version);
+export const planFilePath = (
+  agentId: string,
+  meta: Pick<PlanMeta, "project" | "slug">,
+  version: number
+): string => planFile(agentId, meta.project, meta.slug, version);
 
 /**
  * List every version number persisted under
- * ~/.symbiot/history/{project}/{slug}/, ascending. Returns `[]` when the plan
- * directory does not exist yet.
+ * ~/.symbiot/agents/{agentId}/history/{project}/{slug}/, ascending. Returns
+ * `[]` when the plan directory does not exist yet.
  */
-export const listVersions = async (meta: Pick<PlanMeta, "project" | "slug">): Promise<number[]> => {
+export const listVersions = async (
+  agentId: string,
+  meta: Pick<PlanMeta, "project" | "slug">
+): Promise<number[]> => {
   try {
-    const entries = await readdir(planDir(meta.project, meta.slug));
+    const entries = await readdir(planDir(agentId, meta.project, meta.slug));
     return entries
       .map((name) => /^(\d{3})\.md$/.exec(name)?.[1])
       .filter((v): v is string => v !== undefined)
@@ -204,37 +284,38 @@ export const listVersions = async (meta: Pick<PlanMeta, "project" | "slug">): Pr
   }
 };
 
-const annotationDir = (project: string, slug: string): string =>
-  join(annotationsDir(), project, slug);
+const annotationDir = (agentId: string, project: string, slug: string): string =>
+  join(annotationsDir(agentId), project, slug);
 
-const annotationFile = (project: string, slug: string, version: number): string =>
-  join(annotationDir(project, slug), `${padVersion(version)}.md`);
+const annotationFile = (agentId: string, project: string, slug: string, version: number): string =>
+  join(annotationDir(agentId, project, slug), `${padVersion(version)}.md`);
 
 /**
  * Persist a feedback markdown blob under
- * ~/.symbiot/annotations/{project}/{slug}/00N.md for annotate mode.
+ * ~/.symbiot/agents/{agentId}/annotations/{project}/{slug}/00N.md for annotate mode.
  */
 export const saveFeedback = async (
+  agentId: string,
   meta: PlanMeta,
   feedback: string
 ): Promise<{ version: number }> => {
-  const version = await nextVersionIn(annotationDir(meta.project, meta.slug));
-  await writeAtomic(annotationFile(meta.project, meta.slug, version), feedback);
+  const version = await nextVersionIn(annotationDir(agentId, meta.project, meta.slug));
+  await writeAtomic(annotationFile(agentId, meta.project, meta.slug, version), feedback);
   return { version };
 };
 
-const draftFile = (project: string, slug: string): string =>
-  join(draftsDir(), project, slug, "draft.json");
+const draftFile = (agentId: string, project: string, slug: string): string =>
+  join(draftsDir(agentId), project, slug, "draft.json");
 
 /** Persist the reviewer's in-progress annotations for restoration across reloads. */
-export const saveDraft = async (meta: PlanMeta, draft: string): Promise<void> => {
-  await writeAtomic(draftFile(meta.project, meta.slug), draft);
+export const saveDraft = async (agentId: string, meta: PlanMeta, draft: string): Promise<void> => {
+  await writeAtomic(draftFile(agentId, meta.project, meta.slug), draft);
 };
 
 /** Read the saved draft for this plan, or null if none exists. */
-export const loadDraft = async (meta: PlanMeta): Promise<string | null> => {
+export const loadDraft = async (agentId: string, meta: PlanMeta): Promise<string | null> => {
   try {
-    return await readFile(draftFile(meta.project, meta.slug), "utf8");
+    return await readFile(draftFile(agentId, meta.project, meta.slug), "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
@@ -242,15 +323,16 @@ export const loadDraft = async (meta: PlanMeta): Promise<string | null> => {
 };
 
 /** Remove any saved draft for this plan. Idempotent. */
-export const clearDraft = async (meta: PlanMeta): Promise<void> => {
-  await rm(draftFile(meta.project, meta.slug), { force: true });
+export const clearDraft = async (agentId: string, meta: PlanMeta): Promise<void> => {
+  await rm(draftFile(agentId, meta.project, meta.slug), { force: true });
 };
 
-const uploadDir = (project: string, slug: string): string => join(uploadsDir(), project, slug);
+const uploadDir = (agentId: string, project: string, slug: string): string =>
+  join(uploadsDir(agentId), project, slug);
 
 /** Resolve the on-disk path for an uploaded image. Caller MUST validate the filename. */
-export const uploadPath = (meta: PlanMeta, filename: string): string =>
-  join(uploadDir(meta.project, meta.slug), filename);
+export const uploadPath = (agentId: string, meta: PlanMeta, filename: string): string =>
+  join(uploadDir(agentId, meta.project, meta.slug), filename);
 
 /** Persist uploaded image bytes via atomic write. */
 export const saveUpload = async (target: string, bytes: ArrayBuffer): Promise<void> => {
