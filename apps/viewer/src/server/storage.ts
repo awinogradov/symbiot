@@ -60,7 +60,11 @@ const pathExists = async (target: string): Promise<boolean> => {
     await stat(target);
     return true;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    // ENOENT: nothing there. ENOTDIR: a parent component is a file, so the path
+    // cannot exist either — both mean "absent" for migration purposes (mirrors
+    // the hook's isMissingPath).
+    const { code } = error as NodeJS.ErrnoException;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
     throw error;
   }
 };
