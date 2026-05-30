@@ -157,6 +157,7 @@ Conventions and selector rules for scenarios live in [`features`](./features/REA
 apps/
   viewer/        Bun HTTP server + React/Vite client; ships as a single binary
   hook/          Claude Code hook that opens the viewer and resolves plans
+  codex/         Codex CLI hook (Stop) that opens the viewer and resolves plans
   portal/        Static viewer for shared review links
 packages/
   symbiot-annotations/  Annotation tuple model + codec
@@ -197,6 +198,7 @@ Apps:
 
 - [`apps/viewer`](./apps/viewer/README.md) — fullstack viewer (server + client).
 - [`apps/hook`](./apps/hook/README.md) — Claude Code hook entry point.
+- [`apps/codex`](./apps/codex/README.md) — Codex CLI hook entry point.
 - [`apps/portal`](./apps/portal/README.md) — shared-link viewer.
 
 Packages:
