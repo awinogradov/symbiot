@@ -23,7 +23,7 @@ Higher-level material lives at the repo root:
 Per-area READMEs (each one cites the docs above where relevant):
 
 - [`../apps/viewer/README.md`](../apps/viewer/README.md)
-- [`../apps/hook/README.md`](../apps/hook/README.md)
+- [`../apps/claude-code/README.md`](../apps/claude-code/README.md)
 - [`../apps/codex/README.md`](../apps/codex/README.md)
 - [`../apps/portal/README.md`](../apps/portal/README.md)
 - [`../packages/symbiot-editor/README.md`](../packages/symbiot-editor/README.md)

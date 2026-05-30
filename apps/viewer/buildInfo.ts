@@ -20,7 +20,7 @@ import { join } from "node:path";
 
 /** Build-time facts about the running viewer, injected as a global on the client. */
 export interface BuildInfo {
-  /** Plugin version from `apps/hook/.claude-plugin/plugin.json`. */
+  /** Plugin version from `apps/claude-code/.claude-plugin/plugin.json`. */
   version: string;
   /** `git rev-parse --short HEAD` (or `"dev"` when not in a git checkout). */
   shaShort: string;
@@ -34,7 +34,7 @@ export interface BuildInfo {
 export interface BuildInfoReaders {
   /** Returns the in-flight release version when the build runs from a CI release workflow (e.g. `GITHUB_REF_NAME=v0.2.0` → `"0.2.0"`), or `null` outside that context. Takes precedence over {@link readPluginVersion} so a tagged release does not embed the previous version still pinned in the on-disk manifest. */
   readReleaseVersion: () => string | null;
-  /** Returns the `version` field of `apps/hook/.claude-plugin/plugin.json`. Throws on missing/malformed input — plugin.json is the release source of truth for non-release builds. */
+  /** Returns the `version` field of `apps/claude-code/.claude-plugin/plugin.json`. Throws on missing/malformed input — plugin.json is the release source of truth for non-release builds. */
   readPluginVersion: () => string;
   /** Returns the git HEAD SHA (short or full). Returns `null` when not in a git checkout or git is unavailable. */
   readGitSha: (kind: "short" | "full") => string | null;
@@ -42,7 +42,7 @@ export interface BuildInfoReaders {
   now: () => Date;
 }
 
-const pluginJsonPath = join(import.meta.dirname, "../hook/.claude-plugin/plugin.json");
+const pluginJsonPath = join(import.meta.dirname, "../claude-code/.claude-plugin/plugin.json");
 
 const readPluginJson = (path: string): unknown => {
   let raw: string;

@@ -1,4 +1,4 @@
-# @symbiot/hook
+# @symbiot/claude-code
 
 Claude Code plugin that intercepts plan-mode plans, forwards them to the
 embedded symbiot viewer for annotation, and returns the resolved markdown

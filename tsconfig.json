@@ -16,7 +16,7 @@
     "features/**/*.ts"
   ],
   "references": [
-    { "path": "./apps/hook" },
+    { "path": "./apps/claude-code" },
     { "path": "./apps/portal" },
     { "path": "./apps/marketing" },
     { "path": "./apps/viewer" },

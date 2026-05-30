@@ -82,7 +82,7 @@ export const planFromStop = (input: unknown): string | null => {
 
 /**
  * Emit Codex's request-changes decision. `decision:block` makes Codex continue
- * the turn with `reason` as the steering feedback. Mirrors `apps/hook`'s deny
+ * the turn with `reason` as the steering feedback. Mirrors `apps/claude-code`'s deny
  * payload byte-for-byte, including the default reason.
  */
 export const emitBlockDecision = (feedback: string): void => {

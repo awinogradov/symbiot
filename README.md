@@ -11,7 +11,7 @@ Review and annotate the plans your AI coding agents produce, then send structure
                               │ PreToolUse(ExitPlanMode)
                               ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ apps/hook                                                        │
+│ apps/claude-code                                                 │
 │   intercepts plan → persists to ~/.symbiot/agents/<agent-id>/... │
 │   spawns apps/viewer on a free port, opens the browser           │
 └─────────────────────────────┬────────────────────────────────────┘
@@ -95,7 +95,7 @@ For contributors who want to wire the dev tree into `~/.claude/settings.json`
 without packaging the plugin, the legacy installer still works:
 
 ```sh
-bun run hook:install     # writes settings.json entries pointing at apps/hook/src/cli.ts
+bun run hook:install     # writes settings.json entries pointing at apps/claude-code/src/cli.ts
 bun run hook:uninstall   # removes them
 ```
 
@@ -156,7 +156,7 @@ Conventions and selector rules for scenarios live in [`features`](./features/REA
 ```
 apps/
   viewer/        Bun HTTP server + React/Vite client; ships as a single binary
-  hook/          Claude Code hook that opens the viewer and resolves plans
+  claude-code/   Claude Code hook that opens the viewer and resolves plans
   codex/         Codex CLI hook (Stop) that opens the viewer and resolves plans
   portal/        Static viewer for shared review links
 packages/
@@ -197,7 +197,7 @@ Read this list before touching the code — it's the documentation index CLAUDE.
 Apps:
 
 - [`apps/viewer`](./apps/viewer/README.md) — fullstack viewer (server + client).
-- [`apps/hook`](./apps/hook/README.md) — Claude Code hook entry point.
+- [`apps/claude-code`](./apps/claude-code/README.md) — Claude Code hook entry point.
 - [`apps/codex`](./apps/codex/README.md) — Codex CLI hook entry point.
 - [`apps/portal`](./apps/portal/README.md) — shared-link viewer.
 
