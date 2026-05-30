@@ -15,7 +15,7 @@ import {
   saveFeedback,
   saveUpload,
   uploadPath,
-  uploadsRoot,
+  agentUploadsRoot,
   type PlanMeta,
 } from "./storage.ts";
 import {
@@ -34,6 +34,8 @@ export type Decision =
 interface RouteContext {
   plan: string;
   meta: PlanMeta;
+  /** Per-agent storage namespace; never serialized to the client. */
+  agentId: string;
   mode: ViewerMode;
   resolve: (decision: Decision) => void;
   /** Flips to true once a decision has been recorded. Subsequent draft writes are rejected. */
@@ -62,7 +64,7 @@ const planRoute = (ctx: RouteContext): Response =>
   jsonResponse({ plan: ctx.plan, mode: ctx.mode, meta: ctx.meta });
 
 const planVersionsRoute = async (ctx: RouteContext): Promise<Response> => {
-  const versions = await listVersions(ctx.meta);
+  const versions = await listVersions(ctx.agentId, ctx.meta);
   return jsonResponse({ versions, current: ctx.meta.version });
 };
 
@@ -84,7 +86,7 @@ const planVersionRoute = async (req: Request, ctx: RouteContext): Promise<Respon
   if (n === null) return badRequest("invalid version");
   try {
     const meta = { ...ctx.meta, version: n };
-    const plan = await loadPlan(meta);
+    const plan = await loadPlan(ctx.agentId, meta);
     return jsonResponse({ plan, meta });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -125,8 +127,8 @@ const assertVersionsExist = async (
 ): Promise<Response | null> => {
   try {
     await Promise.all([
-      loadPlan({ ...ctx.meta, version: input.from }),
-      loadPlan({ ...ctx.meta, version: input.to }),
+      loadPlan(ctx.agentId, { ...ctx.meta, version: input.from }),
+      loadPlan(ctx.agentId, { ...ctx.meta, version: input.to }),
     ]);
     return null;
   } catch (error) {
@@ -142,7 +144,10 @@ const planVscodeDiffRoute = async (req: Request, ctx: RouteContext): Promise<Res
   if (input === null) return badRequest("invalid version");
   const missing = await assertVersionsExist(ctx, input);
   if (missing !== null) return missing;
-  return spawnVscodeDiff(planFilePath(ctx.meta, input.from), planFilePath(ctx.meta, input.to));
+  return spawnVscodeDiff(
+    planFilePath(ctx.agentId, ctx.meta, input.from),
+    planFilePath(ctx.agentId, ctx.meta, input.to)
+  );
 };
 
 const spawnVscodeDiff = (fromPath: string, toPath: string): Promise<Response> =>
@@ -174,7 +179,7 @@ const spawnVscodeDiff = (fromPath: string, toPath: string): Promise<Response> =>
  * the next microtask, the draft state is already canonical.
  */
 const finalize = async (ctx: RouteContext, decision: Decision): Promise<void> => {
-  await clearDraft(ctx.meta).catch(() => undefined);
+  await clearDraft(ctx.agentId, ctx.meta).catch(() => undefined);
   ctx.markResolved();
   if (ctx.decisionFile !== undefined && ctx.decisionFile !== null) {
     await recordDecision(ctx.decisionFile, decision);
@@ -189,13 +194,13 @@ const approveRoute = async (ctx: RouteContext): Promise<Response> => {
 
 const denyRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
   const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
-  const feedback = rewriteImageRefs(body?.feedback ?? "", ctx.meta);
+  const feedback = rewriteImageRefs(ctx.agentId, body?.feedback ?? "", ctx.meta);
   await finalize(ctx, { kind: "deny", feedback });
   return new Response(null, { status: 204 });
 };
 
 const draftGetRoute = async (ctx: RouteContext): Promise<Response> => {
-  const raw = await loadDraft(ctx.meta);
+  const raw = await loadDraft(ctx.agentId, ctx.meta);
   if (raw === null) return new Response(null, { status: 204 });
   return new Response(raw, {
     status: 200,
@@ -209,12 +214,12 @@ const draftPostRoute = async (req: Request, ctx: RouteContext): Promise<Response
   // the next session for the same plan slug. Drop them silently.
   if (ctx.isResolved()) return new Response(null, { status: 204 });
   const raw = await req.text();
-  await saveDraft(ctx.meta, raw);
+  await saveDraft(ctx.agentId, ctx.meta, raw);
   return new Response(null, { status: 204 });
 };
 
 const draftDeleteRoute = async (ctx: RouteContext): Promise<Response> => {
-  await clearDraft(ctx.meta);
+  await clearDraft(ctx.agentId, ctx.meta);
   return new Response(null, { status: 204 });
 };
 
@@ -232,9 +237,9 @@ const uploadRoute = async (req: Request, ctx: RouteContext): Promise<Response> =
     return badRequest(errorMessage(error));
   }
   const filename = mintUuidFilename(extension);
-  const target = uploadPath(ctx.meta, filename);
+  const target = uploadPath(ctx.agentId, ctx.meta, filename);
   try {
-    assertNoTraversal(uploadsRoot, target);
+    assertNoTraversal(agentUploadsRoot(ctx.agentId), target);
   } catch (error) {
     return badRequest(errorMessage(error));
   }
@@ -265,9 +270,9 @@ const resolveImageTarget = (
   } catch (error) {
     return { error: errorMessage(error) };
   }
-  const target = uploadPath(ctx.meta, `${id}${extension}`);
+  const target = uploadPath(ctx.agentId, ctx.meta, `${id}${extension}`);
   try {
-    assertNoTraversal(uploadsRoot, target);
+    assertNoTraversal(agentUploadsRoot(ctx.agentId), target);
   } catch {
     return { error: "invalid path" };
   }
@@ -294,7 +299,7 @@ const imageRoute = async (req: Request, ctx: RouteContext): Promise<Response> =>
 
 const imageRefRe = /!\[\]\(([^)]+)\)/g;
 
-const tryAbsoluteUploadPath = (meta: PlanMeta, ref: string): string | null => {
+const tryAbsoluteUploadPath = (agentId: string, meta: PlanMeta, ref: string): string | null => {
   const dot = ref.lastIndexOf(".");
   if (dot <= 0) return null;
   const id = ref.slice(0, dot);
@@ -304,25 +309,25 @@ const tryAbsoluteUploadPath = (meta: PlanMeta, ref: string): string | null => {
   } catch {
     return null;
   }
-  const target = uploadPath(meta, ref);
+  const target = uploadPath(agentId, meta, ref);
   try {
-    assertNoTraversal(uploadsRoot, target);
+    assertNoTraversal(agentUploadsRoot(agentId), target);
   } catch {
     return null;
   }
   return target;
 };
 
-const rewriteImageRefs = (markdown: string, meta: PlanMeta): string =>
+const rewriteImageRefs = (agentId: string, markdown: string, meta: PlanMeta): string =>
   markdown.replaceAll(imageRefRe, (match, ref: string) => {
-    const absolute = tryAbsoluteUploadPath(meta, ref);
+    const absolute = tryAbsoluteUploadPath(agentId, meta, ref);
     return absolute === null ? match : `![](${absolute})`;
   });
 
 const feedbackRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
   const body = (await req.json().catch(() => null)) as { feedback?: string } | null;
-  const feedback = rewriteImageRefs(body?.feedback ?? "", ctx.meta);
-  await saveFeedback(ctx.meta, feedback);
+  const feedback = rewriteImageRefs(ctx.agentId, body?.feedback ?? "", ctx.meta);
+  await saveFeedback(ctx.agentId, ctx.meta, feedback);
   await finalize(ctx, { kind: "feedback", feedback });
   return new Response(null, { status: 204 });
 };

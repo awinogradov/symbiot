@@ -31,11 +31,12 @@ type RouteContext = Parameters<typeof handleApi>[2];
 
 const project = "proj";
 const slug = "plan";
-const planDir = join(homeRoot, ".symbiot", "history", project, slug);
+const planDir = join(homeRoot, ".symbiot", "agents", "claude-code", "history", project, slug);
 
 const ctx = (): RouteContext => ({
   plan: "boot plan",
   meta: { project, slug, version: 2, displayName: "Boot Plan" },
+  agentId: "claude-code",
   mode: "plan",
   resolve: vi.fn(),
   isResolved: () => false,
@@ -122,8 +123,9 @@ describe("POST /api/plan/vscode-diff", () => {
   });
 
   it("rewrites valid markdown image refs in feedback to absolute upload paths before persisting", async () => {
-    const annotationDir = join(homeRoot, ".symbiot", "annotations", project, slug);
-    const uploadDir = join(homeRoot, ".symbiot", "uploads", project, slug);
+    const agentRoot = join(homeRoot, ".symbiot", "agents", "claude-code");
+    const annotationDir = join(agentRoot, "annotations", project, slug);
+    const uploadDir = join(agentRoot, "uploads", project, slug);
     await mkdir(uploadDir, { recursive: true });
     const validRef = "11111111-2222-4333-8444-555555555555.png";
     const invalidRef = "../etc/passwd";

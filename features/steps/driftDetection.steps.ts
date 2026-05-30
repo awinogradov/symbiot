@@ -10,6 +10,8 @@ import { fixturePlanSlug, fixtureProjectSlug } from "../support/testAssets.ts";
 const draftFile = join(
   homedir(),
   ".symbiot",
+  "agents",
+  "claude-code",
   "drafts",
   fixtureProjectSlug,
   fixturePlanSlug,
@@ -40,9 +42,18 @@ const buildDraft = ({ storedOriginalText }: DraftSeed): unknown => ({
 });
 
 const seedDraft = async (seed: DraftSeed): Promise<void> => {
-  await mkdir(join(homedir(), ".symbiot", "drafts", fixtureProjectSlug, fixturePlanSlug), {
-    recursive: true,
-  });
+  await mkdir(
+    join(
+      homedir(),
+      ".symbiot",
+      "agents",
+      "claude-code",
+      "drafts",
+      fixtureProjectSlug,
+      fixturePlanSlug
+    ),
+    { recursive: true }
+  );
   await writeFile(draftFile, JSON.stringify(buildDraft(seed)), "utf8");
 };
 

@@ -7,7 +7,15 @@ import { expect, type Page } from "@playwright/test";
 import { After, Given, Then, When } from "../support/bdd.ts";
 import { fixturePlanSlug, fixtureProjectSlug } from "../support/testAssets.ts";
 
-const planDir = join(homedir(), ".symbiot", "history", fixtureProjectSlug, fixturePlanSlug);
+const planDir = join(
+  homedir(),
+  ".symbiot",
+  "agents",
+  "claude-code",
+  "history",
+  fixtureProjectSlug,
+  fixturePlanSlug
+);
 const seededVersion = 99;
 const extraVersionFile = (n: number): string => join(planDir, `${String(n).padStart(3, "0")}.md`);
 

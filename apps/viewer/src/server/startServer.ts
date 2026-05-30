@@ -7,7 +7,7 @@ import type { ViewerMode } from "../shared/apiTypes.ts";
 import { corsHeaders, isOriginAllowed } from "./cors.ts";
 import { handleApi, type Decision } from "./routes.ts";
 import { openBrowser } from "./openBrowser.ts";
-import { savePlan, type PlanMeta } from "./storage.ts";
+import { defaultAgentId, migrateLegacyTree, savePlan, type PlanMeta } from "./storage.ts";
 import { serveEmbeddedHtml, serveStatic } from "./staticAssets.ts";
 
 /** Options for {@link startServer}. */
@@ -29,6 +29,12 @@ export interface StartServerOptions {
   port?: number | null;
   /** Viewer mode: 'plan' (Approve/Deny) or 'annotate' (Submit feedback). Defaults to 'plan'. */
   mode?: ViewerMode;
+  /**
+   * Per-agent storage namespace under `~/.symbiot/agents/<agentId>/`. Defaults
+   * to `"claude-code"` so single-agent installs and the bare CLI keep working;
+   * future agent integrations (Codex, Copilot, …) pass their own slug.
+   */
+  agentId?: string;
 }
 
 /** Handle returned by {@link startServer} for resolving + tearing down the loop. */
@@ -50,6 +56,7 @@ const defaultStaticRoot = join(
 interface RequestContext {
   plan: string;
   meta: PlanMeta;
+  agentId: string;
   mode: ViewerMode;
   resolve: (decision: Decision) => void;
   isResolved: () => boolean;
@@ -63,6 +70,16 @@ interface RequestContext {
 const loadIndexHtmlGz = async (path: string | undefined): Promise<Uint8Array | null> => {
   if (!path) return null;
   return new Uint8Array(await readFile(path));
+};
+
+/** Resolve the agent namespace, run the one-shot legacy migration, and persist the boot plan. */
+const initStorage = async (
+  options: StartServerOptions
+): Promise<{ agentId: string; meta: PlanMeta }> => {
+  const agentId = options.agentId ?? defaultAgentId;
+  await migrateLegacyTree();
+  const meta = await savePlan(agentId, options.plan, options.cwd);
+  return { agentId, meta };
 };
 
 const buildResponse = async (req: Request, ctx: RequestContext): Promise<Response> => {
@@ -93,11 +110,12 @@ const handle = async (req: Request, ctx: RequestContext): Promise<Response> => {
 
 /**
  * Boot the symbiot viewer server. Binds to 127.0.0.1 on an OS-assigned port,
- * saves the plan to `~/.symbiot/history/...`, opens the browser, and returns a
- * promise that settles when the reviewer hits Approve or Request-changes.
+ * migrates any pre-namespacing storage into the Claude Code namespace, saves the
+ * plan under `~/.symbiot/agents/<agentId>/history/...`, opens the browser, and
+ * returns a promise that settles when the reviewer hits Approve or Request-changes.
  */
 export const startServer = async (options: StartServerOptions): Promise<RunningServer> => {
-  const meta = await savePlan(options.plan, options.cwd);
+  const { agentId, meta } = await initStorage(options);
   let resolve!: (decision: Decision) => void;
   const resolved = new Promise<Decision>((r) => {
     resolve = r;
@@ -117,6 +135,7 @@ export const startServer = async (options: StartServerOptions): Promise<RunningS
       handle(req, {
         plan: options.plan,
         meta,
+        agentId,
         mode: options.mode ?? "plan",
         resolve,
         isResolved,

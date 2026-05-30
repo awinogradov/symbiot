@@ -29,7 +29,7 @@ const testDir = defineBddConfig({
 // help because Playwright starts `webServer` before `globalSetup`; doing
 // the seed inline in the command guarantees it runs first.
 const historyDir =
-  "$HOME/.symbiot/history/symbiot/example-plan-with-every-supported-markdown-element";
+  "$HOME/.symbiot/agents/claude-code/history/symbiot/example-plan-with-every-supported-markdown-element";
 
 const viewerCommand = (port: number, decisionFile: string, mode: "plan" | "annotate"): string =>
   `mkdir -p "${historyDir}" && cp "${planPath}" "${historyDir}/001.md" && bun apps/viewer/src/bin.ts --plan ${planPath} --port ${port} --no-open --keep-alive --decision-file ${decisionFile} --mode ${mode}`;
