@@ -5,7 +5,7 @@ the assistant's turn-final message, forwards it to the symbiot viewer for
 review, and returns a Codex-shaped decision — approve to let the turn end, or
 request changes to send markdown feedback back and keep Codex working.
 
-This is the second agent integration after `apps/hook` (Claude Code). It exists
+This is the second agent integration after `apps/claude-code` (Claude Code). It exists
 to prove the symbiot server contract is genuinely agent-agnostic: Codex's `Stop`
 hook accepts the exact `{"decision":"block","reason"}` shape Claude Code already
 consumes, so the agent-specific code here is a thin stdin parser + decision

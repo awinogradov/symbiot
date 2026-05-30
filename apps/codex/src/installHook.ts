@@ -2,7 +2,7 @@
  * Install / uninstall the symbiot Codex hook in `~/.codex/hooks.json`.
  *
  * Codex CLI's hook file uses the same JSON shape as Claude Code's
- * `settings.json` hooks, so this mirrors `apps/hook/src/installHook.ts` — only
+ * `settings.json` hooks, so this mirrors `apps/claude-code/src/installHook.ts` — only
  * the target file (`~/.codex/hooks.json`), the event (`Stop`, not tool-scoped),
  * and the entry matcher differ. Codex honors `{"decision":"block","reason"}`
  * directly on `Stop`, so there is no `PermissionRequest` companion entry.
@@ -12,7 +12,7 @@
  *   // path === "~/.codex/hooks.json", command === "bun /…/cli.ts run-hook"
  *
  * @see ../../README.md — the `## Schemas` section pins the on-disk shape.
- * @see ../../../hook/src/installHook.ts — the Claude Code counterpart.
+ * @see ../../claude-code/src/installHook.ts — the Claude Code counterpart.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";

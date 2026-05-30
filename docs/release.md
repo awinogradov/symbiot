@@ -12,9 +12,9 @@ release.
 
 ## When to release
 
-- Any user-visible change in `apps/hook` or `apps/viewer` that lands in the
+- Any user-visible change in `apps/claude-code` or `apps/viewer` that lands in the
   binary.
-- A bug fix in `apps/hook/bin/symbiot` or `symbiot.cmd`.
+- A bug fix in `apps/claude-code/bin/symbiot` or `symbiot.cmd`.
 - A dependency upgrade in `@symbiot/viewer` or `@symbiot/editor` that
   affects rendered output.
 
@@ -23,7 +23,7 @@ release.
 
 ## Versioning
 
-Tags follow `vMAJOR.MINOR.PATCH` (semver). `apps/hook/.claude-plugin/plugin.json`
+Tags follow `vMAJOR.MINOR.PATCH` (semver). `apps/claude-code/.claude-plugin/plugin.json`
 `version` is the version string **without** the `v` prefix. Both are
 bumped by the release workflow's auto-PR — never edit them by hand on
 `main`.
@@ -62,9 +62,9 @@ bumped by the release workflow's auto-PR — never edit them by hand on
 │       symbiot-linux-x64     symbiot-windows-x64.exe              │
 │       SHA256SUMS                                                 │
 │  ⑧ gh pr create release-bump-v0.2.0  →  bumps                    │
-│       apps/hook/bin/VERSION                                      │
-│       apps/hook/bin/SHA256SUMS                                   │
-│       apps/hook/.claude-plugin/plugin.json                       │
+│       apps/claude-code/bin/VERSION                               │
+│       apps/claude-code/bin/SHA256SUMS                            │
+│       apps/claude-code/.claude-plugin/plugin.json                │
 ╰────────────────────────────┬─────────────────────────────────────╯
                              │
         ┏━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━┓

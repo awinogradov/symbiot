@@ -4,7 +4,7 @@
   "plugins": [
     {
       "name": "symbiot",
-      "source": "./apps/hook",
+      "source": "./apps/claude-code",
       "description": "Review and annotate the plans your AI coding agents produce. Drops into Claude Code's ExitPlanMode hook with a browser editor for comments, deletions, insertions, and replacements."
     }
   ]

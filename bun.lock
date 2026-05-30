@@ -35,8 +35,8 @@
         "vitest": "4.1.6",
       },
     },
-    "apps/codex": {
-      "name": "@symbiot/codex",
+    "apps/claude-code": {
+      "name": "@symbiot/claude-code",
       "version": "0.2.0",
       "dependencies": {
         "@symbiot/agent-runtime": "workspace:*",
@@ -51,8 +51,8 @@
         "vitest": "4.1.6",
       },
     },
-    "apps/hook": {
-      "name": "@symbiot/hook",
+    "apps/codex": {
+      "name": "@symbiot/codex",
       "version": "0.2.0",
       "dependencies": {
         "@symbiot/agent-runtime": "workspace:*",
@@ -751,13 +751,13 @@
 
     "@symbiot/annotations": ["@symbiot/annotations@workspace:packages/symbiot-annotations"],
 
+    "@symbiot/claude-code": ["@symbiot/claude-code@workspace:apps/claude-code"],
+
     "@symbiot/codex": ["@symbiot/codex@workspace:apps/codex"],
 
     "@symbiot/editor": ["@symbiot/editor@workspace:packages/symbiot-editor"],
 
     "@symbiot/eslint-config": ["@symbiot/eslint-config@workspace:packages/eslint-config"],
-
-    "@symbiot/hook": ["@symbiot/hook@workspace:apps/hook"],
 
     "@symbiot/portal": ["@symbiot/portal@workspace:apps/portal"],
 

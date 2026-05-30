@@ -26,8 +26,12 @@ interface ClaudeSettings {
   [key: string]: unknown;
 }
 
+// Recognize both the current `claude-code` and the historical `hook` workspace path
+// (issue #163 rename) so a pre-rename dev install is still stripped on reinstall and
+// uninstall; the `symbiot run-hook` literal covers the compiled-binary invocation.
 const isSymbiotEntry = (command: string): boolean =>
-  /apps\/hook\/(src|dist)\/cli\.(ts|js).*run-hook/.test(command) || command === "symbiot run-hook";
+  /apps\/(?:hook|claude-code)\/(src|dist)\/cli\.(ts|js).*run-hook/.test(command) ||
+  command === "symbiot run-hook";
 
 const cliCommand = (): string => {
   const here = fileURLToPath(import.meta.url);

@@ -30,7 +30,7 @@ are in [`docs/server-contract.md`](../../docs/server-contract.md).
 ## Installation
 
 Workspace dependency — no standalone install. The viewer ships as part of
-the `@symbiot/hook` plugin binary; in development it's executed straight
+the `@symbiot/claude-code` plugin binary; in development it's executed straight
 from source via `bun src/bin.ts`.
 
 ## Usage

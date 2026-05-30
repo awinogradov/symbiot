@@ -7,33 +7,33 @@ know before moving code around.
 ## System shape
 
 ```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                          Claude Code (or any agent)                       │
-└───────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                          Claude Code (or any agent)                              │
+└──────────────────────────────────────────────────────────────────────────────────┘
                                   │ PreToolUse(ExitPlanMode)
                                   ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│  apps/hook  ── spawns ──▶  apps/viewer  ── opens browser  ──▶  Reviewer    │
-│              CLI shim                  │                                  │
-│                                        ▼                                  │
-│                              ~/.symbiot/  (filesystem-only state)         │
-│                              └── agents/<agent-id>/                       │
-│                                  ├── history/<project>/<slug>/00N.md      │
-│                                  ├── annotations/<project>/<slug>/        │
-│                                  ├── drafts/<project>/<slug>/draft.json   │
-│                                  └── uploads/<project>/<slug>/            │
-└───────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  apps/claude-code  ── spawns ──▶  apps/viewer  ── opens browser  ──▶  Reviewer   │
+│              CLI shim                  │                                         │
+│                                        ▼                                         │
+│                              ~/.symbiot/  (filesystem-only state)                │
+│                              └── agents/<agent-id>/                              │
+│                                  ├── history/<project>/<slug>/00N.md             │
+│                                  ├── annotations/<project>/<slug>/               │
+│                                  ├── drafts/<project>/<slug>/draft.json          │
+│                                  └── uploads/<project>/<slug>/                   │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 All agent integrations spawn the same `apps/viewer` binary through the shared
 `runPlanReview` loop in `@symbiot/agent-runtime`; they differ only in CLI shape
-(`apps/hook` for Claude Code, future `apps/copilot`, `apps/gemini`, ...) — how
+(`apps/claude-code`, future `apps/copilot`, `apps/gemini`, ...) — how
 they parse stdin and emit their own decision JSON.
 
 ## Package layering
 
 ```
-   apps/hook (Claude Code) · apps/codex (Codex CLI; future apps/gemini, apps/copilot, ...)
+   apps/claude-code (Claude Code) · apps/codex (Codex CLI; future apps/gemini, apps/copilot, ...)
         │ depends on
         ▼
    @symbiot/agent-runtime   ──  runPlanReview: spawn → await → decide loop
@@ -101,7 +101,7 @@ obsolete, delete the bullet rather than hedging it.
 - **Hook command points at source `cli.ts`, never the bundle.** `bun build`
   inlines `@symbiot/viewer` into the bundle and rewrites `import.meta.url`,
   which breaks the viewer's relative path math to `dist/client/`. The
-  installer writes `bun /abs/path/apps/hook/src/cli.ts run-hook`. Bun runs
+  installer writes `bun /abs/path/apps/claude-code/src/cli.ts run-hook`. Bun runs
   `.ts` directly, so no bundling is needed for the hook.
 - **Tailwind v4 only scans the project root** (`apps/viewer`). Workspace
   package class names must be declared in the consumer's `styles.css` via
@@ -178,7 +178,7 @@ stop → onResolved`. Each agent injects only stdin parsing and decision
   emission via the `onResolved` callback (whose return value is the process
   exit code); Claude-specific glue — `emitApproveDecision` / `emitDenyDecision`,
   the approve marker, the `claude-code#50660` workaround — stays in
-  `apps/hook/src/runHook.ts`. `@symbiot/viewer` (`startServer` /
+  `apps/claude-code/src/runHook.ts`. `@symbiot/viewer` (`startServer` /
   `RunningServer`) is the boundary; each agent passes its `agentId` through
   `serverOptions`, so per-agent storage namespacing stays a viewer concern
   (see Storage + state).
