@@ -21,7 +21,7 @@ export const runAnnotate = async (filePath: string | undefined): Promise<number>
   return runPlanReview({
     plan,
     mode: "annotate",
-    serverOptions: { indexHtmlGz: viewerHtmlGz },
+    serverOptions: { indexHtmlGz: viewerHtmlGz, agentId: "claude-code" },
     onStart: (url) => process.stderr.write(`symbiot: annotate ${filePath} at ${url}\n`),
     onResolved: (decision) => {
       if (decision.kind === "feedback") {
