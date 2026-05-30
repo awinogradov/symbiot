@@ -16,7 +16,7 @@ single binary built by `bun run build`.
 ┌──────────────────▼───────────────────────────────────────────┐
 │  Bun server                                                  │
 │    src/server/routes.ts   ← dispatch keyed on apiRoutes.ts   │
-│    src/server/storage.ts  ← ~/.symbiot/agents/<id>/...       │
+│    src/server/storage.ts  ← ~/.symbiot/agents/<agent-id>/... │
 │    src/server/uploadSecurity.ts                              │
 └──────────────────────────────────────────────────────────────┘
 ```
