@@ -12,7 +12,7 @@ Review and annotate the plans your AI coding agents produce, then send structure
                               ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │ apps/hook                                                        │
-│   intercepts plan → persists to ~/.symbiot/history/.../00N.md    │
+│   intercepts plan → persists to ~/.symbiot/agents/<id>/...       │
 │   spawns apps/viewer on a free port, opens the browser           │
 └─────────────────────────────┬────────────────────────────────────┘
                               │ HTTP /api/plan, /api/feedback, ...

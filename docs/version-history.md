@@ -11,7 +11,7 @@ smoke flow.
 Every viewer boot writes the plan as a fresh version under:
 
 ```
-~/.symbiot/history/<project-slug>/<plan-slug>/
+~/.symbiot/agents/<agent-id>/history/<project-slug>/<plan-slug>/
   ├── 001.md
   ├── 002.md
   └── 00N.md
@@ -258,7 +258,7 @@ previous` button appears on the current version with a predecessor,
 
 Version-history scenarios share the `Given a second version of the plan
 exists on disk` step from `features/steps/versionHistory.steps.ts`. Drift
-scenarios seed a draft directly under `~/.symbiot/drafts/...` in
+scenarios seed a draft directly under `~/.symbiot/agents/claude-code/drafts/...` in
 `features/steps/driftDetection.steps.ts`.
 
 ## Cross-references

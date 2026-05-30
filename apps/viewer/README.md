@@ -16,7 +16,7 @@ single binary built by `bun run build`.
 ┌──────────────────▼───────────────────────────────────────────┐
 │  Bun server                                                  │
 │    src/server/routes.ts   ← dispatch keyed on apiRoutes.ts   │
-│    src/server/storage.ts  ← ~/.symbiot/history/.../00N.md    │
+│    src/server/storage.ts  ← ~/.symbiot/agents/<id>/...       │
 │    src/server/uploadSecurity.ts                              │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -40,7 +40,7 @@ bun src/bin.ts --plan path/to/document.md
 ```
 
 The bin accepts markdown on `--plan <path>` or stdin, writes it under
-`~/.symbiot/history/<project>/<slug>/00N.md`, starts the HTTP server on a
+`~/.symbiot/agents/<agent-id>/history/<project>/<slug>/00N.md`, starts the HTTP server on a
 free port, and opens the browser. The user reviews and annotates; the
 server resolves the agent's wait with either an approval or the
 serialized feedback markdown.
@@ -71,7 +71,7 @@ bun src/bin.ts --plan ../../fixtures/markdown/elements.md
 
 Filesystem-only state under `~/.symbiot/` — no database. Plan revisions are
 written atomically as `00N.md` under
-`~/.symbiot/history/<project-slug>/<plan-slug>/`; drafts, annotations, and
+`~/.symbiot/agents/<agent-id>/history/<project-slug>/<plan-slug>/`; drafts, annotations, and
 image uploads live in sibling directories. Layout details in
 [`docs/version-history.md`](../../docs/version-history.md#on-disk-layout).
 
