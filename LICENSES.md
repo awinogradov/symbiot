@@ -2,7 +2,7 @@
 
 # Third-party licenses
 
-49 unique production dependencies across 7 workspaces. Regenerate with `bun run licenses:audit`.
+49 unique production dependencies across 8 workspaces. Regenerate with `bun run licenses:audit`.
 
 | Package | License | Repository |
 | --- | --- | --- |
