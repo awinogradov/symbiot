@@ -10,7 +10,7 @@ Sample markdown documents used by the Playwright-BDD harness, the perf script, a
 ## Manual diff smoke
 
 Every viewer boot writes the supplied document to a fresh version under
-`~/.symbiot/history/<project>/<slug>/00N.md`. Two boots with the same markdown
+`~/.symbiot/agents/<agent-id>/history/<project>/<slug>/00N.md`. Two boots with the same markdown
 produce identical adjacent versions, so the inline diff stays empty by design.
 
 The viewer renders the inline diff for **historical** versions — the newest

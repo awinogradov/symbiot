@@ -6,7 +6,7 @@ The viewer ships an HTTP surface that the agent-side hook talks to. Routes are d
 
 ```
 Agent exits plan mode
-  → hook intercepts the plan, saves to ~/.symbiot/history/{project}/{slug}/00N.md
+  → hook intercepts the plan, saves to ~/.symbiot/agents/{agentId}/history/{project}/{slug}/00N.md
   → hook starts the viewer on a port, opens the browser
   → UI GET /api/plan        → { plan, mode, meta }
   → MarkdownKit deserializes the plan → Plate value
@@ -32,7 +32,7 @@ The viewer runs in one of two modes, surfaced as the `mode` field on `GET /api/p
 | ------ | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/api/plan`             | Returns `{ plan, mode, meta }` for the live plan. See `PlanResponse` in `apiTypes.ts`.                                                                                 |
 | GET    | `/api/plan/versions`    | Returns `{ versions: number[], current }`. Drives the History tab.                                                                                                     |
-| GET    | `/api/plan/version?n=N` | Returns `{ plan, meta }` for an older revision under `~/.symbiot/history/{project}/{slug}/`.                                                                           |
+| GET    | `/api/plan/version?n=N` | Returns `{ plan, meta }` for an older revision under `~/.symbiot/agents/{agentId}/history/{project}/{slug}/`.                                                          |
 | POST   | `/api/plan/vscode-diff` | Spawns `code --diff <from> <to>` so external integrations can open a native diff for two persisted versions. No in-app caller — used by VS Code / Obsidian extensions. |
 
 `PlanMeta` carries the on-disk identity (`project`, `slug`, `version`) plus a `displayName` resolved from git (`<repo> · <branch>`) that the top bar renders. Decoupling `displayName` from `project` keeps the on-disk slug stable across worktrees.
@@ -68,7 +68,7 @@ See [`apps/viewer/src/server/uploadSecurity.ts`](../apps/viewer/src/server/uploa
 
 ## Version history
 
-The version subset of the contract — `/api/plan/version[s]`, the History tab, drift detection, and the diff overlay — is documented end-to-end in [`version-history.md`](./version-history.md). That doc is the source of truth for the on-disk `~/.symbiot/history/{project}/{slug}/00N.md` layout.
+The version subset of the contract — `/api/plan/version[s]`, the History tab, drift detection, and the diff overlay — is documented end-to-end in [`version-history.md`](./version-history.md). That doc is the source of truth for the on-disk `~/.symbiot/agents/{agentId}/history/{project}/{slug}/00N.md` layout.
 
 ## Contract stability
 

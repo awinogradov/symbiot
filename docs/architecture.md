@@ -17,10 +17,11 @@ know before moving code around.
 │              CLI shim                  │                                  │
 │                                        ▼                                  │
 │                              ~/.symbiot/  (filesystem-only state)         │
-│                              ├── history/<project>/<slug>/00N.md          │
-│                              ├── annotations/<project>/<slug>/            │
-│                              ├── drafts/<project>/<slug>/draft.json       │
-│                              └── uploads/<project>/<slug>/                │
+│                              └── agents/<agent-id>/                       │
+│                                  ├── history/<project>/<slug>/00N.md      │
+│                                  ├── annotations/<project>/<slug>/        │
+│                                  ├── drafts/<project>/<slug>/draft.json   │
+│                                  └── uploads/<project>/<slug>/            │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -137,6 +138,14 @@ obsolete, delete the bullet rather than hedging it.
 - **Storage is filesystem-only.** Everything persists under `~/.symbiot/`;
   there is no database (no Prisma / Kysely / Postgres / BetterAuth).
   Anything user-visible writes atomically (`writeFile` to `.tmp` + `rename`).
+- **Per-agent namespacing.** Plan history, annotations, drafts, and uploads live
+  under `~/.symbiot/agents/<agent-id>/` so multiple agents (Claude Code, Codex, …)
+  never collide on a shared plan slug. `startServer({ agentId })` threads the slug
+  (default `claude-code`) into `storage.ts`; on boot, `migrateLegacyTree` moves any
+  pre-namespacing flat trees (`history`/`annotations`/`drafts`/`uploads`) into the
+  `claude-code` namespace once (idempotent). The slug stays server-side — it never
+  enters `PlanMeta`, the wire payload, or a URL. `~/.symbiot/hook-state/` is
+  hook-global, not per-agent, and is left in place.
 - **Plan-slug derivation uses the first H1.** `derivePlanSlug` slugifies the
   first markdown heading; `deriveProjectSlug` slugifies the cwd basename.
   Two markdown files with the same H1 share an on-disk history directory —
@@ -167,7 +176,9 @@ stop → onResolved`. Each agent injects only stdin parsing and decision
   exit code); Claude-specific glue — `emitApproveDecision` / `emitDenyDecision`,
   the approve marker, the `claude-code#50660` workaround — stays in
   `apps/hook/src/runHook.ts`. `@symbiot/viewer` (`startServer` /
-  `RunningServer`) is the boundary; storage namespacing is out of scope here.
+  `RunningServer`) is the boundary; each agent passes its `agentId` through
+  `serverOptions`, so per-agent storage namespacing stays a viewer concern
+  (see Storage + state).
 - **Two events under one matcher.** The installer registers
   `PreToolUse(ExitPlanMode)` AND `PermissionRequest(ExitPlanMode)` against the
   same `symbiot run-hook` command. `PreToolUse` drives the viewer (single
