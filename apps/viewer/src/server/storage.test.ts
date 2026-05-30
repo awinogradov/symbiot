@@ -182,4 +182,12 @@ describe("migrateLegacyTree", () => {
       expect(await readFile(migrated, "utf8")).toBe(sub);
     }
   });
+
+  it("treats legacy trees as absent when ~/.symbiot is a file (ENOTDIR)", async () => {
+    const home = await freshHome();
+    // A file where the storage root should be makes stat() of any child throw
+    // ENOTDIR; the migration must treat that as "absent", not crash the boot.
+    await writeFile(join(home, ".symbiot"), "not a directory");
+    await expect(migrateLegacyTree()).resolves.toBeUndefined();
+  });
 });
