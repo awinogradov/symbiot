@@ -185,7 +185,7 @@ const runPreToolUse = (plan: string): Promise<number> => {
   const planHash = hashPlan(plan);
   return runPlanReview({
     plan,
-    serverOptions: { indexHtmlGz: viewerHtmlGz },
+    serverOptions: { indexHtmlGz: viewerHtmlGz, agentId: "claude-code" },
     onStart: (url) => process.stderr.write(`symbiot: review plan at ${url}\n`),
     onResolved: async (decision) => {
       if (decision.kind === "approve") {
