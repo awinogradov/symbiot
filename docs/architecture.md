@@ -33,7 +33,7 @@ they parse stdin and emit their own decision JSON.
 ## Package layering
 
 ```
-   apps/hook  (Claude Code; future apps/codex, apps/gemini, apps/copilot, ...)
+   apps/hook (Claude Code) · apps/codex (Codex CLI; future apps/gemini, apps/copilot, ...)
         │ depends on
         ▼
    @symbiot/agent-runtime   ──  runPlanReview: spawn → await → decide loop
@@ -90,11 +90,14 @@ obsolete, delete the bullet rather than hedging it.
   `packages/symbiot-server`. The Bun HTTP server (`src/server/`) and
   React/Vite client (`src/client/`) build into a single binary. Agent
   integrations spawn that one binary.
-- **Hook event is `PreToolUse` with matcher `ExitPlanMode`** — NOT `Stop`.
-  `Stop` fires on every assistant turn; `PreToolUse(ExitPlanMode)` fires
-  exactly when the agent presents a plan, which is the only clean point at
-  which we can block with feedback. Decision: exit `0` to approve;
-  `{"decision":"block","reason":"<feedback>"}` on stdout to request changes.
+- **For Claude Code the hook event is `PreToolUse` with matcher `ExitPlanMode`** —
+  NOT `Stop`. In Claude Code, `Stop` fires on every assistant turn;
+  `PreToolUse(ExitPlanMode)` fires exactly when the agent presents a plan, which
+  is the only clean point at which we can block with feedback. Decision: exit
+  `0` to approve; `{"decision":"block","reason":"<feedback>"}` on stdout to
+  request changes. (This is Claude-specific — Codex CLI has no
+  `ExitPlanMode`/`update_plan` tool, so `apps/codex` gates on `Stop`; see the
+  Codex bullet under **Hook semantics**.)
 - **Hook command points at source `cli.ts`, never the bundle.** `bun build`
   inlines `@symbiot/viewer` into the bundle and rewrites `import.meta.url`,
   which breaks the viewer's relative path math to `dist/client/`. The
@@ -208,6 +211,29 @@ mode: "auto", destination: "session"}]}}` schema Claude Code honors for
 - **Stop-on-deny is intentional.** The deny path stays on `PreToolUse`
   via `{decision: "block", reason}` because that field also blocks the
   tool dispatch entirely — no PermissionRequest, no re-prompt, no race.
+- **Codex CLI gates on `Stop`, not `PreToolUse`.** Codex has no
+  `ExitPlanMode`/`update_plan` tool, so `apps/codex` reviews the turn-final
+  `last_assistant_message` on the `Stop` hook (installed in
+  `~/.codex/hooks.json`). The decision contract is identical to Claude's deny
+  path — `{"decision":"block","reason":<feedback>}` makes Codex continue the
+  turn (request changes); no output + exit `0` lets it stop (approve). No
+  approve-marker or `PermissionRequest` companion is needed — those are Claude
+  `#50660` workarounds; Codex honors `decision:block` on `Stop` directly. A
+  `stop_hook_active` guard limits review to one gate per stop-chain (a prior
+  block already re-triggered the turn), and an unparseable payload degrades to a
+  pass-through so the hook never spuriously blocks. The `Stop` stdin (subset)
+  and decision shapes:
+
+  ```jsonc
+  // stdin — Codex Stop payload (other fields ignored)
+  { "hook_event_name": "Stop", "last_assistant_message": "# Plan…", "stop_hook_active": false }
+  // stdout — request changes (else: no output + exit 0 to approve)
+  { "decision": "block", "reason": "<feedback>" }
+  ```
+
+  `agentId: "codex"` threads into per-agent storage (see **Storage + state**);
+  this reuses `runPlanReview` and adds no `/api/*` route, so the server contract
+  is unchanged.
 
 ### Sharing
 
