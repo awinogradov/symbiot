@@ -52,3 +52,16 @@ html.dark .shiki span {
 .prose code::after {
   content: none;
 }
+
+/*
+ * The DebugBar is a viewport-fixed global badge (default bottom-right,
+ * 0.75rem inset). While the right annotation sidebar is expanded it would sit
+ * on top of the sidebar's "Clear all" footer and the editor's comment FAB, so
+ * dock it left of the sidebar (w-80 = 20rem) and above the FAB
+ * (bottom-6 1.5rem + size-12 3rem) while the sidebar is open. DebugBar reads
+ * these vars with a 0.75rem fallback (= its default right-3 / bottom-3).
+ */
+:root:has([data-slot="sidebar"][data-side="right"][data-state="expanded"]) {
+  --debug-bar-right: calc(20rem + 0.75rem);
+  --debug-bar-bottom: 5rem;
+}

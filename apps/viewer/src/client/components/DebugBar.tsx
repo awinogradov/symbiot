@@ -78,7 +78,7 @@ export const DebugBar = ({ mode }: DebugBarProps): React.ReactElement => {
   );
 
   return (
-    <div className="pointer-events-none fixed right-3 bottom-3 z-50">
+    <div className="pointer-events-none fixed right-[var(--debug-bar-right,0.75rem)] bottom-[var(--debug-bar-bottom,0.75rem)] z-50">
       <Tooltip>
         <TooltipTrigger asChild>
           <Badge asChild variant="outline">

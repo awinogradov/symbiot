@@ -9,6 +9,15 @@ Feature: Diagnostics — Debug bar version badge
     Then the debug bar badge is visible
     And the debug bar badge text shows the "idle" state
 
+  Scenario: The badge clears the sidebar controls when annotations exist
+    Given I open the viewer
+    When I open the global comment composer
+    And I type "needs work" into the global comment composer
+    And I press Enter in the global comment composer
+    Then the sidebar total count reads "1"
+    And the debug bar badge does not overlap the "clear-all button"
+    And the debug bar badge does not overlap the "global comment button"
+
   Scenario: Clicking the badge writes the full SHA to the clipboard and announces "copied"
     Given I open the viewer
     And the clipboard writes are spied on

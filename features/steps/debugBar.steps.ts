@@ -93,6 +93,46 @@ Given("the clipboard is unavailable", async ({ page }) => {
   await stubClipboard(page, "missing");
 });
 
+/**
+ * Maps the human-readable control names used in the feature file to their
+ * `data-testid`s. Used by the no-overlap check that pins the DebugBar badge
+ * clear of the right sidebar's "Clear all" footer and the editor's comment FAB
+ * once the sidebar is expanded (issue #159).
+ */
+const controlTestIds: Record<string, string> = {
+  "clear-all button": "sidebar-clear-all",
+  "global comment button": "editor-global-comment",
+};
+
+/** Viewport rectangle as returned by Playwright's `locator.boundingBox()`. */
+interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** True when the two ranges share any extent (start inclusive, end exclusive). */
+const rangesOverlap = (aStart: number, aLength: number, bStart: number, bLength: number): boolean =>
+  aStart < bStart + bLength && aStart + aLength > bStart;
+
+/** True when two viewport rectangles share any area. */
+const boxesOverlap = (a: BoundingBox, b: BoundingBox): boolean =>
+  rangesOverlap(a.x, a.width, b.x, b.width) && rangesOverlap(a.y, a.height, b.y, b.height);
+
+Then("the debug bar badge does not overlap the {string}", async ({ page }, control: string) => {
+  const controlTestId = controlTestIds[control];
+  if (controlTestId === undefined) throw new Error(`unknown control "${control}"`);
+  const badgeBox = await badge(page).boundingBox();
+  const controlBox = await page.getByTestId(controlTestId).boundingBox();
+  if (badgeBox === null || controlBox === null) {
+    throw new Error(`expected both the debug bar badge and the ${control} to be on screen`);
+  }
+  expect(boxesOverlap(badgeBox, controlBox), `the debug bar badge overlaps the ${control}`).toBe(
+    false
+  );
+});
+
 Given("the viewer's clock is controlled", async ({ page }) => {
   await page.clock.install();
 });
