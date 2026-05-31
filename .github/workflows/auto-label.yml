@@ -1,4 +1,9 @@
-name: Auto Label
+# Source: https://github.com/awinogradov/code-assistants/blob/main/.github/workflows/auto-label.yml
+# This file is distributed to downstream repositories by an automated sync.
+# Edits made downstream are overwritten on the next run.
+# To change it, open a pull request against the source file above.
+
+name: Auto label
 
 on:
   pull_request:
@@ -7,8 +12,10 @@ on:
   push:
     branches: [main]
 
+# Shared group across both events so a push-triggered prune never runs concurrently
+# with a pull_request-triggered label sync (which would race on the same labels).
 concurrency:
-  group: auto-label-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: auto-label-${{ github.repository }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -17,183 +24,13 @@ permissions:
   issues: write
 
 jobs:
-  label-pr:
-    name: Label PR by workspace
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+  auto-label:
+    name: Auto label
+    # Fork PRs run with a read-only token and cannot write labels; skip them.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      REPO: ${{ github.repository }}
-      PR: ${{ github.event.pull_request.number }}
-      BASE_SHA: ${{ github.event.pull_request.base.sha }}
-      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      LABEL_COLOR: "5319e7"
     steps:
-      - uses: actions/checkout@v4
+      - uses: awinogradov/code-assistants/.github/actions/auto-label@main
         with:
-          fetch-depth: 0
-
-      - name: Sync workspace labels on PR
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # Enumerate workspaces at a git ref using jq over package.json files.
-          # No PR-controlled code is executed: only `git show` and `jq` data parsing run,
-          # so a malicious package.json in the PR cannot trigger arbitrary tooling.
-          enumerate_ref() {
-            local ref="$1"
-            local patterns
-            patterns=$(git show "${ref}:package.json" 2>/dev/null | jq -r '.workspaces[]?' 2>/dev/null) || return 0
-            [[ -z "$patterns" ]] && return 0
-
-            while IFS= read -r pattern; do
-              [[ -z "$pattern" ]] && continue
-              # Only handle direct `<parent>/*` workspace patterns (matches the repo's `apps/*` and `packages/*`)
-              [[ "$pattern" == */\* ]] || continue
-              local parent="${pattern%/\*}"
-              git ls-tree -d --name-only "$ref" "${parent}/" 2>/dev/null | while IFS= read -r dir; do
-                [[ -z "$dir" ]] && continue
-                local pkg
-                pkg=$(git show "${ref}:${dir}/package.json" 2>/dev/null) || continue
-                local name
-                name=$(jq -r 'select(.name) | .name' <<<"$pkg" 2>/dev/null) || continue
-                [[ -z "$name" ]] && continue
-                printf '%s\t%s\n' "$dir" "${name#@}"
-              done
-            done <<<"$patterns"
-          }
-
-          base_map=$(enumerate_ref "$BASE_SHA")
-          head_map=$(enumerate_ref "$HEAD_SHA")
-          path_label_map=$(printf '%s\n%s\n' "$base_map" "$head_map" | sort -u | sed '/^$/d')
-
-          members=$(awk -F'\t' '{print $2}' <<<"$path_label_map" | sort -u | sed '/^$/d')
-
-          # Include previous_filename so renamed files still resolve to their source workspace
-          files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate \
-            --jq '.[] | .filename, (.previous_filename // empty)')
-
-          # Apply every label whose path matches; an in-place package rename produces
-          # the same path with two different labels in the base/head union, and both
-          # should be applied so the PR is tagged with both the old and new identity.
-          touched=()
-          while IFS= read -r f; do
-            [[ -z "$f" ]] && continue
-            while IFS=$'\t' read -r path label; do
-              [[ -z "$path" ]] && continue
-              if [[ "$f" == "$path"/* ]]; then
-                touched+=("$label")
-              fi
-            done <<<"$path_label_map"
-          done <<<"$files"
-
-          touched_unique=$(printf '%s\n' "${touched[@]+"${touched[@]}"}" | sort -u | sed '/^$/d')
-
-          if [[ -n "$touched_unique" ]]; then
-            while IFS= read -r label; do
-              [[ -z "$label" ]] && continue
-              gh label create "$label" --color "$LABEL_COLOR" \
-                --description "Auto-applied: PR touches @${label}" --force
-            done <<<"$touched_unique"
-          fi
-
-          current=$(gh pr view "$PR" --json labels --jq '.labels[].name' \
-            | grep '^symbiot/' | sort -u || true)
-
-          if [[ -z "$current" ]]; then
-            to_add="$touched_unique"
-            to_remove=""
-          elif [[ -z "$touched_unique" ]]; then
-            to_add=""
-            to_remove="$current"
-          else
-            to_add=$(comm -23 <(printf '%s\n' "$touched_unique") <(printf '%s\n' "$current"))
-            to_remove=$(comm -13 <(printf '%s\n' "$touched_unique") <(printf '%s\n' "$current"))
-          fi
-
-          if [[ -n "$to_add" ]]; then
-            gh pr edit "$PR" --add-label "$(printf '%s' "$to_add" | paste -sd, -)"
-          fi
-          if [[ -n "$to_remove" ]]; then
-            gh pr edit "$PR" --remove-label "$(printf '%s' "$to_remove" | paste -sd, -)"
-          fi
-
-          {
-            echo "### Auto Label · PR #${PR}"
-            echo ""
-            echo "**Workspace members (base ∪ head):**"
-            printf '%s\n' "$members" | sed 's/^/- /'
-            echo ""
-            echo "**Touched:**"
-            if [[ -n "$touched_unique" ]]; then
-              printf '%s\n' "$touched_unique" | sed 's/^/- /'
-            else
-              echo "_(none)_"
-            fi
-            echo ""
-            echo "**Added:** ${to_add:-_(none)_}"
-            echo "**Removed:** ${to_remove:-_(none)_}"
-          } >>"$GITHUB_STEP_SUMMARY"
-
-  prune-labels:
-    name: Prune orphan workspace labels
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Delete orphan symbiot/* labels
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          members=$(
-            jq -r '.workspaces[]?' package.json | while IFS= read -r pattern; do
-              [[ -z "$pattern" ]] && continue
-              [[ "$pattern" == */\* ]] || continue
-              for dir in $pattern; do
-                [[ -f "$dir/package.json" ]] || continue
-                jq -r 'select(.name) | .name' "$dir/package.json"
-              done
-            done | sed 's/^@//' | sort -u
-          )
-
-          existing=$(gh label list --limit 200 --json name --jq '.[].name' \
-            | grep '^symbiot/' | sort -u || true)
-
-          deleted=()
-          if [[ -n "$existing" ]]; then
-            while IFS= read -r label; do
-              [[ -z "$label" ]] && continue
-              if ! grep -qFx "$label" <<<"$members"; then
-                gh label delete "$label" --yes
-                deleted+=("$label")
-              fi
-            done <<<"$existing"
-          fi
-
-          {
-            echo "### Auto Label · Prune"
-            echo ""
-            echo "**Current workspace members:**"
-            printf '%s\n' "$members" | sed 's/^/- /'
-            echo ""
-            echo "**Existing symbiot/* labels:**"
-            if [[ -n "$existing" ]]; then
-              printf '%s\n' "$existing" | sed 's/^/- /'
-            else
-              echo "_(none)_"
-            fi
-            echo ""
-            echo "**Deleted:**"
-            if [[ ${#deleted[@]} -gt 0 ]]; then
-              printf '%s\n' "${deleted[@]}" | sed 's/^/- /'
-            else
-              echo "_(none)_"
-            fi
-          } >>"$GITHUB_STEP_SUMMARY"
+          token: ${{ github.token }}
