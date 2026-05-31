@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { runPlanReview } from "@symbiot/agent-runtime";
+import { emitBlockDecision } from "@symbiot/agent-runtime/decision";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
 import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
@@ -139,14 +140,6 @@ const emitApproveDecision = (): void => {
   process.stdout.write(JSON.stringify(payload));
 };
 
-const emitDenyDecision = (feedback: string): void => {
-  const payload = {
-    decision: "block",
-    reason: feedback.length > 0 ? feedback : "Reviewer requested changes.",
-  };
-  process.stdout.write(JSON.stringify(payload));
-};
-
 /** Shape of the `PermissionRequest` allow payload emitted on approve. */
 interface PermissionRequestAllowPayload {
   hookSpecificOutput: {
@@ -194,7 +187,7 @@ const runPreToolUse = (plan: string): Promise<number> => {
         await logEvent({ event: "PreToolUse", planHash, emitted: "allow" });
         return 0;
       }
-      emitDenyDecision(decision.feedback);
+      await emitBlockDecision(decision.feedback);
       await logEvent({ event: "PreToolUse", planHash, emitted: "block" });
       return 0;
     },

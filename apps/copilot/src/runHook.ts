@@ -5,17 +5,18 @@
  * payload on stdin. Unlike Codex (`last_assistant_message`) and Gemini
  * (`prompt_response`), Copilot's payload carries NO inline message — only a
  * `transcriptPath`. So we tail-read that transcript, extract the last assistant
- * message as the plan to review, spawn the viewer via {@link runPlanReview} (the
- * shared `@symbiot/agent-runtime` loop) under the `copilot` storage namespace,
- * block until the reviewer decides, then map the decision back to Copilot —
- * `{"decision":"block","reason"}` on request-changes (Copilot runs another turn
- * with `reason` as the prompt), or no output + exit 0 on approve.
+ * message as the plan to review, spawn the viewer via the shared
+ * {@link runPlanReview} loop under the `copilot` storage namespace, block until
+ * the reviewer decides, then map the decision back via the shared
+ * {@link emitDecision} — `{"decision":"block","reason"}` on request-changes
+ * (Copilot runs another turn with `reason` as the prompt), or no output + exit 0
+ * on approve.
  *
- * Copilot's `agentStop` has no `stop_hook_active` re-entrancy field, so a self-
- * managed marker (`~/.symbiot/hook-state/<sessionId>.json`, plan-hash + TTL)
- * breaks the block→retry→block loop when a turn re-emits an identical plan. Every
- * failure path degrades to a pass-through (no stdout, exit 0) so a stuck or
- * garbled hook never spuriously blocks Copilot.
+ * Copilot's `agentStop` has no `stop_hook_active` re-entrancy field, so the shared
+ * {@link createMarkerStore} (`~/.symbiot/hook-state/<sha256(sessionId)>.json`,
+ * plan-hash + TTL) breaks the block→retry→block loop when a turn re-emits an
+ * identical plan. Every failure path degrades to a pass-through (no stdout, exit
+ * 0) so a stuck or garbled hook never spuriously blocks Copilot.
  *
  * @example
  *   echo '{"sessionId":"s","transcriptPath":"/…/t.jsonl","stopReason":"end_turn"}' \
@@ -24,19 +25,17 @@
  * @see ../README.md — the `## Schemas` section pins the stdin/decision shapes.
  * @see ../../../docs/agents/copilot-contract.md — the audited upstream contract.
  */
-import { createHash } from "node:crypto";
-import { mkdir, open, readFile, rename, writeFile, type FileHandle } from "node:fs/promises";
+import { open, type FileHandle } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { runPlanReview } from "@symbiot/agent-runtime";
-import type { RunningServer } from "@symbiot/viewer";
+import { emitDecision } from "@symbiot/agent-runtime/decision";
+import { flagValue, parsePort, readHookInput } from "@symbiot/agent-runtime/hook-input";
+import { createMarkerStore } from "@symbiot/agent-runtime/marker-store";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
 import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
-
-/** The reviewer's decision, derived from the viewer boundary (matches `runPlanReview`). */
-type ReviewDecision = Awaited<RunningServer["resolved"]>;
 
 /**
  * The subset of Copilot's `agentStop` stdin payload this handler reads (camelCase
@@ -158,111 +157,27 @@ const readTranscriptTail = async (path: string): Promise<string | null> => {
   }
 };
 
-const hookStateDir = join(homedir(), ".symbiot", "hook-state");
-const reentrancyTtlMs = 60_000;
-
-const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
-
-/** Marker path for a session — the sessionId is hashed so it is always a safe filename. */
-const markerPath = (sessionId: string): string => join(hookStateDir, `${sha256(sessionId)}.json`);
+const reentrancyStore = createMarkerStore({
+  dir: join(homedir(), ".symbiot", "hook-state"),
+  ttlMs: 60_000,
+});
 
 /**
  * True when this exact `(sessionId, plan)` was blocked within the TTL — i.e. the
  * block we emitted triggered a retry turn that re-emitted a byte-identical plan,
- * which would otherwise re-gate forever. Best-effort: any read error returns
- * `false` (proceed) so a guard I/O failure never suppresses a real review.
+ * which would otherwise re-gate forever. A no-op (proceed) for an empty sessionId.
  */
-export const isReentrant = async (sessionId: string, plan: string): Promise<boolean> => {
-  if (sessionId.length === 0) return false;
-  try {
-    const marker = JSON.parse(await readFile(markerPath(sessionId), "utf8")) as {
-      planHash?: unknown;
-      ts?: unknown;
-    };
-    return (
-      marker.planHash === sha256(plan) &&
-      typeof marker.ts === "number" &&
-      Date.now() - marker.ts < reentrancyTtlMs
-    );
-  } catch {
-    return false;
-  }
-};
+export const isReentrant = async (sessionId: string, plan: string): Promise<boolean> =>
+  sessionId.length === 0 ? false : reentrancyStore.isFresh(sessionId, plan);
 
 /**
  * Record the marker for this `(sessionId, plan)` — written only when we are about
  * to block, so the TTL window is measured from the block (the retry fires within
- * seconds), not from a slow human review. Best-effort and atomic (tmp + rename); a
- * failed write fails open (the review still proceeds).
+ * seconds), not from a slow human review. A no-op for an empty sessionId.
  */
 export const recordMarker = async (sessionId: string, plan: string): Promise<void> => {
   if (sessionId.length === 0) return;
-  try {
-    await mkdir(hookStateDir, { recursive: true });
-    const path = markerPath(sessionId);
-    const tmp = `${path}.${process.pid}.tmp`;
-    await writeFile(tmp, JSON.stringify({ planHash: sha256(plan), ts: Date.now() }), "utf8");
-    await rename(tmp, path);
-  } catch {
-    // best-effort; proceed without a marker
-  }
-};
-
-/** Write to stdout and await drain on backpressure, so the full decision JSON is
- * flushed before the process exits (a truncated `{"decision":"block"…` would be
- * read as a phantom block). */
-const writeStdout = async (text: string): Promise<void> => {
-  if (!process.stdout.write(text)) {
-    await new Promise<void>((resolve) => process.stdout.once("drain", resolve));
-  }
-};
-
-/**
- * Emit Copilot's request-changes decision. `decision:block` makes Copilot run
- * another turn with `reason` as the steering prompt. The full JSON is a single
- * buffered write, awaited before the caller returns. Mirrors `apps/codex` /
- * `apps/gemini` byte-for-byte, including the default reason.
- */
-export const emitBlockDecision = async (feedback: string): Promise<void> => {
-  const payload = {
-    decision: "block",
-    reason: feedback.length > 0 ? feedback : "Reviewer requested changes.",
-  };
-  await writeStdout(JSON.stringify(payload));
-};
-
-/**
- * Map a reviewer decision to Copilot's response and return the exit code.
- * `approve` writes nothing (Copilot lets the turn end); request-changes emits
- * `decision:block`. Exported so the round trip is unit-testable without a browser.
- */
-export const emitDecision = async (decision: ReviewDecision): Promise<number> => {
-  if (decision.kind === "approve") return 0;
-  await emitBlockDecision(decision.feedback);
-  return 0;
-};
-
-const flagValue = (argv: string[], flag: string): string | null => {
-  const idx = argv.indexOf(flag);
-  return idx >= 0 ? (argv[idx + 1] ?? null) : null;
-};
-
-const parsePort = (raw: string | null): number | null => {
-  if (raw === null) return null;
-  const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
-};
-
-const readHookInput = async (): Promise<unknown> => {
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of process.stdin) chunks.push(chunk as Uint8Array);
-  if (chunks.length === 0) return {};
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    // Malformed payload → pass through (return {} → parseAgentStop null → exit 0).
-    return {};
-  }
+  await reentrancyStore.record(sessionId, plan);
 };
 
 /**
@@ -286,9 +201,8 @@ const reviewableFromStdin = async (): Promise<{ sessionId: string; plan: string 
  * decision. Returns the process exit code. Every failure path returns 0 with no
  * stdout (a spurious block would derail Copilot's turn).
  *
- * `argv` is the post-command tail. Production Copilot passes none → OS-assigned
- * port, browser opens. The optional `--port` / `--no-open` flags mirror
- * `apps/viewer/src/bin.ts` for the headless E2E harness.
+ * `argv` is the post-command tail. The optional `--port` / `--no-open` flags let
+ * the headless E2E harness pin a viewer it can reach on a known URL.
  */
 export const runHook = async (argv: string[]): Promise<number> => {
   try {
