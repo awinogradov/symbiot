@@ -1,0 +1,2 @@
+{"type":"user","message":{"role":"user","content":"Draft a plan for the new feature."}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"# Copilot plan\n\nThe quick brown fox jumps over the lazy dog. This plan adds a feature and should be reviewed before the turn ends.\n\n- Step one\n- Step two\n"}]}}

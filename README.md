@@ -159,6 +159,7 @@ apps/
   claude-code/   Claude Code hook that opens the viewer and resolves plans
   codex/         Codex CLI hook (Stop) that opens the viewer and resolves plans
   gemini/        Gemini CLI hook (AfterAgent) that opens the viewer and resolves plans
+  copilot/       Copilot CLI hook (agentStop) that opens the viewer and resolves plans
   portal/        Static viewer for shared review links
 packages/
   symbiot-annotations/  Annotation tuple model + codec
@@ -201,6 +202,7 @@ Apps:
 - [`apps/claude-code`](./apps/claude-code/README.md) — Claude Code hook entry point.
 - [`apps/codex`](./apps/codex/README.md) — Codex CLI hook entry point.
 - [`apps/gemini`](./apps/gemini/README.md) — Gemini CLI hook entry point.
+- [`apps/copilot`](./apps/copilot/README.md) — Copilot CLI hook entry point.
 - [`apps/portal`](./apps/portal/README.md) — shared-link viewer.
 
 Packages:

@@ -2,6 +2,7 @@ import { test as base } from "playwright-bdd";
 import { createBdd } from "playwright-bdd";
 
 import { createCodexHookController, type CodexHookController } from "./codexProcess.ts";
+import { createCopilotHookController, type CopilotHookController } from "./copilotProcess.ts";
 import { recordCoverage, isCoverageEnabled } from "./coverage.ts";
 import { createGeminiHookController, type GeminiHookController } from "./geminiProcess.ts";
 
@@ -17,7 +18,13 @@ interface GeminiHookFixture {
   geminiHook: GeminiHookController;
 }
 
-export const test = base.extend<CoverageFixture & CodexHookFixture & GeminiHookFixture>({
+interface CopilotHookFixture {
+  copilotHook: CopilotHookController;
+}
+
+export const test = base.extend<
+  CoverageFixture & CodexHookFixture & GeminiHookFixture & CopilotHookFixture
+>({
   autoCoverage: [
     async ({ page }, use, testInfo) => {
       if (!isCoverageEnabled()) {
@@ -44,6 +51,14 @@ export const test = base.extend<CoverageFixture & CodexHookFixture & GeminiHookF
   // teardown is a no-op for them.
   geminiHook: async ({}, provide) => {
     const controller = createGeminiHookController();
+    await provide(controller);
+    await controller.dispose();
+  },
+  // Per-scenario handle to a real `symbiot-copilot run-hook` subprocess. Only the
+  // copilot round-trip feature uses it; other scenarios never call `start`, so the
+  // teardown is a no-op for them.
+  copilotHook: async ({}, provide) => {
+    const controller = createCopilotHookController();
     await provide(controller);
     await controller.dispose();
   },

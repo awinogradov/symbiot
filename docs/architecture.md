@@ -27,13 +27,13 @@ know before moving code around.
 
 All agent integrations spawn the same `apps/viewer` binary through the shared
 `runPlanReview` loop in `@symbiot/agent-runtime`; they differ only in CLI shape
-(`apps/claude-code`, `apps/codex`, `apps/gemini`, future `apps/copilot`, ...) —
+(`apps/claude-code`, `apps/codex`, `apps/gemini`, `apps/copilot`, ...) —
 how they parse stdin and emit their own decision JSON.
 
 ## Package layering
 
 ```
-   apps/claude-code (Claude Code) · apps/codex (Codex CLI) · apps/gemini (Gemini CLI; future apps/copilot, ...)
+   apps/claude-code (Claude Code) · apps/codex (Codex CLI) · apps/gemini (Gemini CLI) · apps/copilot (Copilot CLI)
         │ depends on
         ▼
    @symbiot/agent-runtime   ──  runPlanReview: spawn → await → decide loop
@@ -263,6 +263,38 @@ mode: "auto", destination: "session"}]}}` schema Claude Code honors for
   (`apps/gemini/extension/`, gated `"enabled": false`) is bundled for the
   **2026-06-18** Gemini-CLI→Antigravity cutover; at GA the flag flips and
   `agentId` migrates `gemini`→`antigravity`.
+
+- **Copilot CLI gates on `agentStop`, not `PreToolUse`.** Copilot exposes no
+  plan-presentation tool to hook on (its hookable tools are `bash`/`edit`/`view`/…,
+  with no `ExitPlanMode` equivalent), so `apps/copilot` reviews the turn-final
+  output on the `agentStop` hook, installed in a dedicated
+  `~/.copilot/hooks/symbiot-copilot.json` (Copilot loads command hooks from a
+  directory of files, so symbiot owns one file outright — no shared-file merge —
+  guarded by a `_managedBy` sentinel on uninstall). The decision contract is
+  identical in shape to Claude's deny path — `{"decision":"block","reason":<feedback>}`
+  makes Copilot run **another turn** with `reason` as the prompt (request changes);
+  no output + exit `0` lets the turn end (approve). Two things differ from
+  Codex/Gemini: Copilot's `agentStop` carries **no inline message** (only
+  `transcriptPath`, so `run-hook` tail-reads the transcript for the last assistant
+  message) and **no `stop_hook_active` guard** (so `run-hook` self-manages
+  re-entrancy via a `~/.symbiot/hook-state/<sessionId>.json` marker — plan-hash +
+  60s TTL). `timeoutSec` is in **seconds** (`3600`, default `30`) like Codex, not
+  Gemini's ms. An unparseable payload or transcript degrades to a pass-through so
+  the hook never spuriously blocks. The `agentStop` stdin (subset) and decision
+  shapes:
+
+  ```jsonc
+  // stdin — Copilot agentStop payload (camelCase; timestamp, cwd ignored)
+  { "sessionId": "…", "transcriptPath": "/…/transcript.jsonl", "stopReason": "end_turn" }
+  // stdout — request changes (else: no output + exit 0 to approve)
+  { "decision": "block", "reason": "<feedback>" }
+  ```
+
+  `agentId: "copilot"` threads into per-agent storage (see **Storage + state**);
+  this reuses `runPlanReview` and adds no `/api/*` route, so the server contract is
+  unchanged. The full source-verified upstream contract — including why the
+  Extensions SDK surface is unfit (it has no `agentStop`) — lives in
+  [`agents/copilot-contract.md`](./agents/copilot-contract.md).
 
 ### Sharing
 
