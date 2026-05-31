@@ -85,7 +85,11 @@ export const createOpencodeHookController = (): OpencodeHookController => {
   const result = async (): Promise<OpencodeHookResult> => {
     if (exited === null) throw new Error("opencode harness was not started");
     const { code, stdout: out } = await exited;
-    const lastLine = out.trim().split("\n").at(-1) ?? "{}";
+    const lines = out
+      .trim()
+      .split("\n")
+      .filter((line) => line.length > 0);
+    const lastLine = lines.at(-1) ?? "{}";
     const parsed = JSON.parse(lastLine) as { inboxPath: string; injected: string | null };
     return { code, inboxPath: parsed.inboxPath, injected: parsed.injected };
   };
@@ -94,6 +98,7 @@ export const createOpencodeHookController = (): OpencodeHookController => {
 
   const dispose = async (): Promise<void> => {
     if (child !== null && child.exitCode === null) child.kill("SIGTERM");
+    if (exited !== null) await exited;
     if (home !== "") await rm(home, { recursive: true, force: true });
   };
 

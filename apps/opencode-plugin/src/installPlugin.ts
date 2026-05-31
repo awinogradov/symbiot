@@ -64,7 +64,8 @@ const readOwnership = async (): Promise<"ours" | "foreign" | "absent"> => {
   try {
     raw = await readFile(loaderPath(), "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "absent";
+    const { code } = error as NodeJS.ErrnoException;
+    if (code === "ENOENT" || code === "ENOTDIR") return "absent";
     throw error;
   }
   return raw.includes(managedMarker) ? "ours" : "foreign";
