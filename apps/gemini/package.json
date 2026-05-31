@@ -1,0 +1,29 @@
+{
+  "name": "@symbiot/gemini",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/cli.ts",
+  "scripts": {
+    "build": "bun build src/cli.ts --target=bun --outdir dist",
+    "install-hook": "bun src/cli.ts install-hook",
+    "uninstall-hook": "bun src/cli.ts uninstall-hook",
+    "run-hook": "bun src/cli.ts run-hook",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@symbiot/agent-runtime": "workspace:*",
+    "@symbiot/viewer": "workspace:*"
+  },
+  "devDependencies": {
+    "@symbiot/eslint-config": "workspace:*",
+    "@symbiot/typescript-config": "workspace:*",
+    "@types/bun": "1.3.14",
+    "eslint": "10.4.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.6"
+  }
+}

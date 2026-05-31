@@ -1,0 +1,12 @@
+{
+  "symbiot-gemini": {
+    "enabled": false,
+    "Stop": [
+      {
+        "type": "command",
+        "command": "symbiot-gemini run-hook",
+        "timeout": 3600
+      }
+    ]
+  }
+}
