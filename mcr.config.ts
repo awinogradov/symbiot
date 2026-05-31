@@ -67,7 +67,19 @@ export const coverageOptions: CoverageReportOptions = {
   ],
   cleanCache: false,
   sourceMapResolver: localSourceMapResolver,
-  entryFilter: (entry): boolean => entryPathnameMatches(entry.url ?? ""),
+  entryFilter: (entry): boolean => {
+    if (!entryPathnameMatches(entry.url ?? "")) return false;
+    // Drop the inline pre-paint theme bootstrap (see apps/viewer/index.html):
+    // it is the only document-level script with no source map, so it never
+    // resolves to a src/ file and is instead counted as anonymous coverage
+    // once per viewer webServer port. Its dark-theme branch only fires on the
+    // port that also runs the theme-toggle scenario, so every extra port drags
+    // the branch gate down by a fixed slice — masking the real source number.
+    // The sourcemapped app bundle (inlined today, /assets/index-*.js tomorrow)
+    // always carries `sourceMappingURL`, so this keeps real coverage intact.
+    const source = entry.source ?? "";
+    return source.length === 0 || source.includes("sourceMappingURL=");
+  },
   sourceFilter: (sourcePath: string): boolean => {
     if (sourcePath.includes("node_modules")) return false;
     if (sourcePath.endsWith(".test.ts") || sourcePath.endsWith(".test.tsx")) return false;
