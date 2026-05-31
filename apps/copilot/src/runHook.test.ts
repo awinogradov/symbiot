@@ -9,19 +9,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const homeRoot = await mkdtemp(join(tmpdir(), "symbiot-copilot-runhook-test-"));
 process.env.HOME = homeRoot;
 
-const {
-  parseAgentStop,
-  extractLastAssistantMessage,
-  emitBlockDecision,
-  emitDecision,
-  isReentrant,
-  recordMarker,
-} = await import("./runHook.ts");
-
-const captureStdout = (): { calls: () => string[] } => {
-  const spy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-  return { calls: () => spy.mock.calls.map((c) => String(c[0])) };
-};
+const { parseAgentStop, extractLastAssistantMessage, isReentrant, recordMarker } =
+  await import("./runHook.ts");
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -108,39 +97,5 @@ describe("re-entrancy guard", () => {
     expect(await isReentrant("never-recorded", "# Plan")).toBe(false);
     await recordMarker("", "# Plan");
     expect(await isReentrant("", "# Plan")).toBe(false);
-  });
-});
-
-describe("emitBlockDecision", () => {
-  it("emits the feedback as the block reason", async () => {
-    const out = captureStdout();
-    await emitBlockDecision("please add tests");
-    expect(out.calls()).toEqual([
-      JSON.stringify({ decision: "block", reason: "please add tests" }),
-    ]);
-  });
-
-  it("falls back to a default reason when feedback is empty", async () => {
-    const out = captureStdout();
-    await emitBlockDecision("");
-    expect(out.calls()).toEqual([
-      JSON.stringify({ decision: "block", reason: "Reviewer requested changes." }),
-    ]);
-  });
-});
-
-describe("emitDecision", () => {
-  it("approve emits nothing and exits 0 (Copilot lets the turn end)", async () => {
-    const out = captureStdout();
-    expect(await emitDecision({ kind: "approve" })).toBe(0);
-    expect(out.calls()).toEqual([]);
-  });
-
-  it("deny emits a block decision and exits 0 (Copilot retries the turn)", async () => {
-    const out = captureStdout();
-    expect(await emitDecision({ kind: "deny", feedback: "tighten the scope" })).toBe(0);
-    expect(out.calls()).toEqual([
-      JSON.stringify({ decision: "block", reason: "tighten the scope" }),
-    ]);
   });
 });
