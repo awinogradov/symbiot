@@ -1,0 +1,6 @@
+{
+  "sessionId": "copilot-smoke-session",
+  "cwd": "/tmp/copilot-smoke",
+  "transcriptPath": "fixtures/agents/copilot-transcript.jsonl",
+  "stopReason": "end_turn"
+}

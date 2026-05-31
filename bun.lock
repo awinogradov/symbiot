@@ -67,6 +67,22 @@
         "vitest": "4.1.6",
       },
     },
+    "apps/copilot": {
+      "name": "@symbiot/copilot",
+      "version": "0.2.0",
+      "dependencies": {
+        "@symbiot/agent-runtime": "workspace:*",
+        "@symbiot/viewer": "workspace:*",
+      },
+      "devDependencies": {
+        "@symbiot/eslint-config": "workspace:*",
+        "@symbiot/typescript-config": "workspace:*",
+        "@types/bun": "1.3.14",
+        "eslint": "10.4.0",
+        "typescript": "6.0.3",
+        "vitest": "4.1.6",
+      },
+    },
     "apps/gemini": {
       "name": "@symbiot/gemini",
       "version": "0.2.0",
@@ -770,6 +786,8 @@
     "@symbiot/claude-code": ["@symbiot/claude-code@workspace:apps/claude-code"],
 
     "@symbiot/codex": ["@symbiot/codex@workspace:apps/codex"],
+
+    "@symbiot/copilot": ["@symbiot/copilot@workspace:apps/copilot"],
 
     "@symbiot/editor": ["@symbiot/editor@workspace:packages/symbiot-editor"],
 
