@@ -6,8 +6,9 @@
  * (`~/.gemini/settings.json`), the event (`AfterAgent`, not tool-scoped), the
  * entry `name`, and the `timeout` UNIT differ: Gemini measures `timeout` in
  * **milliseconds** (default 60000), so a one-hour review block is `3600000`, NOT
- * the `3600` seconds Codex/Claude use. Gemini honors `{"decision":"block","reason"}`
- * on `AfterAgent` directly, so there is no `PermissionRequest` companion entry.
+ * the `3600` seconds Codex uses (Claude Code sets no hook timeout). Gemini honors
+ * `{"decision":"block","reason"}` on `AfterAgent` directly, so there is no
+ * `PermissionRequest` companion entry.
  *
  * @see ../../README.md — the `## Schemas` section pins the on-disk shape.
  * @see ../../codex/src/installHook.ts — the Codex counterpart (timeout in seconds).

@@ -87,10 +87,16 @@ describe("parsePort", () => {
     expect(parsePort("4321")).toBe(4321);
   });
 
-  it("returns null for null or invalid input", () => {
+  it("returns null for null, malformed, or out-of-range input", () => {
     expect(parsePort(null)).toBeNull();
     expect(parsePort("0")).toBeNull();
     expect(parsePort("nope")).toBeNull();
+    expect(parsePort("3000abc")).toBeNull();
+    expect(parsePort("70000")).toBeNull();
+  });
+
+  it("accepts the top of the TCP range", () => {
+    expect(parsePort("65535")).toBe(65535);
   });
 });
 

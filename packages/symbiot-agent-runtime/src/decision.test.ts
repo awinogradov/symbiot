@@ -43,4 +43,10 @@ describe("emitDecision", () => {
       JSON.stringify({ decision: "block", reason: "tighten the scope" }),
     ]);
   });
+
+  it("an annotate-only feedback decision emits nothing and exits 0", async () => {
+    const out = captureStdout();
+    expect(await emitDecision({ kind: "feedback", feedback: "a note" })).toBe(0);
+    expect(out.calls()).toEqual([]);
+  });
 });

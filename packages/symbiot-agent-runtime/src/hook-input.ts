@@ -37,11 +37,11 @@ export const flagValue = (argv: string[], flag: string): string | null => {
   return idx >= 0 ? (argv[idx + 1] ?? null) : null;
 };
 
-/** Parse a positive integer port, or `null` when `raw` is null/invalid. */
+/** Parse a strict TCP port (1-65535), or `null` when `raw` is null/malformed/out-of-range. */
 export const parsePort = (raw: string | null): number | null => {
-  if (raw === null) return null;
+  if (raw === null || !/^\d+$/.test(raw)) return null;
   const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
+  return n >= 1 && n <= 65535 ? n : null;
 };
 
 const isNonEmptyString = (value: unknown): value is string =>
