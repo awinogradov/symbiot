@@ -245,7 +245,7 @@ mode: "auto", destination: "session"}]}}` schema Claude Code honors for
   reference spells the blocking decision `"deny"` and treats `"block"` as an
   alias; symbiot emits `"block"` for byte-parity with Claude/Codex. One unit
   gotcha: Gemini hook `timeout` is in **milliseconds** (`3600000`, default
-  `60000`) — Codex and Claude use seconds (`3600`). A `stop_hook_active` guard
+  `60000`) — Codex uses seconds (`3600`). A `stop_hook_active` guard
   limits review to one gate per retry-chain, and an unparseable payload degrades
   to a pass-through so the hook never spuriously retries. The `AfterAgent` stdin
   (subset) and decision shapes:
