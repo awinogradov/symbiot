@@ -10,6 +10,13 @@ import { openBrowser } from "./openBrowser.ts";
 import { defaultAgentId, migrateLegacyTree, savePlan, type PlanMeta } from "./storage.ts";
 import { serveEmbeddedHtml, serveStatic } from "./staticAssets.ts";
 
+/**
+ * Re-exported so the reviewer-decision type is reachable from the package's
+ * public entry — `@symbiot/agent-runtime` and `apps/opencode-plugin` depend on
+ * this surface across workspaces. {@link ./contract/surface.assert.ts} pins it.
+ */
+export type { Decision } from "./routes.ts";
+
 /** Options for {@link startServer}. */
 export interface StartServerOptions {
   plan: string;
