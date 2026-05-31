@@ -48,6 +48,26 @@ process.exit(exitCode);
 `mode`, `serverOptions`, and `onStart` are optional; `onResolved` is required —
 its return value (sync or async) becomes the resolved exit code.
 
+## Shared helpers
+
+Beyond `runPlanReview`, this package owns the boilerplate that is identical across
+agent apps, each on its own subpath import (no barrel — import the actual path):
+
+| Import               | Exports                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| `…/cli`              | `createCli` — dispatcher shell (usage/exit-64, error→exit-1)                        |
+| `…/annotate`         | `runAnnotate` — the shared `annotate <file.md>` flow                                |
+| `…/hook-input`       | `readHookInput`, `flagValue`, `parsePort`, `createStopPlanExtractor`                |
+| `…/decision`         | `emitBlockDecision`, `emitDecision` — the `{"decision":"block",…}` contract         |
+| `…/config-installer` | `createConfigHookInstaller` — merge a hook into a shared JSON settings file         |
+| `…/managed-file`     | `writeAtomic`, `readOwnership`, `removeIfOwned` — atomic write + ownership sentinel |
+| `…/marker-store`     | `createMarkerStore` — TTL re-entrancy markers under `~/.symbiot/hook-state/`        |
+
+An agent app supplies only its deltas (bin name, `agentId`, event/message field,
+install target/timeout, embedded `viewerHtmlGz`). See
+[`docs/agents/adding-an-integration.md`](../../docs/agents/adding-an-integration.md)
+for the step-by-step.
+
 ## Local development
 
 ```sh

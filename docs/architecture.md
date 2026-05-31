@@ -26,9 +26,12 @@ know before moving code around.
 ```
 
 All agent integrations spawn the same `apps/viewer` binary through the shared
-`runPlanReview` loop in `@symbiot/agent-runtime`; they differ only in CLI shape
-(`apps/claude-code`, `apps/codex`, `apps/gemini`, `apps/copilot`, ...) —
-how they parse stdin and emit their own decision JSON.
+`runPlanReview` loop in `@symbiot/agent-runtime`. Each app
+(`apps/claude-code`, `apps/codex`, `apps/gemini`, `apps/copilot`, ...) is a thin
+wrapper over that package's shared helpers (CLI shell, hook-input parsing,
+decision emission, installers); it supplies only its deltas — how it parses
+stdin, which event it gates on, and where it installs. See
+[`agents/adding-an-integration.md`](./agents/adding-an-integration.md).
 
 ## Package layering
 
@@ -36,7 +39,7 @@ how they parse stdin and emit their own decision JSON.
    apps/claude-code (Claude Code) · apps/codex (Codex CLI) · apps/gemini (Gemini CLI) · apps/copilot (Copilot CLI) · apps/opencode-plugin (OpenCode)
         │ depends on
         ▼
-   @symbiot/agent-runtime   ──  runPlanReview: spawn → await → decide loop
+   @symbiot/agent-runtime   ──  runPlanReview loop + shared cli/annotate/hook-input/decision/installer helpers
         │ startServer / RunningServer
         ▼
    apps/viewer  (HTTP server + UI — the single binary every agent spawns)
@@ -172,16 +175,26 @@ obsolete, delete the bullet rather than hedging it.
 
 ### Hook semantics
 
-- **The spawn-and-decide loop lives once in `@symbiot/agent-runtime`.** The
-  `runPlanReview` helper owns `startServer → onStart(url) → await resolved →
-stop → onResolved`. Each agent injects only stdin parsing and decision
-  emission via the `onResolved` callback (whose return value is the process
-  exit code); Claude-specific glue — `emitApproveDecision` / `emitDenyDecision`,
-  the approve marker, the `claude-code#50660` workaround — stays in
-  `apps/claude-code/src/runHook.ts`. `@symbiot/viewer` (`startServer` /
-  `RunningServer`) is the boundary; each agent passes its `agentId` through
-  `serverOptions`, so per-agent storage namespacing stays a viewer concern
-  (see Storage + state).
+- **Shared agent boilerplate lives once in `@symbiot/agent-runtime`.** Beyond the
+  `runPlanReview` loop (`startServer → onStart(url) → await resolved → stop →
+onResolved`), the package owns every other piece that is identical across agents,
+  each on its own subpath import: `cli` (`createCli` dispatcher shell), `annotate`
+  (`runAnnotate`), `hook-input` (`readHookInput` / `flagValue` / `parsePort` /
+  `createStopPlanExtractor`), `decision` (`emitBlockDecision` / `emitDecision` —
+  the `{"decision":"block","reason"}` contract), `config-installer`
+  (`createConfigHookInstaller` for the shared-JSON merge installers),
+  `managed-file` (`writeAtomic` / `removeIfOwned`), and `marker-store`
+  (`createMarkerStore`). Each agent app is a thin wrapper that supplies only its
+  deltas — bin name, `agentId`, the event/message field, install target/timeout,
+  and the embedded `viewerHtmlGz`. Genuinely agent-specific logic stays local:
+  Claude Code's bespoke approve payloads (`emitApproveDecision` /
+  `permissionRequestAllowPayload`), its approve marker, and the
+  `claude-code#50660` workaround in `apps/claude-code/src/runHook.ts`; Copilot's
+  transcript tail-read; OpenCode's in-process plugin. `@symbiot/viewer`
+  (`startServer` / `RunningServer`) is the boundary; each agent passes its
+  `agentId` through `serverOptions`, so per-agent storage namespacing stays a
+  viewer concern (see Storage + state). New agents follow
+  [`agents/adding-an-integration.md`](./agents/adding-an-integration.md).
 - **Two events under one matcher.** The installer registers
   `PreToolUse(ExitPlanMode)` AND `PermissionRequest(ExitPlanMode)` against the
   same `symbiot run-hook` command. `PreToolUse` drives the viewer (single

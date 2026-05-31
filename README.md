@@ -187,6 +187,7 @@ Read this list before touching the code — it's the documentation index CLAUDE.
 - [`docs`](./docs/README.md) — cross-cutting architecture, product, and contract docs. Start here when a change spans more than one package.
 - [`docs/product.md`](./docs/product.md) — product goals, non-goals, personas, principles, NFRs, success metrics.
 - [`docs/architecture.md`](./docs/architecture.md) — app composition, package layering, HTTP surface, monorepo invariants, and the architectural specials.
+- [`docs/agents/adding-an-integration.md`](./docs/agents/adding-an-integration.md) — how to add a new agent integration: the shared `@symbiot/agent-runtime` building blocks and a step-by-step.
 - [`docs/server-contract.md`](./docs/server-contract.md) — HTTP surface between the hook and the viewer.
 - [`docs/theming.md`](./docs/theming.md) — annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).
 - [`docs/a11y.md`](./docs/a11y.md) — WCAG AA baseline: axe-core scenarios, keyboard nav checklist, focus-ring policy, ARIA-label inventory, screen-reader smoke.
