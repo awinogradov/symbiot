@@ -59,11 +59,18 @@ re-write), atomic (tmp + rename), and carries a `@managed-by symbiot-opencode` s
 `uninstall` only deletes a loader it owns — a hand-edited file is left in place with a
 warning.
 
-**Manual alternative** — add the package to your `opencode.json` instead of the loader:
+**Manual alternative** — write the loader yourself instead of running the CLI. OpenCode
+resolves `opencode.json`'s `plugin` entries as published npm packages, so this unpublished
+(`"private": true`) workspace package cannot be referenced by name there. Instead create
+`~/.config/opencode/plugins/symbiot-opencode.ts` re-exporting the plugin from this
+workspace's **source** (use the absolute path to `apps/opencode-plugin/src/plugin.ts`):
 
-```jsonc
-{ "plugin": ["@symbiot/opencode-plugin"] }
+```ts
+export { SymbiotOpenCodePlugin } from "/absolute/path/to/symbiot/apps/opencode-plugin/src/plugin.ts";
 ```
+
+This is exactly what `install-plugin` automates (it also adds the `@managed-by` sentinel
+so `uninstall-plugin` can safely remove it).
 
 ## Example flow
 

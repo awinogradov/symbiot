@@ -54,6 +54,16 @@ export interface ReviewDeps {
 /** One live viewer per session — a fresh idle event replaces the prior one. */
 const liveServers = new Map<string, RunningServer>();
 
+/** Monotonic per-session review counter — a newer idle supersedes older in-flight reviews. */
+const reviewGenerations = new Map<string, number>();
+
+/** Claim the next review generation for a session; only the latest may persist its feedback. */
+const nextReviewGeneration = (sessionID: string): number => {
+  const generation = (reviewGenerations.get(sessionID) ?? 0) + 1;
+  reviewGenerations.set(sessionID, generation);
+  return generation;
+};
+
 /** Report without ever throwing or exiting — this code runs inside the host process. */
 const reportError = (error: unknown): void => {
   const message = error instanceof Error ? error.message : String(error);
@@ -94,10 +104,30 @@ const openReview = (response: string, deps: ReviewDeps): Promise<RunningServer> 
 const awaitDecision = (server: RunningServer, deps: ReviewDeps): Promise<Decision | null> =>
   Promise.race([server.resolved, idleTimeout(deps.timeoutMs ?? defaultReviewTimeoutMs)]);
 
-/** Persist feedback for the next turn only when the reviewer requested changes. */
-const persistIfFeedback = async (sessionID: string, decision: Decision | null): Promise<void> => {
+/**
+ * Persist feedback for the next turn — but only when the reviewer requested changes
+ * AND no newer idle superseded this review while it awaited the human decision
+ * (a stale generation's feedback would otherwise clobber the latest response's review).
+ */
+const persistIfFeedback = async (
+  sessionID: string,
+  generation: number,
+  decision: Decision | null
+): Promise<void> => {
   if (decision === null || decision.kind === "approve") return;
+  if (reviewGenerations.get(sessionID) !== generation) return;
   await writePendingFeedback(sessionID, decision.feedback);
+};
+
+/** Tear down a finished review: drop its map/generation entries (only if still ours), stop the viewer. */
+const finishReview = async (
+  sessionID: string,
+  generation: number,
+  server: RunningServer
+): Promise<void> => {
+  if (liveServers.get(sessionID) === server) liveServers.delete(sessionID);
+  if (reviewGenerations.get(sessionID) === generation) reviewGenerations.delete(sessionID);
+  await server.stop().catch(reportError);
 };
 
 /**
@@ -118,13 +148,13 @@ export const reviewSession = async (
   await stopPriorReview(sessionID);
   if (liveServers.size >= maxLiveServers) return;
 
+  const generation = nextReviewGeneration(sessionID);
   const server = await openReview(response, deps);
   liveServers.set(sessionID, server);
   try {
-    await persistIfFeedback(sessionID, await awaitDecision(server, deps));
+    await persistIfFeedback(sessionID, generation, await awaitDecision(server, deps));
   } finally {
-    liveServers.delete(sessionID);
-    await server.stop().catch(reportError);
+    await finishReview(sessionID, generation, server);
   }
 };
 
