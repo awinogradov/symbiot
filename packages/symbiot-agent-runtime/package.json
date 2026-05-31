@@ -5,7 +5,14 @@
   "type": "module",
   "main": "src/runPlanReview.ts",
   "exports": {
-    ".": "./src/runPlanReview.ts"
+    ".": "./src/runPlanReview.ts",
+    "./cli": "./src/cli.ts",
+    "./annotate": "./src/annotate.ts",
+    "./hook-input": "./src/hook-input.ts",
+    "./decision": "./src/decision.ts",
+    "./config-installer": "./src/config-installer.ts",
+    "./managed-file": "./src/managed-file.ts",
+    "./marker-store": "./src/marker-store.ts"
   },
   "scripts": {
     "build": "echo 'no build yet'",
