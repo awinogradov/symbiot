@@ -1,0 +1,8 @@
+{
+  "hook_event_name": "AfterAgent",
+  "session_id": "gemini-smoke-session",
+  "cwd": "/tmp/gemini-smoke",
+  "prompt": "Draft a plan for the new feature.",
+  "stop_hook_active": false,
+  "prompt_response": "# Gemini plan\n\nThe quick brown fox jumps over the lazy dog. This plan adds a feature and should be reviewed before the turn ends.\n\n- Step one\n- Step two\n"
+}

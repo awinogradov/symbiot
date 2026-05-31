@@ -27,13 +27,13 @@ know before moving code around.
 
 All agent integrations spawn the same `apps/viewer` binary through the shared
 `runPlanReview` loop in `@symbiot/agent-runtime`; they differ only in CLI shape
-(`apps/claude-code`, future `apps/copilot`, `apps/gemini`, ...) — how
-they parse stdin and emit their own decision JSON.
+(`apps/claude-code`, `apps/codex`, `apps/gemini`, future `apps/copilot`, ...) —
+how they parse stdin and emit their own decision JSON.
 
 ## Package layering
 
 ```
-   apps/claude-code (Claude Code) · apps/codex (Codex CLI; future apps/gemini, apps/copilot, ...)
+   apps/claude-code (Claude Code) · apps/codex (Codex CLI) · apps/gemini (Gemini CLI; future apps/copilot, ...)
         │ depends on
         ▼
    @symbiot/agent-runtime   ──  runPlanReview: spawn → await → decide loop
@@ -234,6 +234,35 @@ mode: "auto", destination: "session"}]}}` schema Claude Code honors for
   `agentId: "codex"` threads into per-agent storage (see **Storage + state**);
   this reuses `runPlanReview` and adds no `/api/*` route, so the server contract
   is unchanged.
+
+- **Gemini CLI gates on `AfterAgent`, not `Stop`.** Gemini has no
+  `ExitPlanMode`/`update_plan` tool, so `apps/gemini` reviews the turn-final
+  `prompt_response` on the `AfterAgent` hook (installed in
+  `~/.gemini/settings.json`). The decision contract is identical in shape to
+  Claude's deny path — `{"decision":"block","reason":<feedback>}` makes Gemini
+  reject the response and run a **retry turn** with `reason` as the correction
+  prompt (request changes); no output + exit `0` accepts it (approve). Gemini's
+  reference spells the blocking decision `"deny"` and treats `"block"` as an
+  alias; symbiot emits `"block"` for byte-parity with Claude/Codex. One unit
+  gotcha: Gemini hook `timeout` is in **milliseconds** (`3600000`, default
+  `60000`) — Codex and Claude use seconds (`3600`). A `stop_hook_active` guard
+  limits review to one gate per retry-chain, and an unparseable payload degrades
+  to a pass-through so the hook never spuriously retries. The `AfterAgent` stdin
+  (subset) and decision shapes:
+
+  ```jsonc
+  // stdin — Gemini AfterAgent payload (prompt, session_id, cwd, … ignored)
+  { "hook_event_name": "AfterAgent", "prompt_response": "# Plan…", "stop_hook_active": false }
+  // stdout — request changes (else: no output + exit 0 to approve)
+  { "decision": "block", "reason": "<feedback>" }
+  ```
+
+  `agentId: "gemini"` threads into per-agent storage (see **Storage + state**);
+  this reuses `runPlanReview` and adds no `/api/*` route, so the server contract
+  is unchanged. Forward-compat: a dormant Antigravity plugin
+  (`apps/gemini/extension/`, gated `"enabled": false`) is bundled for the
+  **2026-06-18** Gemini-CLI→Antigravity cutover; at GA the flag flips and
+  `agentId` migrates `gemini`→`antigravity`.
 
 ### Sharing
 

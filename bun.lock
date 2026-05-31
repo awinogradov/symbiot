@@ -67,6 +67,22 @@
         "vitest": "4.1.6",
       },
     },
+    "apps/gemini": {
+      "name": "@symbiot/gemini",
+      "version": "0.2.0",
+      "dependencies": {
+        "@symbiot/agent-runtime": "workspace:*",
+        "@symbiot/viewer": "workspace:*",
+      },
+      "devDependencies": {
+        "@symbiot/eslint-config": "workspace:*",
+        "@symbiot/typescript-config": "workspace:*",
+        "@types/bun": "1.3.14",
+        "eslint": "10.4.0",
+        "typescript": "6.0.3",
+        "vitest": "4.1.6",
+      },
+    },
     "apps/portal": {
       "name": "@symbiot/portal",
       "version": "0.0.0",
@@ -758,6 +774,8 @@
     "@symbiot/editor": ["@symbiot/editor@workspace:packages/symbiot-editor"],
 
     "@symbiot/eslint-config": ["@symbiot/eslint-config@workspace:packages/eslint-config"],
+
+    "@symbiot/gemini": ["@symbiot/gemini@workspace:apps/gemini"],
 
     "@symbiot/portal": ["@symbiot/portal@workspace:apps/portal"],
 
