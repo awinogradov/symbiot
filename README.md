@@ -160,6 +160,7 @@ apps/
   codex/         Codex CLI hook (Stop) that opens the viewer and resolves plans
   gemini/        Gemini CLI hook (AfterAgent) that opens the viewer and resolves plans
   copilot/       Copilot CLI hook (agentStop) that opens the viewer and resolves plans
+  opencode-plugin/  OpenCode in-process plugin (session.idle); opens the viewer, steers the next turn
   portal/        Static viewer for shared review links
 packages/
   symbiot-annotations/  Annotation tuple model + codec
@@ -203,6 +204,7 @@ Apps:
 - [`apps/codex`](./apps/codex/README.md) — Codex CLI hook entry point.
 - [`apps/gemini`](./apps/gemini/README.md) — Gemini CLI hook entry point.
 - [`apps/copilot`](./apps/copilot/README.md) — Copilot CLI hook entry point.
+- [`apps/opencode-plugin`](./apps/opencode-plugin/README.md) — OpenCode in-process plugin entry point.
 - [`apps/portal`](./apps/portal/README.md) — shared-link viewer.
 
 Packages:

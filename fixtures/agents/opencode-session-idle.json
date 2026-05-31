@@ -1,0 +1,18 @@
+{
+  "sessionID": "opencode-smoke-session",
+  "messages": [
+    {
+      "info": { "role": "user", "time": { "created": 1 } },
+      "parts": [{ "type": "text", "text": "Draft a plan for the new feature." }]
+    },
+    {
+      "info": { "role": "assistant", "time": { "created": 2 } },
+      "parts": [
+        {
+          "type": "text",
+          "text": "# OpenCode plan\n\nThe quick brown fox jumps over the lazy dog. This plan adds a feature and should be reviewed before the turn ends.\n\n- Step one\n- Step two\n"
+        }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import { createCodexHookController, type CodexHookController } from "./codexProc
 import { createCopilotHookController, type CopilotHookController } from "./copilotProcess.ts";
 import { recordCoverage, isCoverageEnabled } from "./coverage.ts";
 import { createGeminiHookController, type GeminiHookController } from "./geminiProcess.ts";
+import { createOpencodeHookController, type OpencodeHookController } from "./opencodeProcess.ts";
 
 interface CoverageFixture {
   autoCoverage: void;
@@ -22,8 +23,12 @@ interface CopilotHookFixture {
   copilotHook: CopilotHookController;
 }
 
+interface OpencodeHookFixture {
+  opencodeHook: OpencodeHookController;
+}
+
 export const test = base.extend<
-  CoverageFixture & CodexHookFixture & GeminiHookFixture & CopilotHookFixture
+  CoverageFixture & CodexHookFixture & GeminiHookFixture & CopilotHookFixture & OpencodeHookFixture
 >({
   autoCoverage: [
     async ({ page }, use, testInfo) => {
@@ -59,6 +64,13 @@ export const test = base.extend<
   // teardown is a no-op for them.
   copilotHook: async ({}, provide) => {
     const controller = createCopilotHookController();
+    await provide(controller);
+    await controller.dispose();
+  },
+  // Per-scenario handle to the in-process OpenCode plugin harness. Only the opencode
+  // round-trip feature uses it; other scenarios never call `start`, so teardown is a no-op.
+  opencodeHook: async ({}, provide) => {
+    const controller = createOpencodeHookController();
     await provide(controller);
     await controller.dispose();
   },

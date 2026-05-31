@@ -28,6 +28,7 @@ Per-area READMEs (each one cites the docs above where relevant):
 - [`../apps/codex/README.md`](../apps/codex/README.md)
 - [`../apps/gemini/README.md`](../apps/gemini/README.md)
 - [`../apps/copilot/README.md`](../apps/copilot/README.md)
+- [`../apps/opencode-plugin/README.md`](../apps/opencode-plugin/README.md)
 - [`../apps/portal/README.md`](../apps/portal/README.md)
 - [`../packages/symbiot-editor/README.md`](../packages/symbiot-editor/README.md)
 - [`../packages/symbiot-ui/README.md`](../packages/symbiot-ui/README.md)
