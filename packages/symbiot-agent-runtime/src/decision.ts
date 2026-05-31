@@ -48,12 +48,11 @@ export const emitBlockDecision = async (feedback: string): Promise<void> => {
 
 /**
  * Map a reviewer decision to the host's response and return the exit code.
- * `approve` writes nothing (the turn ends); request-changes emits the block
- * payload. Always resolves to 0 — a non-zero exit on these stop-style hooks risks
- * being read as a block.
+ * Only `deny` emits the block payload (request changes); `approve` and the
+ * annotate-only `feedback` kind write nothing (the turn ends). Always resolves to
+ * 0 — a non-zero exit on these stop-style hooks risks being read as a block.
  */
 export const emitDecision = async (decision: ReviewDecision): Promise<number> => {
-  if (decision.kind === "approve") return 0;
-  await emitBlockDecision(decision.feedback);
+  if (decision.kind === "deny") await emitBlockDecision(decision.feedback);
   return 0;
 };

@@ -34,6 +34,13 @@ describe("createMarkerStore", () => {
     expect(await store.isFresh("session-1", "# Plan\n")).toBe(false);
   });
 
+  it("is not fresh when the marker timestamp is in the future", async () => {
+    const store = createMarkerStore({ dir, ttlMs: 60_000, now });
+    await store.record("session-1", "# Plan\n");
+    clock -= 5_000; // clock rewound → marker is now future-dated
+    expect(await store.isFresh("session-1", "# Plan\n")).toBe(false);
+  });
+
   it("is not fresh when the payload differs", async () => {
     const store = createMarkerStore({ dir, ttlMs: 60_000, now });
     await store.record("session-1", "# Plan\n");

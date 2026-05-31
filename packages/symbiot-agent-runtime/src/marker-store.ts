@@ -56,6 +56,14 @@ export const createMarkerStore = ({
   now = () => Date.now(),
 }: CreateMarkerStoreOptions): MarkerStore => {
   const pathFor = (key: string): string => join(dir, fileName(key));
+  // A marker is fresh when its hash matches and its age is within [0, ttl). The
+  // non-negative bound rejects future-dated markers (clock skew / tampering) so
+  // they can never suppress a review.
+  const isMarkerFresh = (marker: { hash?: unknown; ts?: unknown }, payload: string): boolean => {
+    if (marker.hash !== sha256(payload) || typeof marker.ts !== "number") return false;
+    const age = now() - marker.ts;
+    return age >= 0 && age < ttlMs;
+  };
   return {
     isFresh: async (key, payload) => {
       try {
@@ -63,11 +71,7 @@ export const createMarkerStore = ({
           hash?: unknown;
           ts?: unknown;
         };
-        return (
-          marker.hash === sha256(payload) &&
-          typeof marker.ts === "number" &&
-          now() - marker.ts < ttlMs
-        );
+        return isMarkerFresh(marker, payload);
       } catch {
         return false;
       }
