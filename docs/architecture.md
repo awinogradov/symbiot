@@ -33,7 +33,7 @@ how they parse stdin and emit their own decision JSON.
 ## Package layering
 
 ```
-   apps/claude-code (Claude Code) · apps/codex (Codex CLI) · apps/gemini (Gemini CLI) · apps/copilot (Copilot CLI)
+   apps/claude-code (Claude Code) · apps/codex (Codex CLI) · apps/gemini (Gemini CLI) · apps/copilot (Copilot CLI) · apps/opencode-plugin (OpenCode)
         │ depends on
         ▼
    @symbiot/agent-runtime   ──  runPlanReview: spawn → await → decide loop
@@ -295,6 +295,23 @@ mode: "auto", destination: "session"}]}}` schema Claude Code honors for
   unchanged. The full source-verified upstream contract — including why the
   Extensions SDK surface is unfit (it has no `agentStop`) — lives in
   [`agents/copilot-contract.md`](./agents/copilot-contract.md).
+
+- **OpenCode loads plugins in-process and cannot block the turn.** Unlike the CLI-hook
+  agents, OpenCode (`apps/opencode-plugin`) runs as an in-process plugin, and its only
+  `session.idle` delivery — the `event` hook — is **fire-and-forget** (the host drops the
+  returned promise; upstream
+  [`sst/opencode#16626`](https://github.com/sst/opencode/issues/16626) is open, and
+  [`#16879`](https://github.com/sst/opencode/issues/16879) was closed as its duplicate
+  without landing). So it does **not** use the blocking `runPlanReview` loop. Instead the
+  `event` hook saves the latest assistant response to
+  `~/.symbiot/agents/opencode/inbox/<sessionID>.md` and opens the viewer via
+  `startServer({ agentId: "opencode" })` fire-and-forget (with a per-session dedup map +
+  a one-hour timeout so an abandoned review never leaks a port); the reviewer's feedback
+  is persisted to `pending/<sessionID>.json` and injected into the **next** turn as a
+  prepended `[Reviewer feedback]: …` part by the awaited `chat.message` hook (claimed
+  consume-once). The `annotate` CLI still reuses `runPlanReview`. Adds no `/api/*` route,
+  so the server contract is unchanged. Full in-turn block-on-approve is a follow-up gated
+  on `#16626`; see [`../apps/opencode-plugin/README.md`](../apps/opencode-plugin/README.md).
 
 ### Sharing
 
