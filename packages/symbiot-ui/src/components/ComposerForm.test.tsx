@@ -69,6 +69,26 @@ describe("ComposerForm", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it("seeds the textarea and images from initialBody / initialImages for edit mode", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <ComposerForm
+        open
+        placeholder="p"
+        onSave={onSave}
+        onCancel={vi.fn()}
+        testId={testId}
+        initialBody="seeded body"
+        initialImages={["u1.png"]}
+      />
+    );
+    expect(screen.getByTestId<HTMLTextAreaElement>("ta").value).toBe("seeded body");
+    // Save is enabled immediately and emits the seeded payload unchanged.
+    await user.click(screen.getByTestId("sa"));
+    expect(onSave).toHaveBeenCalledWith({ body: "seeded body", images: ["u1.png"] });
+  });
+
   it("an attached image enables save even with an empty body and clears images after save", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();

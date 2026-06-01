@@ -8,6 +8,8 @@
  * `cn()` — so they can be reused in tests without dragging the UI surface.
  */
 
+import { type AnnotationComposerKind } from "./AnnotationComposer.tsx";
+
 /**
  * Sidebar-friendly projection of an annotation. Keeps `kind` + `id` + `text` so
  * the right panel doesn't depend on the full `@symbiot/annotations` type tree —
@@ -65,3 +67,14 @@ export const kindClass = (kind: AnnotationSidebarEntry["kind"]): string => kindC
 /** Body of the per-row removal confirmation dialog. */
 export const removalDescription = (kind: AnnotationSidebarEntry["kind"]): string =>
   removalDescriptions[kind];
+
+/**
+ * Whether a kind carries editable content, so the sidebar row offers the edit
+ * (pencil) action. `deletion` has no body and stays remove-only; the remaining
+ * kinds map one-to-one onto the {@link AnnotationComposerKind} the edit composer
+ * accepts, so this doubles as the narrowing guard for that handoff.
+ */
+export const isBodyBearingKind = (
+  kind: AnnotationSidebarEntry["kind"]
+): kind is AnnotationComposerKind =>
+  kind === "comment" || kind === "global" || kind === "insertion" || kind === "replacement";

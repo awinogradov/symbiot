@@ -30,6 +30,14 @@ interface ComposerFormProps {
   onCancel: () => void;
   /** Per-host testid overrides so multiple composers stay individually selectable. */
   testId?: { textarea: string; cancel: string; save: string };
+  /**
+   * Seeds the textarea when editing an existing annotation. Read once at mount,
+   * so hosts that reuse one form for different entries must remount it (e.g.
+   * `key={entry.id}`) to re-seed; the add flow omits it and starts empty.
+   */
+  initialBody?: string;
+  /** Seeds the attached-images list for edit mode; read once at mount like {@link initialBody}. */
+  initialImages?: ImageRef[];
 }
 
 /**
@@ -43,9 +51,11 @@ export const ComposerForm = ({
   onSave,
   onCancel,
   testId,
+  initialBody,
+  initialImages,
 }: ComposerFormProps): React.ReactElement => {
-  const [body, setBody] = useState("");
-  const [images, setImages] = useState<ImageRef[]>([]);
+  const [body, setBody] = useState(() => initialBody ?? "");
+  const [images, setImages] = useState<ImageRef[]>(() => initialImages ?? []);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {

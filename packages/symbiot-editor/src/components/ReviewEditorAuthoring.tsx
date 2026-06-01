@@ -127,6 +127,7 @@ export const useReadyHandle = (
   editor: PlateEditor,
   maps: AnnotationMaps,
   removeAnnotation: ReviewEditorHandle["removeAnnotation"],
+  updateAnnotation: ReviewEditorHandle["updateAnnotation"],
   triggerAnnotation: ReviewEditorHandle["triggerAnnotation"],
   onReady?: (h: ReviewEditorHandle) => void
 ): void => {
@@ -146,9 +147,103 @@ export const useReadyHandle = (
       getReplacementImages: () => new Map(maps.replacementImages),
       getReplacementOriginalTexts: () => new Map(maps.replacementOriginalTexts),
       removeAnnotation,
+      updateAnnotation,
     });
-  }, [editor, maps, removeAnnotation, triggerAnnotation, onReady]);
+  }, [editor, maps, removeAnnotation, updateAnnotation, triggerAnnotation, onReady]);
 };
+
+/**
+ * Set `id`'s images when non-empty, drop the key when empty so the map keeps its
+ * "absent key ⇒ no images" shape (the add path never stores empty arrays). Returns
+ * the same map reference when nothing changes.
+ */
+const withImages = (
+  map: Map<string, string[]>,
+  id: string,
+  images: string[]
+): Map<string, string[]> => {
+  if (images.length > 0) return new Map(map).set(id, images);
+  if (!map.has(id)) return map;
+  const next = new Map(map);
+  next.delete(id);
+  return next;
+};
+
+/** The body + image maps + their setters for one body-bearing kind. */
+interface UpdateTarget {
+  body: Map<string, string>;
+  images: Map<string, string[]>;
+  setBody: PruneSetters["setBodies"];
+  setImages: PruneSetters["setImages"];
+}
+
+const updateTarget = (
+  kind: "comment" | "insertion" | "replacement",
+  current: AnnotationMaps,
+  setters: PruneSetters
+): UpdateTarget => {
+  if (kind === "comment") {
+    return {
+      body: current.bodies,
+      images: current.images,
+      setBody: setters.setBodies,
+      setImages: setters.setImages,
+    };
+  }
+  if (kind === "insertion") {
+    return {
+      body: current.insertionNewTexts,
+      images: current.insertionImages,
+      setBody: setters.setInsertionNewTexts,
+      setImages: setters.setInsertionImages,
+    };
+  }
+  return {
+    body: current.replacementTexts,
+    images: current.replacementImages,
+    setBody: setters.setReplacementTexts,
+    setImages: setters.setReplacementImages,
+  };
+};
+
+/**
+ * Replace the body + images of an existing body-bearing annotation in place.
+ *
+ * Mirrors {@link pruneRemovedAnnotation}'s shape (reads `current` so existence is
+ * checked atomically) but writes instead of deletes. Only the text + image maps
+ * for `id` change; `*OriginalTexts` and the Plate mark are left alone so the
+ * anchor + drift baseline survive the edit. No-op when `id` is unknown, which
+ * stops a stale edit from resurrecting a removed annotation. Persistence flows
+ * through the host's existing maps-change effect — unlike removal there is no
+ * Plate-value mutation to capture, so no explicit `onChange` is needed here.
+ */
+export const updateAnnotationMaps = (
+  kind: "comment" | "insertion" | "replacement",
+  id: string,
+  body: string,
+  images: string[],
+  current: AnnotationMaps,
+  setters: PruneSetters
+): void => {
+  const target = updateTarget(kind, current, setters);
+  if (!target.body.has(id)) return;
+  target.setBody(new Map(target.body).set(id, body));
+  target.setImages(withImages(target.images, id, images));
+};
+
+/**
+ * Memoized `updateAnnotation` handle method bound to the current maps + setters.
+ * Extracted (like {@link useReadyHandle}) so `ReviewEditor` stays under the
+ * per-function line cap. Persistence flows through the host's maps-change effect.
+ */
+export const useUpdateAnnotation = (
+  maps: AnnotationMaps,
+  setters: PruneSetters
+): ReviewEditorHandle["updateAnnotation"] =>
+  useCallback(
+    (kind, id, body, images) => updateAnnotationMaps(kind, id, body, images, maps, setters),
+    [maps, setters]
+  );
 
 /** Annotation handle kinds that route through the composer. */
 export type ComposerKind = PendingAuthoring["kind"];

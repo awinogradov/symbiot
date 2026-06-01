@@ -60,6 +60,31 @@ describe("AnnotationComposer", () => {
     expect(onSave).toHaveBeenCalledWith({ body: "hi", images: [] });
   });
 
+  it("create mode marks the dialog with data-mode=create and shows the create title", () => {
+    render(<AnnotationComposer kind="global" open onSave={vi.fn()} onCancel={vi.fn()} />);
+    const composer = screen.getByTestId("global-comment-composer");
+    expect(composer.getAttribute("data-mode")).toBe("create");
+    expect(screen.getByText("Global comment")).not.toBeNull();
+  });
+
+  it("edit mode marks data-mode=edit, shows the edit title, and prefills the body", () => {
+    render(
+      <AnnotationComposer
+        kind="comment"
+        open
+        mode="edit"
+        quote="anchor"
+        initialBody="prefilled"
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    const composer = screen.getByTestId("annotation-composer");
+    expect(composer.getAttribute("data-mode")).toBe("edit");
+    expect(screen.getByText("Edit comment")).not.toBeNull();
+    expect(screen.getByTestId<HTMLTextAreaElement>("composer-textarea").value).toBe("prefilled");
+  });
+
   it("Escape on the textarea triggers the Dialog's onOpenChange→onCancel path", async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();

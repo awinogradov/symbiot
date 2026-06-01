@@ -22,6 +22,7 @@ interface AnnotationListProps {
   entries: AnnotationSidebarEntry[];
   onFocus: (id: string) => void;
   onRemove: (entry: AnnotationSidebarEntry) => void;
+  onEdit: (entry: AnnotationSidebarEntry) => void;
 }
 
 /** Vertical list of entries with an empty state. */
@@ -29,6 +30,7 @@ export const AnnotationList = ({
   entries,
   onFocus,
   onRemove,
+  onEdit,
 }: AnnotationListProps): React.ReactElement => {
   if (entries.length === 0) {
     return <p className="text-muted-foreground px-2 text-xs">No annotations yet.</p>;
@@ -36,7 +38,13 @@ export const AnnotationList = ({
   return (
     <SidebarMenu>
       {entries.map((entry) => (
-        <EntryRow key={entry.id} entry={entry} onFocus={onFocus} onRemove={onRemove} />
+        <EntryRow
+          key={entry.id}
+          entry={entry}
+          onFocus={onFocus}
+          onRemove={onRemove}
+          onEdit={onEdit}
+        />
       ))}
     </SidebarMenu>
   );

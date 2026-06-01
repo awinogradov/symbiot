@@ -27,6 +27,20 @@ export interface ReviewEditorHandle {
   /** `originalText` snapshot captured at replacement creation; drives drift detection. */
   getReplacementOriginalTexts: () => Map<string, string>;
   removeAnnotation: (kind: AnnotationHandleKind, id: string) => void;
+  /**
+   * Replace the body + images of an existing body-bearing annotation in place.
+   * Touches only the text + image maps for `id`, leaving the Plate mark and the
+   * `*OriginalTexts` drift baseline untouched so the anchor and drift state
+   * survive an edit. No-op when `id` is unknown (the annotation was removed),
+   * which prevents a stale edit from resurrecting an orphan entry. `deletion`
+   * is excluded — it carries no body.
+   */
+  updateAnnotation: (
+    kind: "comment" | "insertion" | "replacement",
+    id: string,
+    body: string,
+    images: string[]
+  ) => void;
 }
 
 /** Snapshot of the editor state surfaced via the onChange callback. */
