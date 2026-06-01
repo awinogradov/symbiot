@@ -1,11 +1,20 @@
 {
   "name": "@symbiot/opencode-plugin",
   "version": "0.3.0",
-  "private": true,
   "type": "module",
-  "main": "src/plugin.ts",
+  "main": "dist/plugin.js",
+  "exports": {
+    ".": "./dist/plugin.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "bun build src/cli.ts --target=bun --outdir dist",
+    "build": "bun build src/plugin.ts --target=bun --outdir dist",
     "install-plugin": "bun src/cli.ts install",
     "uninstall-plugin": "bun src/cli.ts uninstall",
     "annotate": "bun src/cli.ts annotate",
