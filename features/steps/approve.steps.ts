@@ -11,7 +11,7 @@ When("I click Request changes", async ({ page }) => {
   await page.getByTestId("top-bar-deny").click();
 });
 
-Then("the recorded decision is {string}", async ({}, expected: string) => {
-  const decision = await waitForDecision();
+Then("the recorded decision is {string}", async ({ planDecisionFile }, expected: string) => {
+  const decision = await waitForDecision(planDecisionFile);
   expect(decision.kind).toBe(expected);
 });

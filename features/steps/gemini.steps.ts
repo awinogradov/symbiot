@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { expect } from "@playwright/test";
 
 import { Given, Then, When } from "../support/bdd.ts";
-import { geminiHookBaseUrl } from "../support/geminiProcess.ts";
 import { repoRoot } from "../support/world.ts";
 
 const payloadPath = join(repoRoot, "fixtures", "agents", "gemini-afteragent.json");
@@ -13,8 +12,8 @@ Given("the gemini AfterAgent hook is reviewing a plan", async ({ geminiHook }) =
   await geminiHook.start(payloadPath);
 });
 
-When("I open the gemini review", async ({ page }) => {
-  await page.goto(geminiHookBaseUrl);
+When("I open the gemini review", async ({ page, geminiHook }) => {
+  await page.goto(geminiHook.baseUrl);
 });
 
 Then("the gemini hook approves and exits without blocking", async ({ geminiHook }) => {

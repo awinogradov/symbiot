@@ -1,18 +1,5 @@
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
 import { defineConfig, devices } from "@playwright/test";
 import { defineBddConfig } from "playwright-bdd";
-
-const rootDir = dirname(fileURLToPath(import.meta.url));
-const planDecisionFile = join(rootDir, ".features-generated", "last-decision.json");
-const annotateDecisionFile = join(rootDir, ".features-generated", "annotate-decision.json");
-const planPath = join(rootDir, "fixtures", "markdown", "elements.md");
-const noHeadingPlanPath = join(rootDir, "fixtures", "markdown", "no-heading.md");
-const planPort = 3210;
-const annotatePort = 3211;
-const noHeadingPort = 3212;
-const baseURL = `http://127.0.0.1:${planPort}`;
 
 const testDir = defineBddConfig({
   features: ["features/**/*.feature"],
@@ -20,28 +7,19 @@ const testDir = defineBddConfig({
   outputDir: ".features-generated",
 });
 
-// Seed `001.md` so the viewer boots as version `002.md` with a real
-// predecessor on disk. This is what `predecessor-diff.feature` asserts
-// against — the "Compare with previous" button is by-design only visible
-// when the boot version has a predecessor. CI starts from an empty
-// `~/.symbiot/` and would otherwise boot as version 1, no predecessor,
-// button correctly hidden, test incorrectly fails. `globalSetup` doesn't
-// help because Playwright starts `webServer` before `globalSetup`; doing
-// the seed inline in the command guarantees it runs first.
-const historyDir =
-  "$HOME/.symbiot/agents/claude-code/history/symbiot/example-plan-with-every-supported-markdown-element";
-
-const viewerCommand = (port: number, decisionFile: string, mode: "plan" | "annotate"): string =>
-  `mkdir -p "${historyDir}" && cp "${planPath}" "${historyDir}/001.md" && bun apps/viewer/src/bin.ts --plan ${planPath} --port ${port} --no-open --keep-alive --decision-file ${decisionFile} --mode ${mode}`;
-
 export default defineConfig({
   testDir,
-  fullyParallel: false,
-  workers: 1,
+  // Each worker boots its own HOME-isolated viewers (see features/support/viewers.ts),
+  // so scenarios carry no shared state and run fully in parallel. CI sizes workers from
+  // the runner cores via PLAYWRIGHT_WORKERS (default 3, leaving a core for the OS + the
+  // post-run coverage merge); local runs use half the cores.
+  fullyParallel: true,
+  workers: process.env["CI"] === "true" ? Number(process.env["PLAYWRIGHT_WORKERS"] ?? 3) : "50%",
   retries: 0,
   reporter: process.env["CI"] === "true" ? "github" : "list",
   use: {
-    baseURL,
+    // baseURL is supplied per-worker by the `viewers` fixture (features/support/bdd.ts),
+    // pointing each worker's `page` at its own plan viewer.
     trace: "retain-on-failure",
     viewport: { width: 1280, height: 800 },
     // DebugBar copies the build SHA to the clipboard on click; grant the
@@ -50,34 +28,5 @@ export default defineConfig({
     // user gesture even on localhost).
     permissions: ["clipboard-read", "clipboard-write"],
   },
-  webServer: [
-    {
-      command: viewerCommand(planPort, planDecisionFile, "plan"),
-      url: baseURL,
-      reuseExistingServer: process.env["CI"] !== "true",
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 30_000,
-    },
-    {
-      command: viewerCommand(annotatePort, annotateDecisionFile, "annotate"),
-      url: `http://127.0.0.1:${annotatePort}`,
-      reuseExistingServer: process.env["CI"] !== "true",
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 30_000,
-    },
-    {
-      // Serves a plan with no H1 so `page-title.feature` can assert the
-      // document-title collapses to the project context. A fresh plan needs no
-      // predecessor seeding, so it skips the mkdir/cp the others require.
-      command: `bun apps/viewer/src/bin.ts --plan ${noHeadingPlanPath} --port ${noHeadingPort} --no-open --keep-alive --mode plan`,
-      url: `http://127.0.0.1:${noHeadingPort}`,
-      reuseExistingServer: process.env["CI"] !== "true",
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 30_000,
-    },
-  ],
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });

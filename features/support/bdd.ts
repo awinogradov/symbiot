@@ -6,9 +6,22 @@ import { createCopilotHookController, type CopilotHookController } from "./copil
 import { recordCoverage, isCoverageEnabled } from "./coverage.ts";
 import { createGeminiHookController, type GeminiHookController } from "./geminiProcess.ts";
 import { createOpencodeHookController, type OpencodeHookController } from "./opencodeProcess.ts";
+import { startWorkerViewers, type ViewerInstances } from "./viewers.ts";
+
+interface WorkerFixtures {
+  viewers: ViewerInstances;
+}
 
 interface CoverageFixture {
   autoCoverage: void;
+}
+
+interface ViewerUrlFixtures {
+  annotateUrl: string;
+  noHeadingUrl: string;
+  symbiotHome: string;
+  planDecisionFile: string;
+  annotateDecisionFile: string;
 }
 
 interface CodexHookFixture {
@@ -28,8 +41,48 @@ interface OpencodeHookFixture {
 }
 
 export const test = base.extend<
-  CoverageFixture & CodexHookFixture & GeminiHookFixture & CopilotHookFixture & OpencodeHookFixture
+  CoverageFixture &
+    ViewerUrlFixtures &
+    CodexHookFixture &
+    GeminiHookFixture &
+    CopilotHookFixture &
+    OpencodeHookFixture,
+  WorkerFixtures
 >({
+  // One set of plan/annotate/no-heading viewers per worker, each HOME-isolated on
+  // OS-assigned ports with private decision files — the isolation that lets the
+  // suite run `fullyParallel` without scenarios colliding on shared state.
+  viewers: [
+    async ({}, provide) => {
+      const worker = await startWorkerViewers();
+      try {
+        await provide(worker.instances);
+      } finally {
+        await worker.stop();
+      }
+    },
+    { scope: "worker" },
+  ],
+  // Point Playwright's `baseURL` (so `page.goto("/")` and the `request` fixture) at
+  // this worker's plan viewer instead of the removed global webServer.
+  baseURL: async ({ viewers }, provide) => {
+    await provide(viewers.planUrl);
+  },
+  annotateUrl: async ({ viewers }, provide) => {
+    await provide(viewers.annotateUrl);
+  },
+  noHeadingUrl: async ({ viewers }, provide) => {
+    await provide(viewers.noHeadingUrl);
+  },
+  symbiotHome: async ({ viewers }, provide) => {
+    await provide(viewers.home);
+  },
+  planDecisionFile: async ({ viewers }, provide) => {
+    await provide(viewers.planDecisionFile);
+  },
+  annotateDecisionFile: async ({ viewers }, provide) => {
+    await provide(viewers.annotateDecisionFile);
+  },
   autoCoverage: [
     async ({ page }, use, testInfo) => {
       if (!isCoverageEnabled()) {
@@ -67,10 +120,11 @@ export const test = base.extend<
     await provide(controller);
     await controller.dispose();
   },
-  // Per-scenario handle to the in-process OpenCode plugin harness. Only the opencode
+  // Per-scenario handle to the in-process OpenCode plugin harness. Its viewer port is
+  // sharded by worker index so concurrent workers never collide. Only the opencode
   // round-trip feature uses it; other scenarios never call `start`, so teardown is a no-op.
-  opencodeHook: async ({}, provide) => {
-    const controller = createOpencodeHookController();
+  opencodeHook: async ({}, provide, testInfo) => {
+    const controller = createOpencodeHookController(testInfo.parallelIndex);
     await provide(controller);
     await controller.dispose();
   },

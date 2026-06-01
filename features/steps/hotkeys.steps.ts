@@ -3,7 +3,6 @@ import { stat } from "node:fs/promises";
 import { expect } from "@playwright/test";
 
 import { Then, When } from "../support/bdd.ts";
-import { decisionFile } from "../support/world.ts";
 
 When("I press {string} anywhere outside the editor", async ({ page }, combo: string) => {
   // Wait until Plate has finished constructing the editor. Reaching this
@@ -35,8 +34,8 @@ Then("the Settings dialog is still visible", async ({ page }) => {
   await expect(page.getByTestId("settings-dialog")).toBeVisible();
 });
 
-Then("no plan-review decision was recorded", async ({ page }) => {
-  // The viewer writes its decision to `decisionFile` only on
+Then("no plan-review decision was recorded", async ({ page, planDecisionFile }) => {
+  // The viewer writes its decision to `planDecisionFile` only on
   // approve/deny/feedback. `Given I open the viewer` resets the file before
   // the scenario, so the file's absence is the deterministic signal that
   // no decision fired. Wait briefly for any racing POST to complete (so the
@@ -51,7 +50,7 @@ Then("no plan-review decision was recorded", async ({ page }) => {
       // must surface so the file check below doesn't pass against a dead page.
       if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
     });
-  await expect(stat(decisionFile)).rejects.toThrow(/ENOENT/);
+  await expect(stat(planDecisionFile)).rejects.toThrow(/ENOENT/);
 });
 
 /**

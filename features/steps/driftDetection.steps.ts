@@ -1,5 +1,4 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { expect } from "@playwright/test";
@@ -7,16 +6,11 @@ import { expect } from "@playwright/test";
 import { After, Given, Then } from "../support/bdd.ts";
 import { fixturePlanSlug, fixtureProjectSlug } from "../support/testAssets.ts";
 
-const draftFile = join(
-  homedir(),
-  ".symbiot",
-  "agents",
-  "claude-code",
-  "drafts",
-  fixtureProjectSlug,
-  fixturePlanSlug,
-  "draft.json"
-);
+// Resolved from the per-worker `symbiotHome` fixture so the seeded draft lands in
+// the same isolated `~/.symbiot` the worker's viewer reads — never the real home.
+const draftDir = (home: string): string =>
+  join(home, ".symbiot", "agents", "claude-code", "drafts", fixtureProjectSlug, fixturePlanSlug);
+const draftFile = (home: string): string => join(draftDir(home), "draft.json");
 
 const seededCommentId = "drift-test-comment";
 const liveAnchor = "live anchor";
@@ -41,32 +35,27 @@ const buildDraft = ({ storedOriginalText }: DraftSeed): unknown => ({
   updatedAt: Date.now(),
 });
 
-const seedDraft = async (seed: DraftSeed): Promise<void> => {
-  await mkdir(
-    join(
-      homedir(),
-      ".symbiot",
-      "agents",
-      "claude-code",
-      "drafts",
-      fixtureProjectSlug,
-      fixturePlanSlug
-    ),
-    { recursive: true }
-  );
-  await writeFile(draftFile, JSON.stringify(buildDraft(seed)), "utf8");
+const seedDraft = async (home: string, seed: DraftSeed): Promise<void> => {
+  await mkdir(draftDir(home), { recursive: true });
+  await writeFile(draftFile(home), JSON.stringify(buildDraft(seed)), "utf8");
 };
 
-Given("a draft seeded with a comment whose stored anchor is missing from the plan", async () => {
-  await seedDraft({ storedOriginalText: goneAnchor });
-});
+Given(
+  "a draft seeded with a comment whose stored anchor is missing from the plan",
+  async ({ symbiotHome }) => {
+    await seedDraft(symbiotHome, { storedOriginalText: goneAnchor });
+  }
+);
 
-Given("a draft seeded with a comment whose stored anchor matches the plan", async () => {
-  await seedDraft({ storedOriginalText: liveAnchor });
-});
+Given(
+  "a draft seeded with a comment whose stored anchor matches the plan",
+  async ({ symbiotHome }) => {
+    await seedDraft(symbiotHome, { storedOriginalText: liveAnchor });
+  }
+);
 
-After(async () => {
-  await rm(draftFile, { force: true });
+After(async ({ symbiotHome }) => {
+  await rm(draftFile(symbiotHome), { force: true });
 });
 
 Then("the drift badge for the seeded comment is visible", async ({ page }) => {

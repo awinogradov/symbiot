@@ -1,5 +1,4 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { expect, type Page } from "@playwright/test";
@@ -7,17 +6,13 @@ import { expect, type Page } from "@playwright/test";
 import { After, Given, Then, When } from "../support/bdd.ts";
 import { fixturePlanSlug, fixtureProjectSlug } from "../support/testAssets.ts";
 
-const planDir = join(
-  homedir(),
-  ".symbiot",
-  "agents",
-  "claude-code",
-  "history",
-  fixtureProjectSlug,
-  fixturePlanSlug
-);
+// Resolved from the per-worker `symbiotHome` fixture so seeding writes into the
+// same isolated `~/.symbiot` the worker's viewer reads — never the real home.
+const planDir = (home: string): string =>
+  join(home, ".symbiot", "agents", "claude-code", "history", fixtureProjectSlug, fixturePlanSlug);
 const seededVersion = 99;
-const extraVersionFile = (n: number): string => join(planDir, `${String(n).padStart(3, "0")}.md`);
+const extraVersionFile = (home: string, n: number): string =>
+  join(planDir(home), `${String(n).padStart(3, "0")}.md`);
 
 /**
  * Per-page request log. Keyed by Page so each scenario's spies stay isolated.
@@ -33,16 +28,16 @@ const initFetchSpy = async (page: Page): Promise<void> => {
   });
 };
 
-Given("a second version of the plan exists on disk", async () => {
-  await mkdir(planDir, { recursive: true });
+Given("a second version of the plan exists on disk", async ({ symbiotHome }) => {
+  await mkdir(planDir(symbiotHome), { recursive: true });
   await writeFile(
-    extraVersionFile(seededVersion),
+    extraVersionFile(symbiotHome, seededVersion),
     "# Example plan with every supported markdown element\n\nRevision two.\n"
   );
 });
 
-After(async () => {
-  await rm(extraVersionFile(seededVersion), { force: true });
+After(async ({ symbiotHome }) => {
+  await rm(extraVersionFile(symbiotHome, seededVersion), { force: true });
 });
 
 Then("the sidebar history tab is visible", async ({ page }) => {
