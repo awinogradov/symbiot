@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { expect } from "@playwright/test";
 
 import { Given, Then, When } from "../support/bdd.ts";
-import { codexHookBaseUrl } from "../support/codexProcess.ts";
 import { repoRoot } from "../support/world.ts";
 
 const payloadPath = join(repoRoot, "fixtures", "agents", "codex-stop.json");
@@ -13,8 +12,8 @@ Given("the codex Stop hook is reviewing a plan", async ({ codexHook }) => {
   await codexHook.start(payloadPath);
 });
 
-When("I open the codex review", async ({ page }) => {
-  await page.goto(codexHookBaseUrl);
+When("I open the codex review", async ({ page, codexHook }) => {
+  await page.goto(codexHook.baseUrl);
 });
 
 Then("the codex hook approves and exits without blocking", async ({ codexHook }) => {

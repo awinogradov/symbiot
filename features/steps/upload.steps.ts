@@ -27,7 +27,7 @@ const getState = (request: APIRequestContext): UploadState => {
 
 const ensureRoot = (baseURL: string | undefined): string => {
   if (baseURL === undefined) throw new Error("baseURL not configured");
-  return baseURL;
+  return baseURL.replace(/\/$/, "");
 };
 
 When("I POST a PNG to the upload endpoint", async ({ request, baseURL }) => {

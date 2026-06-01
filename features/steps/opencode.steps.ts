@@ -1,14 +1,13 @@
 import { expect } from "@playwright/test";
 
 import { Given, Then, When } from "../support/bdd.ts";
-import { opencodeHookBaseUrl } from "../support/opencodeProcess.ts";
 
 Given("the opencode plugin is reviewing an idle session", async ({ opencodeHook }) => {
   await opencodeHook.start();
 });
 
-When("I open the opencode review", async ({ page }) => {
-  await page.goto(opencodeHookBaseUrl);
+When("I open the opencode review", async ({ page, opencodeHook }) => {
+  await page.goto(opencodeHook.baseUrl);
 });
 
 Then("the opencode plugin saves the response to the inbox", async ({ opencodeHook }) => {

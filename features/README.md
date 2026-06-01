@@ -1,7 +1,11 @@
 # `features/` — Playwright-BDD specs
 
-End-to-end coverage for `apps/viewer`. Scenarios drive the real browser
-against a built viewer auto-launched by Playwright's `webServer` block.
+End-to-end coverage for `apps/viewer`. The suite runs `fullyParallel` — each
+worker boots its **own** HOME-isolated plan / annotate / no-heading viewers on
+OS-assigned ports (the worker-scoped `viewers` fixture in `support/viewers.ts`),
+so scenarios share no state and never collide. See
+[`docs/testing.md`](../docs/testing.md#parallel-bdd-execution) for the isolation
+model.
 
 ## Layout
 
@@ -9,9 +13,11 @@ against a built viewer auto-launched by Playwright's `webServer` block.
 features/
 ├── README.md            ← this file
 ├── support/             ← pure-function helpers (no class state)
-│   ├── world.ts         ← shared paths / constants
-│   ├── fixtures.ts      ← decision-file reset + wait helpers
-│   ├── bdd.ts           ← Playwright fixture that captures V8 coverage per scenario
+│   ├── world.ts         ← repo-root path
+│   ├── viewers.ts       ← worker-scoped viewer fixture (per-worker HOME + ports)
+│   ├── reviewHook.ts    ← shared CLI agent-hook driver (OS-assigned port + throwaway HOME)
+│   ├── fixtures.ts      ← decision-file reset + wait helpers (parameterised by path)
+│   ├── bdd.ts           ← Playwright fixtures: per-worker viewers + per-scenario V8 coverage
 │   └── testAssets.ts    ← seed bytes + fixture slugs
 ├── steps/               ← step definitions (Given/When/Then), grouped by behaviour
 │   ├── navigation.steps.ts

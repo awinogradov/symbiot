@@ -17,14 +17,16 @@ import { repoRoot } from "./world.ts";
  * The harness runs with `HOME` redirected to a throwaway dir so its `~/.symbiot`
  * writes never touch the real home; `dispose` removes it.
  *
+ * Unlike the CLI hooks (OS-assigned ports parsed from stderr), the in-process harness
+ * binds the port it is handed, so the port is sharded by worker index — `parallelIndex`
+ * is unique across concurrent workers, keeping the single opencode scenario collision-free
+ * while staying below the OS ephemeral range the viewers draw from.
+ *
  * @see ../../apps/opencode-plugin/README.md — the fire-and-forget workaround.
  */
 
-/** Fixed port for the harness viewer — distinct from 3210-3212, codex 3213, gemini 3214, copilot 3215. */
-export const opencodeHookPort = 3216;
-
-/** URL the browser navigates to in order to review the harness's response. */
-export const opencodeHookBaseUrl = `http://127.0.0.1:${opencodeHookPort}`;
+/** Base port for the harness viewer; the worker's `parallelIndex` is added to it. */
+const opencodeHookBasePort = 3420;
 
 const harnessPath = join(repoRoot, "features", "opencode-harness.ts");
 const fixturePath = join(repoRoot, "fixtures", "agents", "opencode-session-idle.json");
@@ -38,6 +40,8 @@ export interface OpencodeHookResult {
 
 /** Per-scenario controller over one spawned harness process. */
 export interface OpencodeHookController {
+  /** URL the browser navigates to in order to review the harness's response. */
+  readonly baseUrl: string;
   /** Spawn the harness (HOME redirected) and wait until its viewer is reachable. */
   start: () => Promise<void>;
   /** Resolve once the harness exits, with its inbox path + injected feedback. */
@@ -48,7 +52,9 @@ export interface OpencodeHookController {
   dispose: () => Promise<void>;
 }
 
-export const createOpencodeHookController = (): OpencodeHookController => {
+export const createOpencodeHookController = (parallelIndex: number): OpencodeHookController => {
+  const port = opencodeHookBasePort + parallelIndex;
+  const baseUrl = `http://127.0.0.1:${port}/`;
   let child: ChildProcess | null = null;
   let home = "";
   let stdout = "";
@@ -56,7 +62,7 @@ export const createOpencodeHookController = (): OpencodeHookController => {
 
   const start = async (): Promise<void> => {
     home = await mkdtemp(join(tmpdir(), "opencode-bdd-"));
-    const proc = spawn("bun", [harnessPath, String(opencodeHookPort), fixturePath], {
+    const proc = spawn("bun", [harnessPath, String(port), fixturePath], {
       cwd: repoRoot,
       stdio: ["ignore", "pipe", "inherit"],
       env: { ...process.env, HOME: home },
@@ -72,7 +78,7 @@ export const createOpencodeHookController = (): OpencodeHookController => {
       .poll(
         async (): Promise<boolean> => {
           try {
-            return (await fetch(`${opencodeHookBaseUrl}/api/plan`)).ok;
+            return (await fetch(`${baseUrl}api/plan`)).ok;
           } catch {
             return false;
           }
@@ -102,5 +108,5 @@ export const createOpencodeHookController = (): OpencodeHookController => {
     if (home !== "") await rm(home, { recursive: true, force: true });
   };
 
-  return { start, result, inboxContents, dispose };
+  return { baseUrl, start, result, inboxContents, dispose };
 };

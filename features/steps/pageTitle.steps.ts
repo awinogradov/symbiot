@@ -1,10 +1,9 @@
 import { expect } from "@playwright/test";
 
 import { Given, Then } from "../support/bdd.ts";
-import { noHeadingBaseUrl } from "../support/world.ts";
 
-Given("I open a plan with no heading", async ({ page }) => {
-  await page.goto(`${noHeadingBaseUrl}/`);
+Given("I open a plan with no heading", async ({ page, noHeadingUrl }) => {
+  await page.goto(noHeadingUrl);
   await page.getByTestId("editor-root").waitFor({ state: "visible" });
 });
 
