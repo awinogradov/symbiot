@@ -27,7 +27,7 @@
 | @radix-ui/react-tabs@1.1.13 | MIT | https://github.com/radix-ui/primitives |
 | @radix-ui/react-toggle-group@1.1.11 | MIT | https://github.com/radix-ui/primitives |
 | @radix-ui/react-tooltip@1.2.8 | MIT | https://github.com/radix-ui/primitives |
-| @symbiot/opencode-plugin@0.3.0 | MIT* |  |
+| @symbiot/opencode-plugin@0.3.0 | MIT | https://github.com/awinogradov/symbiot |
 | class-variance-authority@0.7.1 | Apache-2.0 | https://github.com/joe-bell/cva |
 | clsx@2.1.1 | MIT | https://github.com/lukeed/clsx |
 | eslint-config-prettier@10.1.8 | MIT | https://github.com/prettier/eslint-config-prettier |
