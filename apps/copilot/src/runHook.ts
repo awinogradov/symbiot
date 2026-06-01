@@ -35,7 +35,7 @@ import { flagValue, parsePort, readHookInput } from "@symbiot/agent-runtime/hook
 import { createMarkerStore } from "@symbiot/agent-runtime/marker-store";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
-import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
+import viewerHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" };
 
 /**
  * The subset of Copilot's `agentStop` stdin payload this handler reads (camelCase

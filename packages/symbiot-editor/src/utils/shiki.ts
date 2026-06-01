@@ -2,14 +2,15 @@
  * Lazily-built dual-themed Shiki highlighter used by `CodeBlockElement` to
  * render fenced code blocks. The highlighter is instantiated once per page,
  * cached, and shared across every block — language and theme bundles are
- * imported dynamically so the initial editor payload stays small.
+ * imported dynamically, and the highlighter runs on Shiki's pure-JS RegExp
+ * engine (no Oniguruma WASM) so the initial editor payload stays small.
  *
  * @example
  *   const html = await highlightToHtml(code, lang);
  */
 import type { HighlighterCore } from "shiki/core";
 import { createHighlighterCore } from "shiki/core";
-import { createOnigurumaEngine } from "shiki/engine/oniguruma";
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 const dualThemes = { light: "github-light", dark: "github-dark" } as const;
 
@@ -33,7 +34,12 @@ const loadHighlighter = async (): Promise<HighlighterCore> => {
   return createHighlighterCore({
     themes: [light.default, dark.default],
     langs: [bash, ts, tsx, md, js, jsx, json, html, css].map((m) => m.default),
-    engine: createOnigurumaEngine(import("shiki/wasm")),
+    // Pure-JS RegExp engine instead of the Oniguruma WASM engine: the WASM
+    // binary is ~150 KiB brotli of inlined base64 in the single-file bundle and
+    // dominates the payload. The JS engine handles every pre-loaded language
+    // here; `forgiving` skips any grammar pattern it can't compile rather than
+    // throwing, so highlighting degrades gracefully instead of blocking render.
+    engine: createJavaScriptRegexEngine({ forgiving: true }),
   });
 };
 

@@ -25,9 +25,9 @@ export interface StartServerOptions {
   staticRoot?: string;
   /**
    * Path to a pre-gzipped single-file `index.html` produced by the viewer's
-   * Vite build. When set, takes precedence over `staticRoot` — used by the
-   * compiled hook binary, which embeds the file via
-   * `import x from "./client/index.html.gz" with { type: "file" }`.
+   * `SYMBIOT_SINGLEFILE=1` Vite build. When set, takes precedence over
+   * `staticRoot` — used by the compiled hook binary, which embeds the file via
+   * `import x from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" }`.
    */
   indexHtmlGz?: string;
   /** Path to write each decision to as JSON. Enables out-of-band readers (Playwright). */
