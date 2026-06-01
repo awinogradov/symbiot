@@ -38,16 +38,30 @@ a shared plan slug.
 
 ## Installation
 
+**End users (no clone, no Bun)** — download the verified binary and wire the hook:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.sh | bash -s -- --agent codex
+# Windows: irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1 | iex; symbiot-install -Agent codex
+```
+
+This installs `symbiot-codex` to `~/.local/bin` (verified against the release
+`SHA256SUMS`) and runs its `install-hook`, writing a `~/.codex/hooks.json` entry
+whose command is the bare `symbiot-codex run-hook` (resolved from `PATH`).
+
+**Contributors (from a clone)**:
+
 ```sh
 bun --filter @symbiot/codex install-hook    # writes the Stop hook to ~/.codex/hooks.json
 bun --filter @symbiot/codex uninstall-hook   # removes it
 ```
 
 `install-hook` is idempotent — it strips any prior symbiot-codex entry before
-writing the current absolute-path command. It points at the source `cli.ts` (not
-a bundle) so the embedded viewer's relative `dist/client/` path math stays
-intact, and touches only `~/.codex/hooks.json` (the Claude Code installer owns
-`~/.claude/settings.json`; the two never interfere).
+writing the current command. From a clone it points at the source `cli.ts` (not a
+bundle) so the embedded viewer's relative `dist/client/` path math stays intact;
+the compiled binary emits the bare `symbiot-codex run-hook` instead. It touches
+only `~/.codex/hooks.json` (the Claude Code installer owns `~/.claude/settings.json`;
+the two never interfere).
 
 ## Usage
 

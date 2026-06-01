@@ -43,7 +43,9 @@ Review and annotate the plans your AI coding agents produce, then send structure
 - Playwright-BDD — end-to-end tests
 - Filesystem-only storage under `~/.symbiot/` (no database)
 
-## Install (Claude Code plugin)
+## Install
+
+### Claude Code (plugin)
 
 ```
 /plugin marketplace add awinogradov/symbiot
@@ -70,6 +72,23 @@ may incur a (now survivable) cold download.
 Supported platforms: **macOS arm64**, **macOS x64**, **Linux x64**,
 **Windows x64**. See [`docs/release.md`](docs/release.md) for the
 release flow and the offline-install path.
+
+### Codex / Copilot / Gemini (binary)
+
+No clone or Bun required — download the verified binary and wire the host hook:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.sh | bash -s -- --agent codex
+# --agent copilot | gemini; Windows: irm .../scripts/install.ps1 | iex; symbiot-install -Agent codex
+```
+
+### OpenCode (npm)
+
+```sh
+bun add -g @symbiot/opencode-plugin   # then add a one-line loader — see apps/opencode-plugin/README.md
+```
+
+See [`docs/release.md` § Distribution channels](docs/release.md) for the full per-host matrix.
 
 ## Prerequisites
 
