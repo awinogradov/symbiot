@@ -7,8 +7,9 @@ import {
   hasValidSelection,
   type AppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
+import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
-import { snapshotOf } from "./ReviewEditorPrune.tsx";
+import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
 import { type AnnotationMaps, type PruneSetters } from "./ReviewEditorState.tsx";
 import {
   type AnnotationHandleKind,
@@ -230,6 +231,26 @@ export const updateAnnotationMaps = (
   target.setBody(new Map(target.body).set(id, body));
   target.setImages(withImages(target.images, id, images));
 };
+
+/**
+ * Memoized `removeAnnotation` handle method: clears the Plate mark, prunes every
+ * map for the id, and pushes a fresh snapshot. Extracted (like {@link useReadyHandle})
+ * so `ReviewEditor` stays under the per-function line cap.
+ */
+export const useRemoveAnnotation = (
+  editor: PlateEditor,
+  maps: AnnotationMaps,
+  setters: PruneSetters,
+  onChange?: (snapshot: EditorSnapshot) => void
+): ReviewEditorHandle["removeAnnotation"] =>
+  useCallback(
+    (kind, id) => {
+      removeAnnotationMark(editor, kind, id);
+      const next = pruneRemovedAnnotation(kind, id, maps, setters);
+      onChange?.(snapshotOf(editor, next));
+    },
+    [editor, maps, onChange, setters]
+  );
 
 /**
  * Memoized `updateAnnotation` handle method bound to the current maps + setters.

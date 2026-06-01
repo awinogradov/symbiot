@@ -7,7 +7,6 @@ import {
 } from "@symbiot/ui/components/AnnotationComposer";
 
 import { SymbiotEditorKit } from "../utils/kit.ts";
-import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 import { stampBlockLines } from "../utils/sourceLines.ts";
 import { useTypingGuard } from "../utils/typingGuard.ts";
 
@@ -15,10 +14,11 @@ import {
   type PendingAuthoring,
   dispatchComposerSave,
   useReadyHandle,
+  useRemoveAnnotation,
   useToolbarHandlers,
   useUpdateAnnotation,
 } from "./ReviewEditorAuthoring.tsx";
-import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
+import { snapshotOf } from "./ReviewEditorPrune.tsx";
 import { useAnnotationState } from "./ReviewEditorState.tsx";
 import { ToolbarButtons } from "./ReviewEditorToolbar.tsx";
 import {
@@ -119,15 +119,7 @@ export const ReviewEditor = ({
 
   useTypingGuard(containerRef);
 
-  const onRemoveAnnotation = useCallback(
-    (kind: AnnotationHandleKind, id: string): void => {
-      removeAnnotationMark(editor, kind, id);
-      const next = pruneRemovedAnnotation(kind, id, maps, setters);
-      onChange?.(snapshotOf(editor, next));
-    },
-    [editor, maps, onChange, setters]
-  );
-
+  const onRemoveAnnotation = useRemoveAnnotation(editor, maps, setters, onChange);
   const onUpdateAnnotation = useUpdateAnnotation(maps, setters);
 
   useEffect(() => {
