@@ -63,15 +63,6 @@ Use [README.md](./README.md) for development setup instructions.
 3. Write tests for new functionality.
 4. Submit a PR following the [PR guidelines](#pr-guidelines).
 
-### Adding a new agent integration
-
-Adding support for a new agent (a CLI or IDE assistant) is mostly a thin wrapper
-over the shared `@symbiot/agent-runtime` building blocks — most of the logic is
-already shared, so a new `apps/<agent>/` supplies only what differs. Follow the
-step-by-step in
-[`docs/agents/adding-an-integration.md`](./docs/agents/adding-an-integration.md),
-using `apps/codex` as the minimal template.
-
 ## Git Workflow
 
 Branch naming, commit messages, and PR titles are consistent across the repository so that automation can link changes to issues, generate changelogs, and keep history readable for humans and AI.
