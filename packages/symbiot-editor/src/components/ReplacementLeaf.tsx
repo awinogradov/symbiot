@@ -14,7 +14,8 @@ import { createAnnotationLeaf } from "./createAnnotationLeaf.tsx";
 export const ReplacementLeaf = createAnnotationLeaf(
   "mark",
   "text-anno-replace bg-anno-replace/10 rounded-sm px-0.5",
-  "ReplacementLeaf"
+  "ReplacementLeaf",
+  "annotation-replacement"
 );
 
 /**

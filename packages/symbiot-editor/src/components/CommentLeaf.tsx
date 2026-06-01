@@ -9,5 +9,6 @@ import { createAnnotationLeaf } from "./createAnnotationLeaf.tsx";
 export const CommentLeaf = createAnnotationLeaf(
   "mark",
   "text-anno-comment bg-anno-comment/10 rounded-sm px-0.5",
-  "CommentLeaf"
+  "CommentLeaf",
+  "annotation-comment"
 );
