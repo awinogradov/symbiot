@@ -44,12 +44,13 @@ or Codex on a shared plan slug.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.sh | bash -s -- --agent gemini
-# Windows: irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1 | iex; symbiot-install -Agent gemini
+# Windows (PowerShell):
+# & ([scriptblock]::Create((irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1))) -Agent gemini
 ```
 
 This installs `symbiot-gemini` to `~/.local/bin` (verified against the release
-`SHA256SUMS`) and runs its `install-hook`. Once `symbiot-gemini` is on `PATH`, the
-bundled extension also installs via `gemini extensions install ./apps/gemini/extension`.
+`SHA256SUMS`) and runs its `install-hook`. (Contributors with a clone can instead
+install the bundled Gemini extension: `gemini extensions install ./apps/gemini/extension`.)
 
 **Contributors (from a clone)**:
 

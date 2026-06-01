@@ -20,8 +20,7 @@
   Install the binary only; skip hook wiring.
 
 .EXAMPLE
-  irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1 | iex
-  # then: symbiot-install -Agent codex
+  & ([scriptblock]::Create((irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1))) -Agent codex
 #>
 param(
   [Parameter(Mandatory = $true)][ValidateSet("codex", "copilot", "gemini")][string]$Agent,
@@ -73,7 +72,9 @@ try {
   Write-Host "symbiot: installed $dest"
 
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-  if ($userPath -notlike "*$installDir*") {
+  $target = $installDir.TrimEnd("\")
+  $entries = ($userPath -split ";") | ForEach-Object { $_.Trim().TrimEnd("\") }
+  if ($entries -notcontains $target) {
     [Environment]::SetEnvironmentVariable("Path", "$userPath;$installDir", "User")
     Write-Host "symbiot: added $installDir to your user PATH (restart the shell to pick it up)"
   }

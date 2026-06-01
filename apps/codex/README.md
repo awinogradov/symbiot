@@ -42,7 +42,8 @@ a shared plan slug.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.sh | bash -s -- --agent codex
-# Windows: irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1 | iex; symbiot-install -Agent codex
+# Windows (PowerShell):
+# & ([scriptblock]::Create((irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1))) -Agent codex
 ```
 
 This installs `symbiot-codex` to `~/.local/bin` (verified against the release
