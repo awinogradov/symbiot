@@ -7,7 +7,7 @@ import { runPlanReview } from "@symbiot/agent-runtime";
 import { emitBlockDecision } from "@symbiot/agent-runtime/decision";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
-import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
+import viewerHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" };
 
 /**
  * JSON payload Claude Code writes to the hook's stdin. The same shape covers

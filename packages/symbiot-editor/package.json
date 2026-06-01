@@ -26,7 +26,6 @@
     "@platejs/list": "53.0.2",
     "@platejs/markdown": "53.0.4",
     "@platejs/media": "53.0.1",
-    "@platejs/suggestion": "53.0.0",
     "@platejs/table": "53.0.0",
     "@symbiot/annotations": "workspace:*",
     "@symbiot/ui": "workspace:*",

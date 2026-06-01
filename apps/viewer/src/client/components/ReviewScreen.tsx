@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { Suspense, lazy, useCallback, useState } from "react";
 import { AnnotationSidebar } from "@symbiot/ui/components/AnnotationSidebar";
 import { GlobalCommentFab } from "@symbiot/ui/components/GlobalCommentFab";
 import { SidebarInset } from "@symbiot/ui/components/SidebarChrome";
@@ -13,9 +13,20 @@ import { useVersionState } from "../hooks/useVersionState.ts";
 import { type DraftPayload, type PlanResponse } from "../../shared/apiTypes.ts";
 import { focusAnnotation } from "../utils/sidebarProjection.ts";
 
-import { DiffMount } from "./DiffMount.tsx";
-import { EditorMount } from "./EditorMount.tsx";
+import { LoadingFallback } from "./LoadingFallback.tsx";
 import { SubmittedScreen } from "./SubmittedScreen.tsx";
+
+// The Plate editor and its diff variant are the heaviest client modules
+// (platejs + slate + the markdown stack). Loading them lazily lets the shell —
+// topbar, sidebar, skeleton — paint before Plate is constructed, moving that
+// work off first paint (TBT/TTI). Under the multi-chunk build (single-file
+// disabled) these `import()`s also become separate chunks the browser fetches
+// after the shell. Named-export modules are adapted to React.lazy's default
+// contract here rather than adding default exports.
+const EditorMount = lazy(() =>
+  import("./EditorMount.tsx").then((m) => ({ default: m.EditorMount }))
+);
+const DiffMount = lazy(() => import("./DiffMount.tsx").then((m) => ({ default: m.DiffMount })));
 
 /** Top-level props for the plan-review surface. */
 interface ReviewScreenProps {
@@ -200,15 +211,17 @@ export const ReviewScreen = ({
           hasAnnotations={hasAnnotations}
         />
         <main className="flex-1 overflow-auto px-8 py-6">
-          <EditorPane
-            isHistorical={isHistorical}
-            inCompareOverlay={inCompareOverlay}
-            version={version}
-            state={state}
-            plan={plan}
-            activePlan={activePlan}
-            onComposerOpenChange={setInlineComposerOpen}
-          />
+          <Suspense fallback={<LoadingFallback label="Loading editor…" />}>
+            <EditorPane
+              isHistorical={isHistorical}
+              inCompareOverlay={inCompareOverlay}
+              version={version}
+              state={state}
+              plan={plan}
+              activePlan={activePlan}
+              onComposerOpenChange={setInlineComposerOpen}
+            />
+          </Suspense>
         </main>
         {!isHistorical && !inCompareOverlay && (
           <GlobalCommentFab

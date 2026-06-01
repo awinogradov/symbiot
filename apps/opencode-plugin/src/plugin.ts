@@ -20,7 +20,7 @@ import type { Plugin, PluginInput } from "@opencode-ai/plugin";
 import type { Part } from "@opencode-ai/sdk";
 import { startServer as defaultStartServer, type RunningServer } from "@symbiot/viewer";
 // Bun resolves this embedded prebuilt viewer bundle to a real path at runtime.
-import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
+import viewerHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" };
 
 import { extractLatestAssistantText } from "./lastAssistantMessage.ts";
 import { claimPendingFeedback, writeInbox, writePendingFeedback } from "./storage.ts";

@@ -19,13 +19,9 @@
  * </Button>
  */
 
-import type { Variants } from "motion/react";
-import { motion, useAnimation } from "motion/react";
 import type { HTMLAttributes } from "react";
-import { useCallback, useRef } from "react";
 
 import { cn } from "../utils/cn.ts";
-import { useAncestorHover } from "../utils/useAncestorHover.ts";
 
 /** Props for the animated `CheckIcon`. */
 export interface CheckIconProps extends HTMLAttributes<HTMLDivElement> {
@@ -33,46 +29,13 @@ export interface CheckIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
 }
 
-const pathVariants: Variants = {
-  normal: {
-    opacity: 1,
-    pathLength: 1,
-    scale: 1,
-    transition: {
-      duration: 0.3,
-      opacity: { duration: 0.1 },
-    },
-  },
-  animate: {
-    opacity: [0, 1],
-    pathLength: [0, 1],
-    scale: [0.5, 1],
-    transition: {
-      duration: 0.4,
-      opacity: { duration: 0.1 },
-    },
-  },
-};
-
 export const CheckIcon = ({
   className,
   size = 28,
   ...rest
 }: CheckIconProps): React.ReactElement => {
-  const controls = useAnimation();
-  const ref = useRef<HTMLDivElement>(null);
-
-  const handleHoverChange = useCallback(
-    (hovered: boolean): void => {
-      controls.start(hovered ? "animate" : "normal");
-    },
-    [controls]
-  );
-
-  useAncestorHover(ref, '[data-slot="button"]', handleHoverChange);
-
   return (
-    <div ref={ref} className={cn(className)} {...rest}>
+    <div className={cn("symbiot-icon", className)} {...rest}>
       <svg
         fill="none"
         height={size}
@@ -84,12 +47,13 @@ export const CheckIcon = ({
         width={size}
         xmlns="http://www.w3.org/2000/svg"
       >
-        <motion.path
-          animate={controls}
-          d="M4 12 9 17L20 6"
-          initial="normal"
-          variants={pathVariants}
-        />
+        {/*
+         * Draw replays on hover via CSS (`symbiot-check-path`, keyed on an
+         * ancestor `[data-slot="button"]:hover` or self-hover). `pathLength={1}`
+         * normalizes the stroke dash units so the dashoffset transition is
+         * resolution-independent. Replaces the former Framer Motion path.
+         */}
+        <path className="symbiot-check-path" d="M4 12 9 17L20 6" pathLength={1} />
       </svg>
     </div>
   );

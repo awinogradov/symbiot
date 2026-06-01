@@ -8,7 +8,7 @@
 import { runAnnotate as runAnnotateShared } from "@symbiot/agent-runtime/annotate";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
-import viewerHtmlGz from "@symbiot/viewer/dist/client/index.html.gz" with { type: "file" };
+import viewerHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" };
 
 export const runAnnotate = (filePath: string | undefined): Promise<number> =>
   runAnnotateShared({

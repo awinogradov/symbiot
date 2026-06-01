@@ -1,52 +1,21 @@
 // @vitest-environment happy-dom
-import { fireEvent, render } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
-
-const animationControls = { start: vi.fn() };
-
-vi.mock("motion/react", () => ({
-  useAnimation: () => animationControls,
-  motion: {
-    g: ({ children, ...rest }: { children?: ReactNode; [k: string]: unknown }) => (
-      <g data-testid="motion-g" {...rest}>
-        {children}
-      </g>
-    ),
-    path: ({ children, ...rest }: { children?: ReactNode; [k: string]: unknown }) => (
-      <path data-testid="motion-path" {...rest}>
-        {children}
-      </path>
-    ),
-  },
-}));
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { SendIcon } from "./SendIcon.tsx";
 
 describe("SendIcon", () => {
-  it("renders the plane (motion.g) and the trail (motion.path)", () => {
+  it("renders the plane and the CSS-animated trail", () => {
     const { container } = render(
       <div data-slot="button">
         <SendIcon />
       </div>
     );
-    expect(container.querySelector('[data-testid="motion-g"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="motion-path"]')).not.toBeNull();
-  });
-
-  it("starts the 'animate' variant on ancestor mouseenter and 'normal' on mouseleave", () => {
-    animationControls.start.mockClear();
-    const { container } = render(
-      <div data-slot="button">
-        <SendIcon />
-      </div>
-    );
-    const button = container.querySelector('[data-slot="button"]');
-    if (button === null) throw new Error("ancestor button is missing");
-    fireEvent.mouseEnter(button);
-    expect(animationControls.start).toHaveBeenLastCalledWith("animate");
-    fireEvent.mouseLeave(button);
-    expect(animationControls.start).toHaveBeenLastCalledWith("normal");
+    expect(container.querySelector("g.symbiot-send-plane")).not.toBeNull();
+    const trail = container.querySelector("path.symbiot-send-trail");
+    if (trail === null) throw new Error("trail path is missing");
+    // pathLength normalizes the dash units the hover transition animates.
+    expect(trail.getAttribute("pathLength")).toBe("1");
   });
 
   it("forwards className onto the wrapping div", () => {
@@ -56,6 +25,7 @@ describe("SendIcon", () => {
       </div>
     );
     const icon = container.querySelector(".text-fg");
-    expect(icon).not.toBeNull();
+    if (icon === null) throw new Error("className was not forwarded");
+    expect(icon.className).toContain("symbiot-icon");
   });
 });
