@@ -11,7 +11,8 @@ import { createAnnotationLeaf } from "./createAnnotationLeaf.tsx";
 export const DeletionLeaf = createAnnotationLeaf(
   "s",
   "text-anno-delete bg-anno-delete/10 rounded-sm px-0.5 line-through decoration-2",
-  "DeletionLeaf"
+  "DeletionLeaf",
+  "annotation-deletion"
 );
 
 /**

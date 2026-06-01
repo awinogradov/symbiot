@@ -12,7 +12,8 @@ import { createAnnotationLeaf } from "./createAnnotationLeaf.tsx";
 export const InsertionLeaf = createAnnotationLeaf(
   "ins",
   "text-anno-insert bg-anno-insert/10 rounded-sm px-0.5 no-underline",
-  "InsertionLeaf"
+  "InsertionLeaf",
+  "annotation-insertion"
 );
 
 /**
