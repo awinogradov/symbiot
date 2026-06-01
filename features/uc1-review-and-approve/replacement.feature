@@ -17,10 +17,16 @@ Feature: Suggest a replacement
     And the recorded feedback contains "swift auburn vulpine"
     And the recorded feedback contains "Replace with:"
 
-  Scenario: Cancelling the replacement composer discards the applied highlight
+  Scenario Outline: Cancelling the replacement composer via <route> discards the applied highlight
     Given I open the viewer
     When I select the text "quick brown fox" in the editor
     And I click the Replace toolbar button
     Then the "replacement" highlight is visible in the editor
-    When I click the comment composer Cancel button
+    When I <dismiss>
     Then the "replacement" highlight is absent from the editor
+
+    Examples:
+      | route         | dismiss                                     |
+      | Cancel button | click the comment composer Cancel button    |
+      | Escape        | press Escape in the comment composer        |
+      | overlay click | close the comment composer via the overlay  |
