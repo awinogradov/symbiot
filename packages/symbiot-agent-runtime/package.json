@@ -11,6 +11,7 @@
     "./hook-input": "./src/hook-input.ts",
     "./decision": "./src/decision.ts",
     "./config-installer": "./src/config-installer.ts",
+    "./hook-command": "./src/hook-command.ts",
     "./managed-file": "./src/managed-file.ts",
     "./marker-store": "./src/marker-store.ts"
   },
