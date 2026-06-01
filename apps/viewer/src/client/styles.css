@@ -42,61 +42,6 @@ html.dark .shiki span {
 }
 
 /*
- * Animated icons (CheckIcon / SendIcon) replay a draw-in / lift animation on
- * hover. The trigger is the closest interactive ancestor (`[data-slot="button"]`,
- * whose hit area is larger than the glyph) OR the icon itself when used
- * standalone (`.symbiot-icon:hover`). Driven purely in CSS so the viewer no
- * longer ships Framer Motion. `transform-box: fill-box` scopes SVG transform
- * origins to each shape's own box; paths set `pathLength="1"` so the dash units
- * are normalized.
- */
-.symbiot-check-path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-[data-slot="button"]:hover .symbiot-check-path,
-.symbiot-icon:hover .symbiot-check-path {
-  animation: symbiot-draw-check 0.4s ease;
-}
-@keyframes symbiot-draw-check {
-  0% {
-    stroke-dashoffset: 1;
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  100% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.symbiot-send-plane {
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform 0.5s ease;
-}
-[data-slot="button"]:hover .symbiot-send-plane,
-.symbiot-icon:hover .symbiot-send-plane {
-  transform: translate(3px, -3px) scale(0.8);
-}
-.symbiot-send-trail {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  opacity: 0;
-  transition:
-    stroke-dashoffset 0.55s ease 0.1s,
-    opacity 0.3s ease;
-}
-[data-slot="button"]:hover .symbiot-send-trail,
-.symbiot-icon:hover .symbiot-send-trail {
-  stroke-dashoffset: 0;
-  opacity: 1;
-}
-
-/*
  * Tailwind typography wraps every inline <code> in literal backtick
  * characters via ::before / ::after. Plate already renders proper <code>
  * elements, so the decoration leaks markdown syntax into the rendered

@@ -142,3 +142,60 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/*
+ * Animated icons (`@symbiot/ui` CheckIcon / SendIcon) replay a draw-in / lift
+ * animation on hover. Lives in the shared theme — not a consuming app's CSS —
+ * so every `@symbiot/ui` consumer that imports this theme gets the animation;
+ * the components ship only stable class names, no app-local style dependency.
+ * The trigger is the closest interactive ancestor (`[data-slot="button"]`,
+ * whose hit area is larger than the glyph) OR the icon itself when standalone
+ * (`.symbiot-icon:hover`). `transform-box: fill-box` scopes SVG transform
+ * origins to each shape's own box; paths set `pathLength="1"` so dash units are
+ * normalized. Replaces the former Framer Motion dependency.
+ */
+.symbiot-check-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+[data-slot="button"]:hover .symbiot-check-path,
+.symbiot-icon:hover .symbiot-check-path {
+  animation: symbiot-draw-check 0.4s ease;
+}
+@keyframes symbiot-draw-check {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.symbiot-send-plane {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.5s ease;
+}
+[data-slot="button"]:hover .symbiot-send-plane,
+.symbiot-icon:hover .symbiot-send-plane {
+  transform: translate(3px, -3px) scale(0.8);
+}
+.symbiot-send-trail {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition:
+    stroke-dashoffset 0.55s ease 0.1s,
+    opacity 0.3s ease;
+}
+[data-slot="button"]:hover .symbiot-send-trail,
+.symbiot-icon:hover .symbiot-send-trail {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
