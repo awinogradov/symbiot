@@ -9,6 +9,7 @@ import {
   type EditorSnapshot,
   type ReviewEditorHandle,
 } from "@symbiot/editor/components/ReviewEditor";
+import { buildGlobalComment, resolveEditContent } from "@symbiot/editor/utils/editPrefill";
 import { type AnnotationSidebarEntry } from "@symbiot/ui/components/AnnotationSidebarTypes";
 
 import { type DraftPayload } from "../../shared/apiTypes.ts";
@@ -142,59 +143,6 @@ const draftInitial = (draft: DraftPayload | null, reloadKey: number): InitialDra
   ...draftReplacementInitial(draft, reloadKey),
 });
 
-/** Build a global comment, attaching `images` only when non-empty (keeps the persisted shape lean). */
-const buildGlobalComment = (id: string, body: string, images: string[]): GlobalCommentEntry => {
-  const entry: GlobalCommentEntry = { id, body };
-  if (images.length > 0) entry.images = images;
-  return entry;
-};
-
-/** Editable body + images of an annotation, used to prefill the edit composer. */
-interface EditContent {
-  body: string;
-  images: string[];
-}
-
-/** The body + image maps for an anchored kind, from the editor handle (source of truth). */
-const anchoredMaps = (
-  handle: ReviewEditorHandle,
-  kind: "comment" | "insertion" | "replacement"
-): { body: Map<string, string>; images: Map<string, string[]> } => {
-  if (kind === "comment")
-    return { body: handle.getCommentBodies(), images: handle.getCommentImages() };
-  if (kind === "insertion") {
-    return { body: handle.getInsertionNewTexts(), images: handle.getInsertionImages() };
-  }
-  return { body: handle.getReplacementTexts(), images: handle.getReplacementImages() };
-};
-
-/** Prefill content for an anchored annotation, read from the handle maps. */
-const anchoredEditContent = (
-  handle: ReviewEditorHandle,
-  kind: "comment" | "insertion" | "replacement",
-  id: string
-): EditContent => {
-  const { body, images } = anchoredMaps(handle, kind);
-  return { body: body.get(id) ?? "", images: images.get(id) ?? [] };
-};
-
-/** Prefill content for a global comment, read from host state. */
-const globalEditContent = (globalComments: GlobalCommentEntry[], id: string): EditContent => {
-  const found = globalComments.find((g) => g.id === id);
-  return { body: found?.body ?? "", images: found?.images ?? [] };
-};
-
-/** Resolve the prefill content for an entry, reading anchored kinds from the handle. */
-const resolveEditContent = (
-  entry: AnnotationSidebarEntry,
-  globalComments: GlobalCommentEntry[],
-  handle: ReviewEditorHandle | null
-): EditContent => {
-  if (entry.kind === "global") return globalEditContent(globalComments, entry.id);
-  if (entry.kind === "deletion" || handle === null) return { body: entry.body ?? "", images: [] };
-  return anchoredEditContent(handle, entry.kind, entry.id);
-};
-
 /** Walk every annotation source on the handle into a flat entry list. */
 const walkFromHandle = (
   handle: ReviewEditorHandle,
@@ -324,8 +272,8 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
   );
 
   const editContent = useCallback(
-    (entry: AnnotationSidebarEntry): EditContent =>
-      resolveEditContent(entry, globalComments, editorHandle),
+    (entry: AnnotationSidebarEntry): { body: string; images: string[] } =>
+      resolveEditContent(entry.kind, entry.id, entry.body ?? "", globalComments, editorHandle),
     [globalComments, editorHandle]
   );
 
