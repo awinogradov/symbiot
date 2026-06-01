@@ -1,19 +1,27 @@
 # Releasing symbiot
 
-The symbiot Claude Code plugin ships as a **standalone binary** per platform.
-The plugin tree itself stays small: a POSIX shim, a Windows batch shim, a
-SHA256SUMS manifest, and a VERSION pointer. The actual binaries live in
-GitHub Releases — the shim downloads the right one on first invocation,
-verifies its hash, caches it under `${CLAUDE_PLUGIN_DATA}/bin/`, and execs
-it.
+symbiot ships **five agent integrations** under one repo-wide version, with two
+distribution models today. **Claude Code** ships as a standalone per-platform
+binary: the plugin tree stays small (a POSIX shim, a Windows batch shim, a
+SHA256SUMS manifest, and a VERSION pointer), the actual binaries live in GitHub
+Releases, and the shim downloads the right one on first invocation, verifies its
+hash, caches it under `${CLAUDE_PLUGIN_DATA}/bin/`, and execs it. **Codex,
+Gemini, Copilot, and OpenCode** currently run from source — `bun --filter
+@symbiot/<agent> install-hook` writes a hook that points at
+`apps/<agent>/src/cli.ts`, so they require a local clone and Bun. A clone-free
+binary install path for those four is tracked in
+[#193](https://github.com/awinogradov/symbiot/issues/193).
 
 This document is the source of truth for cutting and rolling back a
 release.
 
 ## When to release
 
-- Any user-visible change in `apps/claude-code` or `apps/viewer` that lands in the
-  binary.
+- Any user-visible change in any `apps/*` integration (`claude-code`, `codex`,
+  `gemini`, `copilot`, `opencode-plugin`) or in `apps/viewer` that lands in what
+  users run.
+- A change in the shared `@symbiot/agent-runtime` that affects integration
+  behaviour.
 - A bug fix in `apps/claude-code/bin/symbiot` or `symbiot.cmd`.
 - A dependency upgrade in `@symbiot/viewer` or `@symbiot/editor` that
   affects rendered output.
@@ -23,10 +31,24 @@ release.
 
 ## Versioning
 
-Tags follow `vMAJOR.MINOR.PATCH` (semver). `apps/claude-code/.claude-plugin/plugin.json`
-`version` is the version string **without** the `v` prefix. Both are
-bumped by the release workflow's auto-PR — never edit them by hand on
-`main`.
+Tags follow `vMAJOR.MINOR.PATCH` (semver). symbiot uses a **single repo-wide
+version**: one tag bumps every integration in lockstep. The release workflow's
+auto-PR (step ⑧) is the only thing that bumps versions — never edit them by hand
+on `main`. The `version` string is written **without** the `v` prefix into every
+version-bearing manifest:
+
+- `apps/claude-code/.claude-plugin/plugin.json` (plus `bin/VERSION` and `bin/SHA256SUMS`)
+- `apps/gemini/extension/gemini-extension.json`
+- `apps/*/package.json` for every integration plus `apps/viewer`
+
+`codex`, `copilot`, and `opencode-plugin` have no separate distribution manifest
+today — they are source-run, versioned implicitly by the git tag, and their
+`package.json` `version` is kept in lockstep for consistency. Note that
+`.claude-plugin/marketplace.json` is intentionally **Claude-Code-only**: the
+other hosts load symbiot through their own config (Codex/Copilot hooks, the
+Gemini extension, the OpenCode plugin loader), not this marketplace. Per-host
+distribution channels are tracked in
+[#193](https://github.com/awinogradov/symbiot/issues/193).
 
 ## Release pipeline
 
@@ -40,7 +62,7 @@ bumped by the release workflow's auto-PR — never edit them by hand on
 ╭──────────────────────────────────────────────────────────────────╮
 │                       Matrix Build Job                           │
 ├──────────────────────────────────────────────────────────────────┤
-│ macos-14    │ macos-13    │ ubuntu-latest │ windows-latest       │
+│ macos-14    │ macos-14    │ ubuntu-latest │ windows-latest       │
 │ darwin-arm64│ darwin-x64  │ linux-x64     │ windows-x64          │
 │      │             │             │              │                │
 │      ▼             ▼             ▼              ▼                │
@@ -62,9 +84,10 @@ bumped by the release workflow's auto-PR — never edit them by hand on
 │       symbiot-linux-x64     symbiot-windows-x64.exe              │
 │       SHA256SUMS                                                 │
 │  ⑧ gh pr create release-bump-v0.2.0  →  bumps                    │
-│       apps/claude-code/bin/VERSION                               │
-│       apps/claude-code/bin/SHA256SUMS                            │
+│       apps/claude-code/bin/{VERSION,SHA256SUMS}                  │
 │       apps/claude-code/.claude-plugin/plugin.json                │
+│       apps/gemini/extension/gemini-extension.json                │
+│       apps/*/package.json - all integrations + viewer            │
 ╰────────────────────────────┬─────────────────────────────────────╯
                              │
         ┏━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━┓
@@ -84,7 +107,7 @@ bumped by the release workflow's auto-PR — never edit them by hand on
 - ④ Per-platform artifact uploaded with `actions/upload-artifact@v4`
 - ⑤ / ⑥ Aggregation downloads all four and computes the canonical hashes
 - ⑦ New GitHub Release with auto-generated notes + 4 binaries + SHA256SUMS
-- ⑧ PR opened against `main` that brings the in-repo manifest into sync
+- ⑧ PR opened against `main` that brings every in-repo manifest into sync
 
 Each binary embeds the release's `plugin.json` version and the build commit's
 SHA at compile time (`apps/viewer/buildInfo.ts` → Vite `define`). The viewer
