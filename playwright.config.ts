@@ -7,6 +7,12 @@ const testDir = defineBddConfig({
   outputDir: ".features-generated",
 });
 
+/** CI worker count from `PLAYWRIGHT_WORKERS`, falling back to 3 on a missing/invalid value. */
+const ciWorkers = (): number => {
+  const parsed = Number(process.env["PLAYWRIGHT_WORKERS"] ?? 3);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 3;
+};
+
 export default defineConfig({
   testDir,
   // Each worker boots its own HOME-isolated viewers (see features/support/viewers.ts),
@@ -14,7 +20,7 @@ export default defineConfig({
   // the runner cores via PLAYWRIGHT_WORKERS (default 3, leaving a core for the OS + the
   // post-run coverage merge); local runs use half the cores.
   fullyParallel: true,
-  workers: process.env["CI"] === "true" ? Number(process.env["PLAYWRIGHT_WORKERS"] ?? 3) : "50%",
+  workers: process.env["CI"] === "true" ? ciWorkers() : "50%",
   retries: 0,
   reporter: process.env["CI"] === "true" ? "github" : "list",
   use: {

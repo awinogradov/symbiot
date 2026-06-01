@@ -117,6 +117,15 @@ const waitForHttpReady = async (url: string, label: string): Promise<void> => {
     .toBe(true);
 };
 
+/** SIGTERM a viewer and resolve once it has exited (the viewer's keep-alive loop handles SIGTERM). */
+const killViewer = (child: ChildProcess): Promise<void> => {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    child.once("exit", () => resolve());
+    child.kill("SIGTERM");
+  });
+};
+
 const spawnViewer = async (
   home: string,
   plan: string,
@@ -131,18 +140,16 @@ const spawnViewer = async (
     env: { ...process.env, HOME: home },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const url = await waitForListening(child, label);
-  await waitForHttpReady(url, label);
-  return { child, url };
-};
-
-/** SIGTERM a viewer and resolve once it has exited (the viewer's keep-alive loop handles SIGTERM). */
-const killViewer = (child: ChildProcess): Promise<void> => {
-  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
-  return new Promise<void>((resolve) => {
-    child.once("exit", () => resolve());
-    child.kill("SIGTERM");
-  });
+  try {
+    const url = await waitForListening(child, label);
+    await waitForHttpReady(url, label);
+    return { child, url };
+  } catch (error) {
+    // Readiness failed before the caller could track this child for teardown —
+    // kill it here so a failed boot never leaks a viewer process.
+    await killViewer(child);
+    throw error;
+  }
 };
 
 /**
