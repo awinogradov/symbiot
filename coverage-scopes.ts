@@ -38,6 +38,10 @@ export const unitExclude: readonly string[] = [
   // Underscore-prefixed siblings are test-only helpers, never shipped.
   "**/_*.{ts,tsx}",
   "packages/symbiot-editor/src/utils/shiki.ts",
+  // Code-syntax decorate glue — needs a live Plate editor + async Shiki
+  // highlighter; the pure offset/colour math it wires in lives in
+  // `codeTokens.ts` (unit-tested), the editor integration is BDD-owned.
+  "packages/symbiot-editor/src/utils/codeSyntax.ts",
   "packages/symbiot-editor/src/utils/sourceLines.ts",
   "packages/symbiot-editor/src/utils/typingGuard.ts",
   "packages/symbiot-editor/src/utils/selectionRect.ts",

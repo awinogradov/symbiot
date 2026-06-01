@@ -10,7 +10,7 @@ import {
   H6Plugin,
   HorizontalRulePlugin,
 } from "@platejs/basic-nodes/react";
-import { CodeBlockPlugin } from "@platejs/code-block/react";
+import { CodeBlockPlugin, CodeLinePlugin } from "@platejs/code-block/react";
 import { CommentPlugin } from "@platejs/comment/react";
 import { ListPlugin } from "@platejs/list/react";
 import { MarkdownPlugin } from "@platejs/markdown";
@@ -25,6 +25,8 @@ import { ParagraphPlugin } from "platejs/react";
 import remarkGfm from "remark-gfm";
 
 import { CodeBlockElement } from "../components/CodeBlockElement.tsx";
+import { CodeLineElement } from "../components/CodeLineElement.tsx";
+import { CodeSyntaxLeafPlugin } from "../components/CodeSyntaxLeaf.tsx";
 import { CommentLeaf } from "../components/CommentLeaf.tsx";
 import { SuggestionMarkPlugin } from "../components/DeletionLeaf.tsx";
 import { HeadingElement } from "../components/HeadingElement.tsx";
@@ -42,6 +44,7 @@ import {
 import { HrElement } from "../components/VoidElements.tsx";
 import { VoidImage } from "../components/VoidImage.tsx";
 
+import { CodeSyntaxPlugin } from "./codeSyntax.ts";
 import { DiffPlugin } from "./diffPlugin.ts";
 import { SourceLinesPlugin } from "./sourceLines.ts";
 
@@ -88,6 +91,9 @@ const symbiotBaseKit = [
   CodePlugin.withComponent(InlineCodeLeaf),
   HorizontalRulePlugin.withComponent(HrElement),
   CodeBlockPlugin.withComponent(CodeBlockElement),
+  CodeLinePlugin.withComponent(CodeLineElement),
+  CodeSyntaxLeafPlugin,
+  CodeSyntaxPlugin,
   ListPlugin.configure({
     render: {
       belowNodes: ({ element }) => (element.listStyleType ? ListElement : undefined),
