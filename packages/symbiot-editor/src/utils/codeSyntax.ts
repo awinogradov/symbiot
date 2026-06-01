@@ -28,8 +28,22 @@ import type { ThemedTokenWithVariants } from "shiki/core";
 import { type CodeSyntaxRange, lineTokensToSegments, segmentsToLeafRanges } from "./codeTokens.ts";
 import { highlightToThemedTokens } from "./shiki.ts";
 
+/** Cap the token cache: editing code mints a fresh `(lang, code)` key on every
+ * keystroke, so an unbounded map would grow without limit over a long session. */
+const maxCacheEntries = 256;
+
 const tokenCache = new Map<string, ThemedTokenWithVariants[][]>();
-const inFlight = new Set<string>();
+/** key → editors awaiting that key's in-flight tokenize, so every editor showing
+ * the same code redecorates when tokens land (not just the one that kicked it). */
+const pending = new Map<string, Set<SlateEditor>>();
+
+const cacheTokens = (key: string, tokens: ThemedTokenWithVariants[][]): void => {
+  tokenCache.set(key, tokens);
+  if (tokenCache.size > maxCacheEntries) {
+    const oldest = tokenCache.keys().next().value;
+    if (oldest !== undefined) tokenCache.delete(oldest);
+  }
+};
 
 const isCodeBlock = (node: TNode): node is TElement =>
   "type" in node && node.type === "code_block" && Array.isArray(node.children);
@@ -52,20 +66,26 @@ const blockLang = (block: TElement): string =>
 
 /**
  * Tokenize `code` once and cache it, then re-run decoration so the freshly
- * tokenized block paints. Guarded by `inFlight` so a block decorated repeatedly
- * before its tokens resolve kicks only a single tokenize.
+ * tokenized block paints. A block decorated repeatedly before its tokens resolve
+ * kicks only a single tokenize; editors that ask for the same in-flight key join
+ * its wait list so they all redecorate together when the tokens land.
  */
 const loadTokens = (editor: SlateEditor, key: string, code: string, lang: string): void => {
-  if (inFlight.has(key)) return;
-  inFlight.add(key);
+  const waiting = pending.get(key);
+  if (waiting !== undefined) {
+    waiting.add(editor);
+    return;
+  }
+  const waiters = new Set<SlateEditor>([editor]);
+  pending.set(key, waiters);
   highlightToThemedTokens(code, lang)
     .then((tokens) => {
-      tokenCache.set(key, tokens);
-      inFlight.delete(key);
-      editor.api.redecorate();
+      cacheTokens(key, tokens);
+      pending.delete(key);
+      for (const waiter of waiters) waiter.api.redecorate();
     })
     .catch(() => {
-      inFlight.delete(key);
+      pending.delete(key);
     });
 };
 
