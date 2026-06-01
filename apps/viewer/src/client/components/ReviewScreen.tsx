@@ -6,6 +6,7 @@ import { SidebarProvider } from "@symbiot/ui/components/SidebarProvider";
 import { TopBar } from "@symbiot/ui/components/TopBar";
 
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
+import { useReviewEdit } from "../hooks/useReviewEdit.ts";
 import { useReviewHotkeys } from "../hooks/useReviewHotkeys.ts";
 import { useReviewState } from "../hooks/useReviewState.ts";
 import { useReviewSubmit } from "../hooks/useReviewSubmit.ts";
@@ -13,6 +14,7 @@ import { useVersionState } from "../hooks/useVersionState.ts";
 import { type DraftPayload, type PlanResponse } from "../../shared/apiTypes.ts";
 import { focusAnnotation } from "../utils/sidebarProjection.ts";
 
+import { EditAnnotationComposer } from "./EditAnnotationComposer.tsx";
 import { EditorErrorBoundary } from "./EditorErrorBoundary.tsx";
 import { LoadingFallback } from "./LoadingFallback.tsx";
 import { SubmittedScreen } from "./SubmittedScreen.tsx";
@@ -160,6 +162,7 @@ export const ReviewScreen = ({
   cancelDraft,
 }: ReviewScreenProps): React.ReactElement => {
   const state = useReviewState({ draft, saveDraft });
+  const edit = useReviewEdit(state);
   const version = useVersionState(plan);
   // Mirror the TopBar context + plan H1 in the browser tab. Boot `plan.plan` per
   // issue #148 scope; pass `version.activePlan` to instead track the on-screen version.
@@ -173,7 +176,7 @@ export const ReviewScreen = ({
   const [globalCommentOpen, setGlobalCommentOpen] = useState(false);
   const [inlineComposerOpen, setInlineComposerOpen] = useState(false);
   const onOpenGlobalComment = useCallback((): void => setGlobalCommentOpen(true), []);
-  const composerOpen = anyOpen(globalCommentOpen, inlineComposerOpen);
+  const composerOpen = anyOpen(globalCommentOpen, inlineComposerOpen, edit.editing !== null);
 
   const flags = deriveReviewFlags(version, plan.meta.version);
   const { isHistorical, inCompareOverlay, inDiffMode, canCompareWithPredecessor } = flags;
@@ -235,10 +238,16 @@ export const ReviewScreen = ({
           />
         )}
       </SidebarInset>
+      <EditAnnotationComposer
+        editing={edit.editing}
+        onSave={edit.onSave}
+        onCancel={edit.onCancel}
+      />
       <AnnotationSidebar
         entries={state.sidebarEntries}
         onFocus={focusAnnotation}
         onRemove={state.onRemoveAnnotation}
+        onEdit={edit.onEdit}
         onClearAll={state.onClearAll}
         versions={version.versions}
         activeVersion={version.activeVersion}

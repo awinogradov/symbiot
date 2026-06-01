@@ -17,6 +17,7 @@ import {
   dispatchComposerSave,
   useReadyHandle,
   useToolbarHandlers,
+  useUpdateAnnotation,
 } from "./ReviewEditorAuthoring.tsx";
 import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
 import { useAnnotationState } from "./ReviewEditorState.tsx";
@@ -128,6 +129,8 @@ export const ReviewEditor = ({
     [editor, maps, onChange, setters]
   );
 
+  const onUpdateAnnotation = useUpdateAnnotation(maps, setters);
+
   useEffect(() => {
     onChange?.(snapshotOf(editor, maps));
   }, [editor, maps, onChange]);
@@ -145,7 +148,7 @@ export const ReviewEditor = ({
       onChange,
     });
 
-  useReadyHandle(editor, maps, onRemoveAnnotation, triggerAnnotation, onReady);
+  useReadyHandle(editor, maps, onRemoveAnnotation, onUpdateAnnotation, triggerAnnotation, onReady);
 
   const onComposerSave = useCallback(
     (payload: AnnotationComposerPayload): void => {

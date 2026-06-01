@@ -13,6 +13,8 @@ interface AnnotationSidebarProps {
   entries: AnnotationSidebarEntry[];
   onFocus: (id: string) => void;
   onRemove: (entry: AnnotationSidebarEntry) => void;
+  /** Open the edit composer for a body-bearing entry. */
+  onEdit: (entry: AnnotationSidebarEntry) => void;
   onClearAll: () => void;
   /** Versions persisted on disk for this plan, ascending. */
   versions: number[];
@@ -68,6 +70,7 @@ export const AnnotationSidebar = ({
   entries,
   onFocus,
   onRemove,
+  onEdit,
   onClearAll,
   versions,
   activeVersion,
@@ -121,7 +124,12 @@ export const AnnotationSidebar = ({
           </div>
           <TabsContent value="annotations">
             <SidebarGroup className="px-2">
-              <AnnotationList entries={entries} onFocus={onFocus} onRemove={onRemove} />
+              <AnnotationList
+                entries={entries}
+                onFocus={onFocus}
+                onRemove={onRemove}
+                onEdit={onEdit}
+              />
             </SidebarGroup>
           </TabsContent>
           {hasHistory && (

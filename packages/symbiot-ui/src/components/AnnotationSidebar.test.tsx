@@ -21,6 +21,7 @@ const sidebarMarkup = (
       entries={props.entries ?? []}
       onFocus={props.onFocus ?? vi.fn()}
       onRemove={props.onRemove ?? vi.fn()}
+      onEdit={props.onEdit ?? vi.fn()}
       onClearAll={props.onClearAll ?? vi.fn()}
       versions={props.versions ?? [1]}
       activeVersion={props.activeVersion ?? 1}

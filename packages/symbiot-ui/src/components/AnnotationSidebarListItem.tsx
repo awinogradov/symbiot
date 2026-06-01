@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import { memo, useCallback } from "react";
 
 import { cn } from "../utils/cn.ts";
@@ -16,6 +16,7 @@ import {
 } from "./AlertDialog.tsx";
 import {
   type AnnotationSidebarEntry,
+  isBodyBearingKind,
   kindClass,
   kindLabel,
   removalDescription,
@@ -28,15 +29,27 @@ interface EntryRowProps {
   entry: AnnotationSidebarEntry;
   onFocus: (id: string) => void;
   onRemove: (entry: AnnotationSidebarEntry) => void;
+  /** Open the edit composer for body-bearing kinds; never called for `deletion`. */
+  onEdit: (entry: AnnotationSidebarEntry) => void;
 }
 
 const stopPointerPropagation = (event: React.PointerEvent<HTMLButtonElement>): void => {
   event.stopPropagation();
 };
 
-const EntryRowInner = ({ entry, onFocus, onRemove }: EntryRowProps): React.ReactElement => {
+// Reserve trailing room for the hover actions: one slot (remove) for non-editable
+// rows, two (edit + remove) for body-bearing rows.
+const rowClassName = (editable: boolean): string =>
+  cn(
+    "group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground flex h-auto flex-col items-start gap-1 py-2",
+    editable ? "pr-16" : "pr-9"
+  );
+
+const EntryRowInner = ({ entry, onFocus, onRemove, onEdit }: EntryRowProps): React.ReactElement => {
   const handleClick = useCallback((): void => onFocus(entry.id), [entry.id, onFocus]);
   const handleConfirm = useCallback((): void => onRemove(entry), [entry, onRemove]);
+  const handleEdit = useCallback((): void => onEdit(entry), [entry, onEdit]);
+  const editable = isBodyBearingKind(entry.kind);
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -44,7 +57,7 @@ const EntryRowInner = ({ entry, onFocus, onRemove }: EntryRowProps): React.React
         data-kind={entry.kind}
         onClick={handleClick}
         size="lg"
-        className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground flex h-auto flex-col items-start gap-1 py-2 pr-9"
+        className={rowClassName(editable)}
       >
         <div className="text-muted-foreground flex w-full items-center justify-between gap-2 text-xs">
           <span className={cn("font-medium", kindClass(entry.kind))}>{kindLabel(entry.kind)}</span>
@@ -70,6 +83,18 @@ const EntryRowInner = ({ entry, onFocus, onRemove }: EntryRowProps): React.React
           <span className="text-muted-foreground line-clamp-2 w-full text-xs">{entry.body}</span>
         )}
       </SidebarMenuButton>
+      {editable && (
+        <SidebarMenuAction
+          data-testid={`sidebar-entry-${entry.id}-edit`}
+          aria-label="Edit annotation"
+          showOnHover
+          className="right-9"
+          onPointerDown={stopPointerPropagation}
+          onClick={handleEdit}
+        >
+          <Pencil />
+        </SidebarMenuAction>
+      )}
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <SidebarMenuAction

@@ -17,7 +17,7 @@ const entry = (
 
 describe("AnnotationList", () => {
   it("renders the empty-state message in place of any rows when entries is empty", () => {
-    render(<AnnotationList entries={[]} onFocus={vi.fn()} onRemove={vi.fn()} />);
+    render(<AnnotationList entries={[]} onFocus={vi.fn()} onRemove={vi.fn()} onEdit={vi.fn()} />);
     expect(screen.getByText("No annotations yet.")).not.toBeNull();
     expect(screen.queryByTestId(/^sidebar-entry-/)).toBeNull();
   });
@@ -28,6 +28,7 @@ describe("AnnotationList", () => {
         entries={[entry("a"), entry("b", { kind: "deletion" })]}
         onFocus={vi.fn()}
         onRemove={vi.fn()}
+        onEdit={vi.fn()}
       />
     );
     expect(screen.getByTestId("sidebar-entry-a").getAttribute("data-kind")).toBe("comment");

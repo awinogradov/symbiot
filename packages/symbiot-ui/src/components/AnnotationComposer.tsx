@@ -15,6 +15,8 @@ export type AnnotationComposerKind = "comment" | "insertion" | "replacement" | "
 
 interface KindSurface {
   title: string;
+  /** Title shown when reopening the composer to edit an existing annotation. */
+  editTitle: string;
   description: string;
   placeholder: string;
   /** Tailwind class applied to the anchored quote block; ignored when `global`. */
@@ -31,6 +33,7 @@ interface KindSurface {
 const kindSurface: Record<AnnotationComposerKind, KindSurface> = {
   comment: {
     title: "Comment on selection",
+    editTitle: "Edit comment",
     description: "Add a comment to the selected text.",
     placeholder: "Comment on this selection… (Enter to save, Esc to cancel)",
     quoteClass: "border-anno-comment text-anno-comment bg-anno-comment/10",
@@ -41,6 +44,7 @@ const kindSurface: Record<AnnotationComposerKind, KindSurface> = {
   },
   insertion: {
     title: "Insert after selection",
+    editTitle: "Edit insertion",
     description: "Type the text you want to insert after the selection.",
     placeholder: "Insert text after this selection… (Enter to save, Esc to cancel)",
     quoteClass: "border-anno-insert text-anno-insert bg-anno-insert/10",
@@ -51,6 +55,7 @@ const kindSurface: Record<AnnotationComposerKind, KindSurface> = {
   },
   replacement: {
     title: "Replace selection",
+    editTitle: "Edit replacement",
     description: "Type the text you want to substitute for the selection.",
     placeholder: "Replace this selection with… (Enter to save, Esc to cancel)",
     quoteClass: "border-anno-replace text-anno-replace bg-anno-replace/10",
@@ -61,6 +66,7 @@ const kindSurface: Record<AnnotationComposerKind, KindSurface> = {
   },
   global: {
     title: "Global comment",
+    editTitle: "Edit global comment",
     description: "Leave feedback that isn't tied to a selection.",
     placeholder: "Global feedback on the plan… (Enter to save, Esc to cancel)",
     quoteClass: "",
@@ -75,12 +81,43 @@ const kindSurface: Record<AnnotationComposerKind, KindSurface> = {
   },
 };
 
+/**
+ * Whether the composer is authoring a new annotation (`create`) or editing an
+ * existing one (`edit`). Edit mode swaps in the per-kind {@link KindSurface.editTitle}
+ * and surfaces a visible header so the reviewer knows they are changing an
+ * existing note rather than adding one.
+ */
+export type AnnotationComposerMode = "create" | "edit";
+
+/**
+ * Resolve the dialog header for a kind + mode: edit mode shows the edit title
+ * and an always-visible header; the anchored create surfaces hide their header
+ * (the quote carries the context) while `global` keeps it.
+ */
+const headerFor = (
+  surface: KindSurface,
+  kind: AnnotationComposerKind,
+  mode: AnnotationComposerMode
+): { title: string; hidden: boolean } => {
+  const isEdit = mode === "edit";
+  return {
+    title: isEdit ? surface.editTitle : surface.title,
+    hidden: !isEdit && kind !== "global",
+  };
+};
+
 interface AnnotationComposerProps {
   /** Which authoring surface to render. `global` omits the quote block. */
   kind: AnnotationComposerKind;
   open: boolean;
+  /** Authoring vs. editing an existing annotation. Defaults to `create`. */
+  mode?: AnnotationComposerMode;
   /** Selected text rendered as a quote above the textarea. Required unless `kind === "global"`. */
   quote?: string;
+  /** Seeds the body when `mode === "edit"`; forwarded to `ComposerForm` and read once at mount. */
+  initialBody?: string;
+  /** Seeds the attached images when `mode === "edit"`; read once at mount. */
+  initialImages?: AnnotationComposerPayload["images"];
   onSave: (payload: AnnotationComposerPayload) => void;
   onCancel: () => void;
 }
@@ -90,12 +127,16 @@ interface AnnotationComposerProps {
  * text selection (`kind`: `comment` / `insertion` / `replacement`) or floating
  * via the top-bar FAB (`kind`: `global`). Polymorphic over `kind` so the same
  * composer drives both selection-anchored and global-comment authoring; per-
- * kind testids keep existing Playwright selectors stable.
+ * kind testids keep existing Playwright selectors stable, while `data-mode`
+ * lets edit-mode hosts target the reused dialog without new testids.
  */
 export const AnnotationComposer = ({
   kind,
   open,
+  mode = "create",
   quote,
+  initialBody,
+  initialImages,
   onSave,
   onCancel,
 }: AnnotationComposerProps): React.ReactElement => {
@@ -108,16 +149,18 @@ export const AnnotationComposer = ({
   );
 
   const showQuote = kind !== "global" && typeof quote === "string";
+  const header = headerFor(surface, kind, mode);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         data-testid={surface.testIds.composer}
         data-kind={kind}
+        data-mode={mode}
         className="sm:max-w-2xl"
       >
-        <DialogHeader className={kind === "global" ? undefined : "sr-only"}>
-          <DialogTitle>{surface.title}</DialogTitle>
+        <DialogHeader className={header.hidden ? "sr-only" : undefined}>
+          <DialogTitle>{header.title}</DialogTitle>
           <DialogDescription>{surface.description}</DialogDescription>
         </DialogHeader>
         {showQuote ? (
@@ -134,6 +177,8 @@ export const AnnotationComposer = ({
           onSave={onSave}
           onCancel={onCancel}
           testId={surface.testIds.form}
+          initialBody={initialBody}
+          initialImages={initialImages}
         />
       </DialogContent>
     </Dialog>
