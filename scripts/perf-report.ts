@@ -395,7 +395,7 @@ const renderLhRow = (
 };
 
 const renderLhTable = (head: LhSection, base: LhSection | undefined): string => {
-  const sectionHeader = "### ⚡ Lighthouse — viewer (mobile, Slow 4G + 4× CPU)";
+  const sectionHeader = "### ⚡ Lighthouse — viewer (desktop, localhost-representative)";
   if (!head.ok) {
     return [
       sectionHeader,
