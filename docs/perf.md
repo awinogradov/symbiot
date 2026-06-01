@@ -14,7 +14,7 @@ bun run --filter @symbiot/viewer bundle-analyze
 open apps/viewer/bundle-stats/index.html
 ```
 
-Runs `vite build` for the viewer with the `rollup-plugin-visualizer` plugin enabled (gated by `SYMBIOT_BUNDLE_ANALYZE=1`). The viewer builds **two artifacts** (see [`architecture.md`](./architecture.md) → _Viewer build & serving_): the default `vite build` emits the multi-chunk `dist/client/` (a light shell plus deferred `editor` / `shiki` chunks) served by `serveStatic`, and `SYMBIOT_SINGLEFILE=1 vite build` emits the inlined `dist/embed/index.html` embedded into agent binaries. `bundle-analyze` profiles the default multi-chunk build, so the treemap shows the per-chunk split (entry vs. lazy `editor` vs. Shiki languages).
+Runs `vite build` for the viewer with the `rollup-plugin-visualizer` plugin enabled (gated by `SYMBIOT_BUNDLE_ANALYZE=1`). The viewer builds **two artifacts** (see [`architecture.md`](./architecture.md) → _Architectural specials_ → _Monorepo + tooling_, the bullet "The viewer build emits two artifacts, and single-file is embed-only"): the default `vite build` emits the multi-chunk `dist/client/` (a light shell plus deferred `editor` / `shiki` chunks) served by `serveStatic`, and `SYMBIOT_SINGLEFILE=1 vite build` emits the inlined `dist/embed/index.html` embedded into agent binaries. `bundle-analyze` profiles the default multi-chunk build, so the treemap shows the per-chunk split (entry vs. lazy `editor` vs. Shiki languages).
 
 ### Lighthouse (default mobile profile, simulated Slow 4G + 4× CPU)
 
