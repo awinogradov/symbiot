@@ -18,3 +18,13 @@ Then("the edit composer is visible in the viewport", async ({ page }) => {
 Then("the comment composer body reads {string}", async ({ page }, body: string) => {
   await expect(page.getByTestId("composer-textarea")).toHaveValue(body);
 });
+
+Then("the global edit composer is visible in the viewport", async ({ page }) => {
+  await expect(
+    page.locator('[data-testid="global-comment-composer"][data-mode="edit"]')
+  ).toBeInViewport();
+});
+
+Then("the global comment composer body reads {string}", async ({ page }, body: string) => {
+  await expect(page.getByTestId("global-composer-textarea")).toHaveValue(body);
+});
