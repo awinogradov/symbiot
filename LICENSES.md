@@ -2,7 +2,7 @@
 
 # Third-party licenses
 
-49 unique production dependencies across 11 workspaces. Regenerate with `bun run licenses:audit`.
+47 unique production dependencies across 11 workspaces. Regenerate with `bun run licenses:audit`.
 
 | Package | License | Repository |
 | --- | --- | --- |
@@ -16,7 +16,6 @@
 | @platejs/list@53.0.2 | MIT | https://github.com/udecode/plate |
 | @platejs/markdown@53.0.4 | MIT | https://github.com/udecode/plate |
 | @platejs/media@53.0.1 | MIT | https://github.com/udecode/plate |
-| @platejs/suggestion@53.0.0 | MIT | https://github.com/udecode/plate |
 | @platejs/table@53.0.0 | MIT | https://github.com/udecode/plate |
 | @radix-ui/react-alert-dialog@1.1.15 | MIT | https://github.com/radix-ui/primitives |
 | @radix-ui/react-dialog@1.1.15 | MIT | https://github.com/radix-ui/primitives |
@@ -41,7 +40,6 @@
 | eslint@10.4.0 | MIT | https://github.com/eslint/eslint |
 | globals@17.6.0 | MIT | https://github.com/sindresorhus/globals |
 | lucide-react@1.16.0 | ISC | https://github.com/lucide-icons/lucide |
-| motion@12.40.0 | MIT | https://github.com/motiondivision/motion |
 | platejs@53.0.3 | MIT | https://github.com/udecode/plate |
 | prettier-plugin-tailwindcss@0.8.0 | MIT | https://github.com/tailwindlabs/prettier-plugin-tailwindcss |
 | prettier@3.8.3 | MIT | https://github.com/prettier/prettier |
