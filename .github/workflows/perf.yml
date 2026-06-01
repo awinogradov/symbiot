@@ -68,8 +68,19 @@ jobs:
       - name: Build viewer
         run: bun run --filter @symbiot/viewer build
 
+      # Multi-chunk build (dist/client) + treemap — this is what Lighthouse
+      # serves and measures (the real served experience).
       - name: Bundle analyze
         run: bun run --filter @symbiot/viewer bundle-analyze
+
+      # Single-file embed build (dist/embed/index.html) — the self-contained
+      # blob agent binaries ship. The bundle-size metric tracks this so the
+      # number stays comparable to the historical single-file baseline instead
+      # of measuring the ~1.4 KiB multi-chunk shell. Empties dist/embed only, so
+      # the dist/client output Lighthouse serves is untouched.
+      - name: Build embed artifact
+        working-directory: apps/viewer
+        run: SYMBIOT_SINGLEFILE=1 bunx vite build
 
       # Lighthouse can flake on shared runners. Continue on error so a bad LH
       # run degrades the comment to "measurement failed" instead of failing
@@ -93,7 +104,7 @@ jobs:
         run: |
           set -eo pipefail
           mkdir -p perf-snapshot
-          cp apps/viewer/dist/client/index.html perf-snapshot/index.html
+          cp apps/viewer/dist/embed/index.html perf-snapshot/index.html
           if [ -f apps/viewer/bundle-stats/index.html ]; then
             cp apps/viewer/bundle-stats/index.html perf-snapshot/bundle-stats.html
           fi

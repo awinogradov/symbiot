@@ -6,7 +6,10 @@
  * for `marocchino/sticky-pull-request-comment` to post on the PR.
  *
  * A snapshot directory contains:
- *   - `index.html`               — viewer single-file bundle (raw bytes)
+ *   - `index.html`               — viewer single-file embed bundle, the self-contained
+ *                                  blob agent binaries ship (`dist/embed/index.html`, raw bytes).
+ *                                  NOT the multi-chunk `dist/client/index.html` shell, which is
+ *                                  ~1.4 KiB and would understate the real payload.
  *   - `lighthouse-viewer.json`   — optional; missing when LH measurement failed
  *   - `meta.json`                — { sha, ref, runId, runUrl, lhStatus }
  *
@@ -306,7 +309,7 @@ const renderBundleRow = (
 
 const renderBundleTable = (head: BundleSizes, base: BundleSizes | undefined): string => {
   const headerLines = [
-    "### 📦 Bundle — `apps/viewer/dist/client/index.html`",
+    "### 📦 Bundle — `apps/viewer/dist/embed/index.html`",
     "",
     "| Status | Metric | Base | Head | Δ |",
     "| :---: | :--- | ---: | ---: | ---: |",
