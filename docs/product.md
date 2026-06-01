@@ -6,7 +6,7 @@ The viewer is built on [PlateJS](https://platejs.org): annotations are first-cla
 
 ## Goals
 
-- **G1.** Five annotation types (comment, global comment, deletion, insertion, replacement) in two editor modes (Review, Redline).
+- **G1.** Five annotation types (comment, global comment, deletion, insertion, replacement) in two editor modes (Review, Redline). The four body-bearing types are editable in place after creation, preserving their anchor and drift state; deletion stays remove-only.
 - **G2.** Full-fidelity markdown rendering with lossless markdown round-trip.
 - **G3.** Annotations anchored in the document model — they survive re-rendering and version diffing, and overlap is well-defined.
 - **G4.** Plan-version diffing via Plate's inline diff (`@platejs/diff`).
