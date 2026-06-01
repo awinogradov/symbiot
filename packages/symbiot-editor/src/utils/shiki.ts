@@ -1,14 +1,18 @@
 /**
- * Lazily-built dual-themed Shiki highlighter used by `CodeBlockElement` to
- * render fenced code blocks. The highlighter is instantiated once per page,
- * cached, and shared across every block — language and theme bundles are
+ * Lazily-built dual-themed Shiki highlighter used by the code-block `decorate`
+ * to syntax-colour fenced code blocks. The highlighter is instantiated once per
+ * page, cached, and shared across every block — language and theme bundles are
  * imported dynamically, and the highlighter runs on Shiki's pure-JS RegExp
  * engine (no Oniguruma WASM) so the initial editor payload stays small.
  *
+ * Returns dual-theme TOKENS (not HTML) so the colours land on the real Slate
+ * `code_line` leaves as decoration ranges — keeping the code selectable and
+ * annotatable — instead of an opaque `dangerouslySetInnerHTML` blob.
+ *
  * @example
- *   const html = await highlightToHtml(code, lang);
+ *   const tokensByLine = await highlightToThemedTokens(code, lang);
  */
-import type { HighlighterCore } from "shiki/core";
+import type { HighlighterCore, ThemedTokenWithVariants } from "shiki/core";
 import { createHighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
@@ -51,30 +55,24 @@ const getHighlighter = async (): Promise<HighlighterCore> => {
 };
 
 /**
- * Highlight a fenced-code-block body to dual-themed HTML. Returns `null` for
- * unknown languages — the CodeBlockElement caller renders a plain `<pre><code>`
- * fallback so highlighting failure never blocks plan rendering.
+ * Tokenize a fenced-code-block body into dual-theme tokens, one array per line.
+ * Each token carries `variants.light`/`variants.dark` colours; the WCAG-AA remap
+ * of github-light's orange lives in {@link ./codeTokens.ts} alongside the
+ * offset math so it stays unit-tested.
  *
  * Pre-loaded languages: bash, ts, tsx, md, js, jsx, json, html, css. Everything
- * else falls through to `text` (no highlighting).
+ * else falls through to `text` (no highlighting), so callers always get one
+ * token row per source line and never need a failure branch.
  */
-// github-light ships #e36209 (orange) for `entity.name.type` etc. — only 3.48:1
-// against white, below WCAG AA. Remap to #c2410c (Tailwind orange-700, ~5.2:1)
-// so the dual-theme remains recognizable while clearing the a11y baseline.
-const colorReplacements = {
-  "github-light": {
-    "#e36209": "#c2410c",
-    "#E36209": "#c2410c",
-  },
-} as const;
-
-export const highlightToHtml = async (code: string, lang: string): Promise<string | null> => {
+export const highlightToThemedTokens = async (
+  code: string,
+  lang: string
+): Promise<ThemedTokenWithVariants[][]> => {
   const highlighter = await getHighlighter();
   const known = highlighter.getLoadedLanguages().includes(lang);
   const effectiveLang = known ? lang : "text";
-  return highlighter.codeToHtml(code, {
+  return highlighter.codeToTokensWithThemes(code, {
     lang: effectiveLang,
     themes: dualThemes,
-    colorReplacements,
   });
 };
