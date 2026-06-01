@@ -8,17 +8,19 @@
  * `{"decision":"block","reason"}` directly on `Stop`, so there is no
  * `PermissionRequest` companion entry.
  *
- * The `command` points at this app's source `cli.ts` (never the bundle) so the
- * embedded viewer's relative `dist/client/` path math stays intact.
+ * The `command` is resolved by {@link resolveHookCommand}: in dev it points at
+ * this app's source `cli.ts` (never the bundle, so the embedded viewer's relative
+ * `dist/client/` path math stays intact); in a compiled binary it is the bare
+ * `symbiot-codex run-hook`, resolved from `PATH` (`~/.local/bin`).
  *
  * @see ../../README.md — the `## Schemas` section pins the on-disk shape.
  * @see ../../../packages/symbiot-agent-runtime/src/config-installer.ts — the shared installer.
  */
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 import { createConfigHookInstaller } from "@symbiot/agent-runtime/config-installer";
+import { resolveHookCommand } from "@symbiot/agent-runtime/hook-command";
 
 /** A long timeout (seconds) — `run-hook` blocks while a human reviews the plan. */
 const stopTimeoutSeconds = 3600;
@@ -28,7 +30,7 @@ const isSymbiotEntry = (command: string): boolean =>
   command === "symbiot-codex run-hook";
 
 const cliCommand = (): string =>
-  `bun ${resolve(dirname(fileURLToPath(import.meta.url)), "cli.ts")} run-hook`;
+  resolveHookCommand({ importMetaUrl: import.meta.url, binName: "symbiot-codex" });
 
 export const { installHook, uninstallHook } = createConfigHookInstaller({
   path: join(homedir(), ".codex", "hooks.json"),

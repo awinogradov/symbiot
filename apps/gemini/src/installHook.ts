@@ -14,10 +14,10 @@
  * @see ../../codex/src/installHook.ts — the Codex counterpart (timeout in seconds).
  */
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 import { createConfigHookInstaller } from "@symbiot/agent-runtime/config-installer";
+import { resolveHookCommand } from "@symbiot/agent-runtime/hook-command";
 
 /** A long timeout — Gemini's hook `timeout` is in **milliseconds**, so this is one hour. */
 const afterAgentTimeoutMs = 3_600_000;
@@ -27,7 +27,7 @@ const isSymbiotEntry = (command: string): boolean =>
   command === "symbiot-gemini run-hook";
 
 const cliCommand = (): string =>
-  `bun ${resolve(dirname(fileURLToPath(import.meta.url)), "cli.ts")} run-hook`;
+  resolveHookCommand({ importMetaUrl: import.meta.url, binName: "symbiot-gemini" });
 
 export const { installHook, uninstallHook } = createConfigHookInstaller({
   path: join(homedir(), ".gemini", "settings.json"),

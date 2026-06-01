@@ -19,9 +19,9 @@
  * @see ../../../docs/agents/copilot-contract.md — the audited upstream contract.
  */
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
+import { resolveHookCommand } from "@symbiot/agent-runtime/hook-command";
 import { removeIfOwned, writeAtomic } from "@symbiot/agent-runtime/managed-file";
 
 const hookPath = join(homedir(), ".copilot", "hooks", "symbiot-copilot.json");
@@ -33,7 +33,7 @@ const managedBy = "symbiot-copilot";
 const agentStopTimeoutSeconds = 3600;
 
 const cliCommand = (): string =>
-  `bun ${resolve(dirname(fileURLToPath(import.meta.url)), "cli.ts")} run-hook`;
+  resolveHookCommand({ importMetaUrl: import.meta.url, binName: "symbiot-copilot" });
 
 const buildConfig = (command: string): string =>
   `${JSON.stringify(
@@ -61,9 +61,11 @@ const fileIsOwned = (raw: string): boolean => {
 /**
  * Idempotently register the symbiot `agentStop` hook by writing
  * `~/.copilot/hooks/symbiot-copilot.json`. Re-running produces a byte-identical
- * file. The command points at source `cli.ts` (never a bundle) so the embedded
- * viewer's relative `dist/client/` path math stays intact. symbiot owns this file
- * outright — sibling hook files under `~/.copilot/hooks/` are untouched.
+ * file. The command is resolved by {@link resolveHookCommand}: source `cli.ts` in
+ * dev (never a bundle, so the embedded viewer's relative `dist/client/` path math
+ * stays intact) or the bare `symbiot-copilot run-hook` from `PATH` in a compiled
+ * binary. symbiot owns this file outright — sibling hook files under
+ * `~/.copilot/hooks/` are untouched.
  */
 export const installHook = async (): Promise<{ path: string; command: string }> => {
   const command = cliCommand();
