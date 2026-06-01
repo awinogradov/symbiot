@@ -14,16 +14,21 @@ const bddMetrics = ["lines", "statements", "branches", "functions"] as const;
 
 /**
  * Match V8 coverage entries against the two shapes the viewer build can take:
- * an inline `<script type="module">` reported under the document URL (the
- * single-file Vite build the viewer ships today), or a non-inlined chunk
- * `/assets/index-*.js` (kept for any future test-mode build that disables
- * `vite-plugin-singlefile`).
+ * any non-inlined chunk under `/assets/*.js`. The e2e suite always serves the
+ * multi-chunk `dist/client` build — a light `index-*.js` entry plus
+ * lazily-loaded `editor-*.js` / `DiffMount-*.js` / Shiki language chunks — so
+ * all BDD-owned app code lives in those split chunks. The document URL itself
+ * (`/`) now carries only the HTML shell and the inline pre-paint theme
+ * bootstrap (no source map); matching it added one unmappable ~150-line
+ * anonymous entry per webServer port that halved the reported coverage, so the
+ * document is intentionally excluded. Non-app chunks (Shiki grammars, the
+ * runtime) resolve only to `node_modules` sources and are dropped by
+ * `sourceFilter`, so matching every `/assets/*.js` is safe.
  */
 const entryPathnameMatches = (url: string): boolean => {
   try {
     const { pathname } = new URL(url);
-    if (pathname === "/" || pathname.endsWith("/index.html")) return true;
-    return /^\/assets\/(?:.*\/)?index-.*\.js$/.test(pathname);
+    return /^\/assets\/(?:.*\/)?[^/]+\.js$/.test(pathname);
   } catch {
     return false;
   }
