@@ -93,6 +93,21 @@ obsolete, delete the bullet rather than hedging it.
   `packages/symbiot-server`. The Bun HTTP server (`src/server/`) and
   React/Vite client (`src/client/`) build into a single binary. Agent
   integrations spawn that one binary.
+- **The viewer build emits two artifacts, and single-file is embed-only.**
+  `vite build` (default) produces the multi-chunk `dist/client/` — a light
+  `index.html` shell plus `React.lazy`-split `editor`/`diff` chunks and Shiki's
+  dynamically-imported language chunks. `serveStatic` serves it file-by-file;
+  this is the source-run viewer and what the Lighthouse perf harness measures,
+  so the editor downloads + constructs off the first-paint path. The default
+  build is intentionally NOT single-file: `vite-plugin-singlefile` inlines every
+  async chunk back into one HTML, which would re-defeat the code-split.
+  `SYMBIOT_SINGLEFILE=1 vite build` produces `dist/embed/index.html`, gzipped and
+  embedded into each agent binary (`import … "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" }`)
+  and served by `serveEmbeddedHtml`. The embed path stays single-file by design:
+  agent binaries serve it over `127.0.0.1`, where download is instant, so chunk
+  splitting buys nothing there — its win comes from the byte cuts (Shiki JS
+  engine, no Framer Motion) and the deferred Plate construction, not from
+  splitting. See [`perf.md`](./perf.md).
 - **For Claude Code the hook event is `PreToolUse` with matcher `ExitPlanMode`** —
   NOT `Stop`. In Claude Code, `Stop` fires on every assistant turn;
   `PreToolUse(ExitPlanMode)` fires exactly when the agent presents a plan, which
