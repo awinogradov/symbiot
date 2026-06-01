@@ -55,3 +55,18 @@ Feature: Comment via composer
     And I click the Comment toolbar button
     Then the comment composer is visible in the viewport
     And the comment composer shows "lazy dog" as a quote
+
+  Scenario Outline: Cancelling the comment composer via <route> discards the applied highlight
+    Given I open the viewer
+    When I select the text "quick brown fox" in the editor
+    And I click the Comment toolbar button
+    Then the "comment" highlight is visible in the editor
+    When I <dismiss>
+    Then the "comment" highlight is absent from the editor
+    And the sidebar total count reads "0"
+
+    Examples:
+      | route         | dismiss                                     |
+      | Cancel button | click the comment composer Cancel button    |
+      | Escape        | press Escape in the comment composer        |
+      | overlay click | close the comment composer via the overlay  |

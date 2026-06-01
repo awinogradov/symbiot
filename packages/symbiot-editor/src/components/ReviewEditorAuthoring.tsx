@@ -7,6 +7,7 @@ import {
   hasValidSelection,
   type AppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
+import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
 import { snapshotOf } from "./ReviewEditorPrune.tsx";
 import { type AnnotationMaps, type PruneSetters } from "./ReviewEditorState.tsx";
@@ -169,4 +170,22 @@ export const dispatchComposerSave = (
     return;
   }
   saveReplacementBody(setters, id, anchorText, payload);
+};
+
+/**
+ * Roll back the eagerly-applied annotation mark when the composer is cancelled.
+ * Pattern A applies the mark on open, so every cancel route (button, Escape,
+ * overlay) must remove it or the selection stays highlighted with no body. No
+ * map pruning is needed: a body is only stored on save, so the cancelled id
+ * never entered the annotation maps. Mirrors {@link dispatchComposerSave}.
+ */
+export const dispatchComposerCancel = (
+  pending: PendingAuthoring | null,
+  editor: PlateEditor,
+  maps: AnnotationMaps,
+  onChange?: (snapshot: EditorSnapshot) => void
+): void => {
+  if (pending === null) return;
+  removeAnnotationMark(editor, pending.kind, pending.applied.id);
+  onChange?.(snapshotOf(editor, maps));
 };

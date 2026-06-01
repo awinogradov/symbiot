@@ -15,3 +15,11 @@ Feature: Suggest an insertion
     Then the recorded feedback contains "Insert after"
     And the recorded feedback contains "quick brown fox"
     And the recorded feedback contains "and the agile cat"
+
+  Scenario: Cancelling the insertion composer discards the applied highlight
+    Given I open the viewer
+    When I select the text "quick brown fox" in the editor
+    And I click the Insert toolbar button
+    Then the "insertion" highlight is visible in the editor
+    When I click the comment composer Cancel button
+    Then the "insertion" highlight is absent from the editor

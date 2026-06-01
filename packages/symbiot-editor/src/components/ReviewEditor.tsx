@@ -13,6 +13,7 @@ import { useTypingGuard } from "../utils/typingGuard.ts";
 
 import {
   type PendingAuthoring,
+  dispatchComposerCancel,
   dispatchComposerSave,
   useReadyHandle,
   useToolbarHandlers,
@@ -155,7 +156,10 @@ export const ReviewEditor = ({
     [pending, setters]
   );
 
-  const onComposerCancel = useCallback((): void => setPending(null), []);
+  const onComposerCancel = useCallback((): void => {
+    dispatchComposerCancel(pending, editor, maps, onChange);
+    setPending(null);
+  }, [pending, editor, maps, onChange]);
 
   return (
     <div
