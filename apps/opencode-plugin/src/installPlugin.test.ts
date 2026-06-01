@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { installPlugin, uninstallPlugin } from "./installPlugin.ts";
+import { installPlugin, selectPluginSpecifier, uninstallPlugin } from "./installPlugin.ts";
 
 let home = "";
 let originalHome: string | undefined;
@@ -38,6 +38,22 @@ describe("installPlugin", () => {
     const first = await readFile(loaderPath(), "utf8");
     await installPlugin();
     expect(await readFile(loaderPath(), "utf8")).toBe(first);
+  });
+});
+
+describe("selectPluginSpecifier", () => {
+  it("returns the bare package name when installed via npm (node_modules)", () => {
+    expect(
+      selectPluginSpecifier(
+        "/home/u/.config/opencode/node_modules/@symbiot/opencode-plugin/dist/installPlugin.js"
+      )
+    ).toBe("@symbiot/opencode-plugin");
+  });
+
+  it("returns the sibling source plugin.ts path from the repo (dev)", () => {
+    expect(selectPluginSpecifier("/repo/apps/opencode-plugin/src/installPlugin.ts")).toBe(
+      "/repo/apps/opencode-plugin/src/plugin.ts"
+    );
   });
 });
 
