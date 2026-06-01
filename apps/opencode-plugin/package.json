@@ -1,6 +1,13 @@
 {
   "name": "@symbiot/opencode-plugin",
   "version": "0.3.0",
+  "description": "OpenCode plugin for symbiot — interactive plan review in a browser viewer.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awinogradov/symbiot.git",
+    "directory": "apps/opencode-plugin"
+  },
   "type": "module",
   "main": "dist/plugin.js",
   "exports": {
