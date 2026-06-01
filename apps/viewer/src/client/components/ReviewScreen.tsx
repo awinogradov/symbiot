@@ -13,6 +13,7 @@ import { useVersionState } from "../hooks/useVersionState.ts";
 import { type DraftPayload, type PlanResponse } from "../../shared/apiTypes.ts";
 import { focusAnnotation } from "../utils/sidebarProjection.ts";
 
+import { EditorErrorBoundary } from "./EditorErrorBoundary.tsx";
 import { LoadingFallback } from "./LoadingFallback.tsx";
 import { SubmittedScreen } from "./SubmittedScreen.tsx";
 
@@ -211,17 +212,19 @@ export const ReviewScreen = ({
           hasAnnotations={hasAnnotations}
         />
         <main className="flex-1 overflow-auto px-8 py-6">
-          <Suspense fallback={<LoadingFallback label="Loading editor…" />}>
-            <EditorPane
-              isHistorical={isHistorical}
-              inCompareOverlay={inCompareOverlay}
-              version={version}
-              state={state}
-              plan={plan}
-              activePlan={activePlan}
-              onComposerOpenChange={setInlineComposerOpen}
-            />
-          </Suspense>
+          <EditorErrorBoundary>
+            <Suspense fallback={<LoadingFallback label="Loading editor…" />}>
+              <EditorPane
+                isHistorical={isHistorical}
+                inCompareOverlay={inCompareOverlay}
+                version={version}
+                state={state}
+                plan={plan}
+                activePlan={activePlan}
+                onComposerOpenChange={setInlineComposerOpen}
+              />
+            </Suspense>
+          </EditorErrorBoundary>
         </main>
         {!isHistorical && !inCompareOverlay && (
           <GlobalCommentFab
