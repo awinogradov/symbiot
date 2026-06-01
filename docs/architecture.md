@@ -187,6 +187,19 @@ obsolete, delete the bullet rather than hedging it.
   format stays backward-compatible. The codec (C / G / D tuple
   serializer) never sees the drift flag — only the sidebar UI consumes
   it.
+- **In-place edits preserve the anchor + drift baseline.** Each
+  body-bearing sidebar row (comment, global, insertion, replacement) has a
+  pencil action that reopens the shared `AnnotationComposer` prefilled.
+  Editing routes like removal does: global comments update in
+  `useReviewState` (`onUpdateAnnotation` → `onUpdateGlobalComment`),
+  anchored kinds through a new `ReviewEditorHandle.updateAnnotation` →
+  `updateAnnotationMaps`, which rewrites only the body + image maps for the
+  id and leaves the `*OriginalTexts` baseline (and the Plate mark)
+  untouched, so the anchor and `drifted` state survive an edit. Unlike
+  removal there is no Plate-value mutation, so the persist flows through
+  the existing maps-change snapshot effect rather than an explicit
+  `onChange`. The edit is a no-op when the id is unknown, so a stale edit
+  can never resurrect a removed annotation.
 
 ### Hook semantics
 

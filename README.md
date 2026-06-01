@@ -1,6 +1,6 @@
 # Symbiot
 
-Review and annotate the plans your AI coding agents produce, then send structured feedback back. Symbiot intercepts a plan at the moment the agent presents it, opens a browser editor where you can comment, delete, insert, and replace passages with full markdown fidelity, and returns the resolved feedback as markdown the agent can act on.
+Review and annotate the plans your AI coding agents produce, then send structured feedback back. Symbiot intercepts a plan at the moment the agent presents it, opens a browser editor where you can comment, delete, insert, and replace passages with full markdown fidelity — and edit those annotations in place afterward — then returns the resolved feedback as markdown the agent can act on.
 
 ## Architecture
 
