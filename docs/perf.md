@@ -14,7 +14,7 @@ bun run --filter @symbiot/viewer bundle-analyze
 open apps/viewer/bundle-stats/index.html
 ```
 
-Runs `vite build` for the viewer with the `rollup-plugin-visualizer` plugin enabled (gated by `SYMBIOT_BUNDLE_ANALYZE=1`). The visualizer hooks into the same Rollup pass that produces the shipped single-file HTML, so the numbers in the report match what `viteSingleFile` actually inlines.
+Runs `vite build` for the viewer with the `rollup-plugin-visualizer` plugin enabled (gated by `SYMBIOT_BUNDLE_ANALYZE=1`). The viewer builds **two artifacts** (see [`architecture.md`](./architecture.md) → _Viewer build & serving_): the default `vite build` emits the multi-chunk `dist/client/` (a light shell plus deferred `editor` / `shiki` chunks) served by `serveStatic`, and `SYMBIOT_SINGLEFILE=1 vite build` emits the inlined `dist/embed/index.html` embedded into agent binaries. `bundle-analyze` profiles the default multi-chunk build, so the treemap shows the per-chunk split (entry vs. lazy `editor` vs. Shiki languages).
 
 ### Lighthouse (default mobile profile, simulated Slow 4G + 4× CPU)
 
@@ -32,17 +32,19 @@ The spawned viewer's `HOME` is redirected to an ephemeral temp directory for the
 
 ## Baseline
 
-Captured 2026-05-24 against `fixtures/markdown/elements.md` (~1 KB markdown) on commit `b3dc798` of `main`.
+Captured against `fixtures/markdown/elements.md` (~1 KB markdown) on `main`, post-#185.
 
-- **Bundle** (viewer single-file HTML, `apps/viewer/dist/client/index.html`):
-  - **3,396.5 KB raw · 857.2 KB gzipped · 602.5 KB brotli**
-  - Treemap source of truth: `apps/viewer/bundle-stats/index.html`
-- **Lighthouse** (default mobile profile, simulated Slow 4G + 4× CPU):
-  - **Performance: 39** — below the ≥ 90 target. Expected for the current bundle (no editor lazy-load, no highlight-language code-split yet).
-  - **Accessibility: 100** — already above the ≥ 95 target.
-  - LCP: 18,350 ms · TBT: 642 ms · CLS: 0.000 · TTI: 18,728 ms
+- **Bundle, embed artifact** (single-file `apps/viewer/dist/embed/index.html`, the blob agent binaries serve over localhost):
+  - **~2,814 KB raw · ~646 KB gzipped** (was 3,396.5 KB raw / 857.2 KB gzip pre-#185).
+- **Bundle, served artifact** (multi-chunk `apps/viewer/dist/client/`, what `serveStatic` and the Lighthouse harness measure):
+  - First-paint critical path is the **~1.5 KB shell `index.html` + ~96 KB gzip entry chunk + ~12 KB gzip CSS**. The ~414 KB gzip `editor` chunk and the Shiki language chunks load lazily, off the first-paint path.
+  - Treemap source of truth: `apps/viewer/bundle-stats/index.html`.
+- **Lighthouse** (default mobile profile, simulated Slow 4G + 4× CPU, served multi-chunk build):
+  - **Performance: 56** (was 25–39) — still below the ≥ 90 target.
+  - **Accessibility: 100** — above the ≥ 95 target.
+  - LCP: ~16,200 ms · **TBT: ~68 ms** (was 2,750–3,760 ms) · CLS: 0.000 · TTI: ~16,200 ms
 
-The full viewer ships Plate kits, shadcn UI, history/diff/share/theming code, etc. Closing the gap to NFR-1 requires editor lazy-loading, code-splitting highlight languages, and tree-shaking unused Plate kits.
+#185 landed the big levers: Shiki now runs on the pure-JS RegExp engine (no Oniguruma WASM, ~150 KiB brotli removed), Framer Motion is gone (replaced by CSS, ~90 KiB brotli removed), and the Plate editor is `React.lazy`-deferred so it no longer blocks first paint — which is what collapsed TBT. The remaining LCP gap is dominated by downloading + rendering the `editor` chunk over synthetic Slow 4G; on the localhost embed path real reviewers actually use, download is instant, so the lived experience tracks TBT/TTI, not this LCP. Further LCP gains would require a lightweight read-only markdown first paint that upgrades to Plate (progressive enhancement) and trimming the Plate-internal markdown stack (`acorn`/MDX, `lodash`), both deferred.
 
 ## Reporting
 
