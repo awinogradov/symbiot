@@ -45,6 +45,18 @@ Code, Codex, or Gemini on a shared plan slug.
 
 ## Installation
 
+**End users (no clone, no Bun)** — download the verified binary and wire the hook:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.sh | bash -s -- --agent copilot
+# Windows: irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1 | iex; symbiot-install -Agent copilot
+```
+
+This installs `symbiot-copilot` to `~/.local/bin` (verified against the release
+`SHA256SUMS`) and runs its `install-hook`.
+
+**Contributors (from a clone)**:
+
 ```sh
 bun --filter @symbiot/copilot install-hook    # writes the agentStop hook to ~/.copilot/hooks/symbiot-copilot.json
 bun --filter @symbiot/copilot uninstall-hook   # removes it
@@ -55,9 +67,10 @@ loads command hooks from a directory of independent files, so there is no shared
 file to merge into). It is idempotent — re-running writes a byte-identical file —
 and atomic (tmp + rename). The entry carries a `_managedBy: "symbiot-copilot"`
 ownership sentinel; `uninstall-hook` only deletes a file that still carries it, so
-a hand-edited file is left in place with a warning rather than blind-deleted. The
-command points at source `cli.ts` (not a bundle) so the embedded viewer's relative
-`dist/client/` path math stays intact.
+a hand-edited file is left in place with a warning rather than blind-deleted. From
+a clone the command points at source `cli.ts` (not a bundle) so the embedded
+viewer's relative `dist/client/` path math stays intact; the compiled binary emits
+the bare `symbiot-copilot run-hook` instead.
 
 ## Example flow
 

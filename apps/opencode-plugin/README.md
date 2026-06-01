@@ -45,32 +45,37 @@ owns; the viewer still writes `history/` etc.
 
 ## Installation
 
-OpenCode auto-loads plugins from its plugins directory. Register symbiot's loader:
+OpenCode auto-loads plugins from its plugins directory. symbiot ships as the
+published npm package **`@symbiot/opencode-plugin`** (an in-process plugin cannot
+be a binary like the other agents).
+
+**End users (no clone)** — install the package, then write a one-line loader that
+re-exports it:
+
+```sh
+bun add -g @symbiot/opencode-plugin   # or: npm i -g @symbiot/opencode-plugin
+```
+
+```ts
+// ~/.config/opencode/plugins/symbiot-opencode.ts
+export { SymbiotOpenCodePlugin } from "@symbiot/opencode-plugin";
+```
+
+**Contributors (from a clone)** — let the CLI write the loader:
 
 ```sh
 bun --filter @symbiot/opencode-plugin install-plugin    # writes ~/.config/opencode/plugins/symbiot-opencode.ts
 bun --filter @symbiot/opencode-plugin uninstall-plugin   # removes it
 ```
 
-`install` writes a small loader at `~/.config/opencode/plugins/symbiot-opencode.ts` that
-re-exports the plugin from this workspace's **source** `plugin.ts` (so its `@symbiot/viewer`
-and embedded-viewer imports keep resolving from the repo). It is idempotent (byte-identical
-re-write), atomic (tmp + rename), and carries a `@managed-by symbiot-opencode` sentinel so
-`uninstall` only deletes a loader it owns — a hand-edited file is left in place with a
-warning.
-
-**Manual alternative** — write the loader yourself instead of running the CLI. OpenCode
-resolves `opencode.json`'s `plugin` entries as published npm packages, so this unpublished
-(`"private": true`) workspace package cannot be referenced by name there. Instead create
-`~/.config/opencode/plugins/symbiot-opencode.ts` re-exporting the plugin from this
-workspace's **source** (use the absolute path to `apps/opencode-plugin/src/plugin.ts`):
-
-```ts
-export { SymbiotOpenCodePlugin } from "/absolute/path/to/symbiot/apps/opencode-plugin/src/plugin.ts";
-```
-
-This is exactly what `install-plugin` automates (it also adds the `@managed-by` sentinel
-so `uninstall-plugin` can safely remove it).
+`install` writes the loader at `~/.config/opencode/plugins/symbiot-opencode.ts`,
+choosing its re-export target via `selectPluginSpecifier`: the bare published
+package `@symbiot/opencode-plugin` when running from an npm install, or this
+workspace's **source** `plugin.ts` from the repo (so its `@symbiot/viewer` and
+embedded-viewer imports keep resolving). It is idempotent (byte-identical
+re-write), atomic (tmp + rename), and carries a `@managed-by symbiot-opencode`
+sentinel so `uninstall` only deletes a loader it owns — a hand-edited file is left
+in place with a warning.
 
 ## Example flow
 

@@ -40,16 +40,30 @@ or Codex on a shared plan slug.
 
 ## Installation
 
+**End users (no clone, no Bun)** — download the verified binary and wire the hook:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.sh | bash -s -- --agent gemini
+# Windows: irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1 | iex; symbiot-install -Agent gemini
+```
+
+This installs `symbiot-gemini` to `~/.local/bin` (verified against the release
+`SHA256SUMS`) and runs its `install-hook`. Once `symbiot-gemini` is on `PATH`, the
+bundled extension also installs via `gemini extensions install ./apps/gemini/extension`.
+
+**Contributors (from a clone)**:
+
 ```sh
 bun --filter @symbiot/gemini install-hook    # writes the AfterAgent hook to ~/.gemini/settings.json
 bun --filter @symbiot/gemini uninstall-hook   # removes it
 ```
 
 `install-hook` is idempotent — it strips any prior symbiot-gemini entry before
-writing the current absolute-path command. It points at the source `cli.ts` (not
-a bundle) so the embedded viewer's relative `dist/client/` path math stays
-intact, and touches only `~/.gemini/settings.json` (the Claude Code and Codex
-installers own their own configs; the three never interfere).
+writing the current command. From a clone it points at the source `cli.ts` (not a
+bundle) so the embedded viewer's relative `dist/client/` path math stays intact;
+the compiled binary emits the bare `symbiot-gemini run-hook` instead. It touches
+only `~/.gemini/settings.json` (the Claude Code and Codex installers own their own
+configs; the three never interfere).
 
 ## Usage
 

@@ -1,16 +1,23 @@
 # Releasing symbiot
 
-symbiot ships **five agent integrations** under one repo-wide version, with two
-distribution models today. **Claude Code** ships as a standalone per-platform
-binary: the plugin tree stays small (a POSIX shim, a Windows batch shim, a
-SHA256SUMS manifest, and a VERSION pointer), the actual binaries live in GitHub
-Releases, and the shim downloads the right one on first invocation, verifies its
-hash, caches it under `${CLAUDE_PLUGIN_DATA}/bin/`, and execs it. **Codex,
-Gemini, Copilot, and OpenCode** currently run from source — `bun --filter
-@symbiot/<agent> install-hook` writes a hook that points at
-`apps/<agent>/src/cli.ts`, so they require a local clone and Bun. A clone-free
-binary install path for those four is tracked in
-[#193](https://github.com/awinogradov/symbiot/issues/193).
+symbiot ships **five agent integrations** under one repo-wide version. Every
+integration is installable without cloning the repo:
+
+- **Claude Code** — a standalone per-platform binary via the Claude Code
+  marketplace. The plugin tree stays small (a POSIX shim, a Windows batch shim, a
+  SHA256SUMS manifest, and a VERSION pointer); the binaries live in GitHub
+  Releases, and the shim downloads the right one on first invocation, verifies its
+  hash, caches it under `${CLAUDE_PLUGIN_DATA}/bin/`, and execs it.
+- **Codex, Gemini, Copilot** — a per-agent compiled binary (`symbiot-<agent>-<triple>`)
+  published as a GitHub Release asset. `scripts/install.sh` (macOS/Linux) /
+  `scripts/install.ps1` (Windows) download + SHA256-verify it, install it to
+  `~/.local/bin/symbiot-<agent>`, and run its `install-hook` to wire the host.
+- **OpenCode** — the `@symbiot/opencode-plugin` npm package (in-process plugin;
+  cannot be a binary), loaded from `~/.config/opencode/plugins/`.
+
+`bun --filter @symbiot/<agent> install-hook` from a clone is still the
+contributor dev path (it points the hook at source `cli.ts`); the compiled binary
+emits the bare `symbiot-<agent> run-hook` instead (resolved via `resolveHookCommand`).
 
 This document is the source of truth for cutting and rolling back a
 release.
@@ -41,14 +48,40 @@ version-bearing manifest:
 - `apps/gemini/extension/gemini-extension.json`
 - `apps/*/package.json` for every integration plus `apps/viewer`
 
-`codex`, `copilot`, and `opencode-plugin` have no separate distribution manifest
-today — they are source-run, versioned implicitly by the git tag, and their
-`package.json` `version` is kept in lockstep for consistency. Note that
+`codex`, `copilot`, and `gemini` carry no version inside their distributed
+artifact (the binary embeds the build-time version like claude-code); their
+`package.json` `version` is kept in lockstep for consistency. The
+`@symbiot/opencode-plugin` npm package is published with the tag version (the
+`npm-publish` job sets it from `GITHUB_REF_NAME` before publishing). Note that
 `.claude-plugin/marketplace.json` is intentionally **Claude-Code-only**: the
 other hosts load symbiot through their own config (Codex/Copilot hooks, the
-Gemini extension, the OpenCode plugin loader), not this marketplace. Per-host
-distribution channels are tracked in
-[#193](https://github.com/awinogradov/symbiot/issues/193).
+Gemini extension, the OpenCode plugin loader), not this marketplace.
+
+## Distribution channels
+
+| Integration              | Channel                                            | Install                                                        |
+| ------------------------ | -------------------------------------------------- | -------------------------------------------------------------- |
+| claude-code              | Claude Code marketplace (shim + downloaded binary) | `/plugin marketplace add awinogradov/symbiot`                  |
+| codex / copilot / gemini | per-agent binary on GitHub Releases                | `curl -fsSL …/scripts/install.sh \| bash -s -- --agent <name>` |
+| opencode                 | `@symbiot/opencode-plugin` on npm                  | see `apps/opencode-plugin/README.md`                           |
+
+`scripts/install.sh` / `install.ps1` resolve the platform triple, download
+`symbiot-<agent>-<triple>` for the latest (or `--version`) release, verify it
+against the release `SHA256SUMS`, install to `~/.local/bin` (`%LOCALAPPDATA%\symbiot`
+on Windows), and run the binary's `install-hook`. Gemini additionally ships
+`apps/gemini/extension/` for `gemini extensions install` once the binary is on PATH.
+
+**Build & publish (CI).** `release.yml`'s matrix compiles claude-code + codex +
+gemini + copilot for each triple (`bun run compile:<triple>` per app), uploads
+them, computes a combined `SHA256SUMS`, and attaches everything to the release.
+A separate `npm-publish` job builds and publishes `@symbiot/opencode-plugin`
+(provenance on; dry-run when `NPM_TOKEN` is unset). Cross-platform binaries and
+the npm publish are exercised only on the release tag — they cannot be verified
+on a feature branch.
+
+> Copilot has no first-class plugin-marketplace manifest in this repo: its hooks
+> live in `~/.copilot/hooks/`, which the installer's `install-hook` writes
+> directly, so a marketplace manifest would add nothing.
 
 ## Release pipeline
 
@@ -99,6 +132,10 @@ distribution channels are tracked in
    the shim sees a hash mismatch on the cached binary and downloads
    the new release asset. No action required on the user side.
 ```
+
+> The diagram traces the claude-code path. Each matrix runner now also compiles
+> `symbiot-{codex,gemini,copilot}-<triple>` (steps ③/④), and a sibling
+> `npm-publish` job ships `@symbiot/opencode-plugin` — see **Distribution channels** above.
 
 **Flow Legend:**
 
