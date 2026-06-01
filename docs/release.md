@@ -11,7 +11,8 @@ integration is installable without cloning the repo:
 - **Codex, Gemini, Copilot** — a per-agent compiled binary (`symbiot-<agent>-<triple>`)
   published as a GitHub Release asset. `scripts/install.sh` (macOS/Linux) /
   `scripts/install.ps1` (Windows) download + SHA256-verify it, install it to
-  `~/.local/bin/symbiot-<agent>`, and run its `install-hook` to wire the host.
+  `~/.local/bin/symbiot-<agent>` (`%LOCALAPPDATA%\symbiot` on Windows), and run its
+  `install-hook` to wire the host.
 - **OpenCode** — the `@symbiot/opencode-plugin` npm package (in-process plugin;
   cannot be a binary), loaded from `~/.config/opencode/plugins/`.
 

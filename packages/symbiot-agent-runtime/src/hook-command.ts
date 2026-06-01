@@ -51,4 +51,4 @@ export const resolveHookCommand = ({
 }: ResolveHookCommandOptions): string =>
   isCompiledBinary(importMetaUrl)
     ? `${binName} run-hook`
-    : `bun ${resolve(dirname(fileURLToPath(importMetaUrl)), "cli.ts")} run-hook`;
+    : `bun ${JSON.stringify(resolve(dirname(fileURLToPath(importMetaUrl)), "cli.ts"))} run-hook`;

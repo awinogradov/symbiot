@@ -49,7 +49,8 @@ Code, Codex, or Gemini on a shared plan slug.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.sh | bash -s -- --agent copilot
-# Windows: irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1 | iex; symbiot-install -Agent copilot
+# Windows (PowerShell):
+# & ([scriptblock]::Create((irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1))) -Agent copilot
 ```
 
 This installs `symbiot-copilot` to `~/.local/bin` (verified against the release

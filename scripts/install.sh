@@ -64,6 +64,17 @@ case "$(uname -m)" in
 esac
 
 triple="${os}-${arch}"
+
+# Only these triples are compiled and published (matches claude-code's set).
+case "$triple" in
+  darwin-arm64 | darwin-x64 | linux-x64) ;;
+  *)
+    echo "symbiot: no published binary for $triple" >&2
+    echo "  supported: darwin-arm64, darwin-x64, linux-x64 (Windows: install.ps1)" >&2
+    exit 1
+    ;;
+esac
+
 binary="symbiot-${agent}-${triple}"
 
 if [ "$version" = "latest" ]; then

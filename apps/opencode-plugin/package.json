@@ -30,19 +30,17 @@
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo"
   },
-  "dependencies": {
-    "@symbiot/agent-runtime": "workspace:*",
-    "@symbiot/viewer": "workspace:*",
-    "zod": "4.4.3"
-  },
   "devDependencies": {
     "@opencode-ai/plugin": "1.15.13",
     "@opencode-ai/sdk": "1.15.13",
+    "@symbiot/agent-runtime": "workspace:*",
     "@symbiot/eslint-config": "workspace:*",
     "@symbiot/typescript-config": "workspace:*",
+    "@symbiot/viewer": "workspace:*",
     "@types/bun": "1.3.14",
     "eslint": "10.4.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.6"
+    "vitest": "4.1.6",
+    "zod": "4.4.3"
   }
 }

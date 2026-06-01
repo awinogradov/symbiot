@@ -79,16 +79,21 @@ No clone or Bun required — download the verified binary and wire the host hook
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.sh | bash -s -- --agent codex
-# --agent copilot | gemini; Windows: irm .../scripts/install.ps1 | iex; symbiot-install -Agent codex
+# --agent copilot | gemini
+# Windows (PowerShell):
+# & ([scriptblock]::Create((irm https://raw.githubusercontent.com/awinogradov/symbiot/main/scripts/install.ps1))) -Agent codex
 ```
 
 ### OpenCode (npm)
 
-```sh
-bun add -g @symbiot/opencode-plugin   # then add a one-line loader — see apps/opencode-plugin/README.md
+Add the package to your OpenCode config's `plugin` list — OpenCode installs and loads it:
+
+```jsonc
+// opencode.json
+{ "plugin": ["@symbiot/opencode-plugin"] }
 ```
 
-See [`docs/release.md` § Distribution channels](docs/release.md) for the full per-host matrix.
+See [`docs/release.md` § Distribution channels](docs/release.md#distribution-channels) for the full per-host matrix.
 
 ## Prerequisites
 

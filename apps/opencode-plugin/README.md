@@ -49,16 +49,13 @@ OpenCode auto-loads plugins from its plugins directory. symbiot ships as the
 published npm package **`@symbiot/opencode-plugin`** (an in-process plugin cannot
 be a binary like the other agents).
 
-**End users (no clone)** — install the package, then write a one-line loader that
-re-exports it:
+**End users (no clone)** — add the package to your OpenCode config's `plugin`
+list; OpenCode installs it from npm and loads it (no manual loader file, no
+global install that the loader couldn't resolve):
 
-```sh
-bun add -g @symbiot/opencode-plugin   # or: npm i -g @symbiot/opencode-plugin
-```
-
-```ts
-// ~/.config/opencode/plugins/symbiot-opencode.ts
-export { SymbiotOpenCodePlugin } from "@symbiot/opencode-plugin";
+```jsonc
+// opencode.json
+{ "plugin": ["@symbiot/opencode-plugin"] }
 ```
 
 **Contributors (from a clone)** — let the CLI write the loader:

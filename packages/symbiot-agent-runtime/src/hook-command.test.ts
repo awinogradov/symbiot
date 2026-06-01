@@ -21,12 +21,12 @@ describe("resolveHookCommand", () => {
     ).toBe("symbiot-gemini run-hook");
   });
 
-  it("resolves the sibling cli.ts from a real file URL in dev", () => {
+  it("resolves and quotes the sibling cli.ts from a real file URL in dev", () => {
     const command = resolveHookCommand({
       importMetaUrl: "file:///repo/apps/codex/src/installHook.ts",
       binName: "symbiot-codex",
     });
-    expect(command).toBe("bun /repo/apps/codex/src/cli.ts run-hook");
+    expect(command).toBe('bun "/repo/apps/codex/src/cli.ts" run-hook');
   });
 
   it("matches the per-agent isSymbiotEntry bare form for each agent", () => {
