@@ -42,3 +42,8 @@ update a fixture intentionally:
 2. Run the failing test; copy the *actual* output back into the fixture.
 3. Commit the fixture change alongside the serializer change so the diff
    makes the contract change explicit.
+
+## CI gate
+
+These fixtures are enforced in CI by the unit-coverage gate — see
+[Golden-fixture gate](../../docs/testing.md#golden-fixture-gate) in `docs/testing.md`.

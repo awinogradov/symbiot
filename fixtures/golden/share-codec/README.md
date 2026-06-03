@@ -39,3 +39,8 @@ land that drop in the same PR that introduces the schema change.
 this directory and asserts `deserialize(encoded)` matches `decoded`. The
 encoder is exercised by the fuzz suite in the same file; the goldens guard
 the decoder.
+
+## CI gate
+
+These fixtures are enforced in CI by the unit-coverage gate — see
+[Golden-fixture gate](../../../docs/testing.md#golden-fixture-gate) in `docs/testing.md`.
