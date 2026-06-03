@@ -4,6 +4,7 @@ Feature: Comment via composer
   composer, saves, then Requests changes. The recorded feedback markdown
   includes the body.
 
+  @smoke
   Scenario: Drop a comment via the popover composer (replaces window.prompt)
     Given I open the viewer
     When I select the text "quick brown fox" in the editor

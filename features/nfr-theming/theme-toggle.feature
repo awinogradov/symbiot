@@ -4,6 +4,7 @@ Feature: Settings — Theme toggle persists explicit user choice
   persist across reloads via localStorage["symbiot.theme"]; System mode
   follows the OS preference and is never persisted.
 
+  @smoke
   Scenario: Switching to Dark persists across reloads
     Given I open the viewer
     When I open the Settings dialog
@@ -13,6 +14,7 @@ Feature: Settings — Theme toggle persists explicit user choice
     When I reload the viewer
     Then the html has the dark class
 
+  @smoke
   Scenario: System mode follows OS dark preference
     Given the OS color scheme is "dark"
     And I open the viewer
