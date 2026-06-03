@@ -17,7 +17,9 @@ jobs:
   pr:
     name: Check
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Chromium full suite + Firefox/WebKit @smoke (cross-browser NFR-6 matrix);
+    # the extra engines' cold launch needs headroom over the prior Chromium-only 20.
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
@@ -92,9 +94,33 @@ jobs:
         with:
           name: Unit
 
-      - name: Install Playwright Chromium
-        run: bunx playwright install --with-deps chromium
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(bunx playwright --version | sed 's/Version //')" >> "$GITHUB_OUTPUT"
 
+      # Browser binaries live in ~/.cache/ms-playwright, which the Turbo/Bun cache
+      # key above does not cover — without this, all three engines re-download on
+      # every run. Keyed on the Playwright version so a bump re-primes the cache.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.pw.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium firefox webkit
+
+      # On a cache hit the binaries are restored but the apt system libs are not
+      # cached, so re-add them for all three engines.
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium firefox webkit
+
+      # Chromium runs the full suite with V8 coverage (the 90% BDD gate); CI=true
+      # activates the firefox/webkit projects in playwright.config.ts, which run the
+      # @smoke subset only (no coverage — page.coverage is Chromium-only).
       - name: BDD
         run: bun run test:e2e:coverage
 
