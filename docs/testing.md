@@ -203,3 +203,49 @@ Feature files are grouped by the [`docs/product.md`](./product.md) story they co
 (`uc1-*`, `uc2-*`, `uc3-*`, `nfr-*`, `diagnostics/`) and tagged `@P<n>`/`@UC<n>`/`@NFR-<n>`.
 Run a single story with `STORY=@UC1 bun run test:e2e:story`. See
 [`features/README.md`](../features/README.md) for the full layout and tagging rules.
+
+## Cross-browser matrix
+
+NFR-6 (see [`product.md`](./product.md)) commits symbiot to the latest Chrome,
+Edge, Firefox, and Safari. To verify that across real engines, `playwright.config.ts`
+defines a project matrix:
+
+- **`chromium`** runs the **full** BDD suite, holds the clipboard permissions the
+  DebugBar copy flow needs, and is the **only** project that records coverage (the
+  90% BDD gate is Chromium-sourced — see below).
+- **`firefox`** and **`webkit`** run the **`@smoke`** subset only (Gecko and the
+  Safari engine). They carry no clipboard permissions (Firefox/WebKit reject those
+  permission names) and collect no coverage.
+
+Firefox and WebKit are **gated off by default**, so a plain `bun run test:e2e`
+stays Chromium-only and local runs need no extra browsers. CI sets `CI=true`, which
+activates them; run them locally with:
+
+```sh
+bunx playwright install firefox webkit   # one-time
+CROSS_BROWSER=1 bun run test:e2e
+```
+
+### The `@smoke` tag
+
+A scenario is `@smoke` **iff** it exercises a distinct rendering or interaction
+path that could plausibly differ across Blink, Gecko, and WebKit — markdown
+rendering, the selection-toolbar/composer annotation flows, the version diff, and
+the theme toggle. The tag itself is the source of truth: `grep -rl '@smoke' features`
+lists the current set, so there is no separate list to maintain. Clipboard-dependent
+(DebugBar) and agent-subprocess scenarios are deliberately excluded — they are
+engine-independent and/or unsupported off Chromium.
+
+### Why coverage is Chromium-only
+
+Coverage uses Playwright's `page.coverage` (V8) API, which exists only on Chromium.
+The `autoCoverage` fixture (`features/support/bdd.ts`) therefore no-ops on
+Firefox/WebKit even under `COVERAGE=1`, so the matrix never starves the gate and
+coverage stays sourced from the Chromium project alone.
+
+### Why Edge is not in CI
+
+Microsoft Edge on Linux is the same Blink engine as Chromium, so an `msedge` CI
+project would re-run the suite on an already-covered engine. Edge — and real
+Safari — are instead verified manually per release; see the cross-browser smoke
+checklist in [`release.md`](./release.md).
