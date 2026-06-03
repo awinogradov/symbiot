@@ -173,6 +173,17 @@ First run needs Chromium installed locally:
 SYMBIOT_INSTALL_BROWSER=1 bunx playwright install chromium
 ```
 
+The default run is headless Chromium. To also run the Firefox/WebKit `@smoke`
+matrix locally — verifying NFR-6 cross-engine support, which CI runs automatically
+— install those engines and opt in with `CROSS_BROWSER=1`:
+
+```sh
+bunx playwright install firefox webkit
+CROSS_BROWSER=1 bun run test:e2e
+```
+
+See [`docs/testing.md`](./docs/testing.md) for the cross-browser matrix.
+
 Conventions and selector rules for scenarios live in [`features`](./features/README.md).
 
 ## Project structure
@@ -216,7 +227,7 @@ Read this list before touching the code — it's the documentation index CLAUDE.
 - [`docs/theming.md`](./docs/theming.md) — annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).
 - [`docs/a11y.md`](./docs/a11y.md) — WCAG AA baseline: axe-core scenarios, keyboard nav checklist, focus-ring policy, ARIA-label inventory, screen-reader smoke.
 - [`docs/version-history.md`](./docs/version-history.md) — on-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.
-- [`docs/release.md`](./docs/release.md) — release pipeline + shim/binary contract; cut and roll back releases here.
+- [`docs/release.md`](./docs/release.md) — release pipeline + shim/binary contract; cut and roll back releases here, plus the cross-browser smoke checklist for release sign-off.
 - [`docs/perf.md`](./docs/perf.md) — performance budget, bundle visualizer + Lighthouse reproduction.
 - [`features`](./features/README.md) — Playwright-BDD layout, selector conventions, how to add a scenario.
 - [`fixtures/markdown`](./fixtures/markdown/README.md) — sample markdown fixtures + the inline-diff smoke flow.

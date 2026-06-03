@@ -255,6 +255,32 @@ ${CLAUDE_PLUGIN_ROOT}                       ${CLAUDE_PLUGIN_DATA}
    - the viewer renders;
    - Approve / Request-changes both round-trip.
 
+## Cross-browser smoke checklist
+
+NFR-6 commits symbiot to the latest **Chrome, Edge, Firefox, Safari**. The
+Playwright matrix ([`testing.md`](./testing.md#cross-browser-matrix)) automates
+this on every PR — Chromium runs the full suite, Firefox and WebKit run the
+`@smoke` subset — but **Edge is not in CI** (its Blink engine is already covered
+by Chromium) and CI's WebKit is not real Safari. Run this manual pass on the
+release candidate to close that gap. The **release author** owns the sign-off and
+records the completed table in the `release-bump-v0.X.Y` PR.
+
+| Flow                       | Chrome | Edge | Firefox | Safari |
+| -------------------------- | ------ | ---- | ------- | ------ |
+| Load a plan (renders)      | [ ]    | [ ]  | [ ]     | [ ]    |
+| Add a comment              | [ ]    | [ ]  | [ ]     | [ ]    |
+| Delete (redline)           | [ ]    | [ ]  | [ ]     | [ ]    |
+| Insert / replace (redline) | [ ]    | [ ]  | [ ]     | [ ]    |
+| Version diff               | [ ]    | [ ]  | [ ]     | [ ]    |
+| Theme toggle (light/dark)  | [ ]    | [ ]  | [ ]     | [ ]    |
+| ~~Share a plan~~           | —      | —    | —       | —      |
+| ~~Import a shared plan~~   | —      | —    | —       | —      |
+
+~~Share~~ / ~~import~~ are **blocked on #45/#47** — the share UI is not built yet.
+The `CompressionStream` prerequisite they depend on is unit-verified in
+`packages/symbiot-annotations/src/share.test.ts`; add these rows to the matrix
+once #45/#47 land.
+
 ## Rollback
 
 1. **Delete the bad release** (preserves the git tag):

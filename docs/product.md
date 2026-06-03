@@ -62,6 +62,8 @@ The persona (`P1`–`P3`), use-case (`UC1`–`UC4`), and `NFR-*` IDs above are *
 | NFR-8 | Tests: markdown round-trip, annotation serialize/deserialize, share codec, and diff computation have unit tests; the four annotation flows have integration tests. |
 | NFR-9 | Theming integrity: no flash of incorrect theme on first paint, in-app or in the static portal.                                                                     |
 
+> **NFR-6 verification status.** Cross-engine rendering and interaction are verified by the Playwright matrix — Chromium runs the full suite; Firefox and WebKit run the `@smoke` subset (see [`testing.md`](./testing.md)). The `CompressionStream` sharing prerequisite is unit-verified in `packages/symbiot-annotations/src/share.test.ts`. The share-UI graceful-degradation path is not built yet — it is tracked separately in #45/#47 — so NFR-6 sharing support stays **partially verified** until those land.
+
 See also: [`a11y.md`](./a11y.md) for the accessibility baseline, [`perf.md`](./perf.md) for performance budgets and Lighthouse procedure, [`theming.md`](./theming.md) for the color-token contract.
 
 ## Success metrics
