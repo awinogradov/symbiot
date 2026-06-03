@@ -1,3 +1,8 @@
+# Source: https://github.com/awinogradov/code-assistants/blob/main/.github/workflows/licenses.yml
+# This file is distributed to downstream repositories by an automated sync.
+# Edits made downstream are overwritten on the next run.
+# To change it, open a pull request against the source file above.
+
 name: Licenses
 
 on:
@@ -5,12 +10,10 @@ on:
     branches: [main]
     paths:
       - "package.json"
-      - "apps/*/package.json"
-      - "packages/*/package.json"
+      - "**/package.json"
       - "bun.lock"
       - "scripts/licenses-report.ts"
       - "LICENSES.md"
-      - ".github/workflows/licenses.yml"
 
 concurrency:
   group: licenses-${{ github.workflow }}-${{ github.head_ref }}
@@ -24,68 +27,8 @@ jobs:
     name: Audit
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    env:
-      CI: "true"
-      HUSKY: "0"
     steps:
-      - name: Detect PR origin
-        id: src
-        run: |
-          if [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
-            echo "same_repo=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "same_repo=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Checkout PR branch (same-repo; writable)
-        if: steps.src.outputs.same_repo == 'true'
-        uses: actions/checkout@v4
+      - uses: awinogradov/code-assistants/.github/actions/licenses-audit@main
         with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Checkout (fork PR; read-only)
-        if: steps.src.outputs.same_repo == 'false'
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Regenerate LICENSES.md
-        run: bun run licenses:audit
-
-      - name: Detect drift
-        id: drift
-        run: |
-          if git diff --quiet -- LICENSES.md; then
-            echo "drifted=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "drifted=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Auto-commit regenerated LICENSES.md
-        if: steps.drift.outputs.drifted == 'true' && steps.src.outputs.same_repo == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add LICENSES.md
-          git commit -m "chore(licenses): regenerate licenses.md"
-          git push origin HEAD:${{ github.head_ref }}
-
-      - name: Fail (fork PR with drift)
-        if: steps.drift.outputs.drifted == 'true' && steps.src.outputs.same_repo == 'false'
-        run: |
-          echo "::error::LICENSES.md is out of date. Run 'bun run licenses:audit' locally and commit the result."
-          git diff -- LICENSES.md
-          exit 1
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          bot_username: ${{ vars.BOT_USERNAME }}
