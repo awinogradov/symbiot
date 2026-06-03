@@ -4,6 +4,7 @@ Feature: Suggest a replacement
   popover composer, saves, then Requests changes. The recorded feedback markdown
   uses the "Suggest replacing"/"Replace with:" form for the R tuple.
 
+  @smoke
   Scenario: Drop a replacement via the popover composer
     Given I open the viewer
     When I select the text "quick brown fox" in the editor

@@ -3,6 +3,7 @@ Feature: Suggest a deletion
   The reviewer selects text and clicks Delete to mark it for removal. The
   feedback markdown emits a 'Suggest deleting' entry for the anchored range.
 
+  @smoke
   Scenario: Drop a deletion via the selection toolbar
     Given I open the viewer
     When I select the text "quick brown fox" in the editor

@@ -84,8 +84,11 @@ export const test = base.extend<
     await provide(viewers.annotateDecisionFile);
   },
   autoCoverage: [
-    async ({ page }, use, testInfo) => {
-      if (!isCoverageEnabled()) {
+    async ({ page, browserName }, use, testInfo) => {
+      // page.coverage is Chromium-only; the Firefox/WebKit @smoke cross-browser
+      // matrix exposes no coverage API, so skip collection off Chromium even when
+      // COVERAGE=1 is set. Coverage (and the BDD gate) stays Chromium-sourced.
+      if (!isCoverageEnabled() || browserName !== "chromium") {
         await use();
         return;
       }

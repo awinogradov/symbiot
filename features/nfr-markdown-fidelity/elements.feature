@@ -1,4 +1,4 @@
-@NFR-4
+@NFR-4 @smoke
 Feature: Markdown element rendering
   The viewer renders every element type in its supported markdown subset:
   headings, paragraphs, lists, fenced code, tables, inline code, and prose

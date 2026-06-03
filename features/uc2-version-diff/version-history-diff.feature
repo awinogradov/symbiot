@@ -12,6 +12,7 @@ Feature: Version history inline diff
     When I click the sidebar history tab
     Then the diff mode toggle is not visible
 
+  @smoke
   Scenario: Selecting a historical version reveals the diff editor and toggle
     Given a second version of the plan exists on disk
     And I open the viewer

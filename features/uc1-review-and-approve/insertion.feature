@@ -4,6 +4,7 @@ Feature: Suggest an insertion
   the popover composer, saves, then Requests changes. The recorded feedback
   markdown includes "Insert after" with the context and the proposed text.
 
+  @smoke
   Scenario: Drop an insertion via the popover composer
     Given I open the viewer
     When I select the text "quick brown fox" in the editor
