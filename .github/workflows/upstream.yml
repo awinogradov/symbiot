@@ -35,7 +35,7 @@ jobs:
           # Kind inputs are string booleans gated `== 'true'` — use literal
           # true/false, never YAML yes/on (those serialize to "yes"/"on" and
           # silently disable the kind).
-          # release: disabled — this repo ships its own tag-driven release.yml
-          # (binary builds); adopting upstream's release-create/publish/automerge
-          # pipeline is tracked in issue 201.
+          # TODO(symbiot#201): enable the release kind once the custom tag-driven
+          # release.yml (binary builds) is folded into upstream's
+          # release-create/publish/automerge pipeline.
           release: false
