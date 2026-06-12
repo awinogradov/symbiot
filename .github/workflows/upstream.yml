@@ -1,11 +1,16 @@
+# Requires repo secret `BOT_TOKEN`: a PAT (classic with `repo`, or fine-grained
+# with `contents: write` + `pull-requests: write`) or a GitHub App installation
+# token. The default `GITHUB_TOKEN` is not supported — see the action README
+# in `.github/actions/upstream-sync` for the rationale.
+# Optional repo variable `BOT_USERNAME`: git author login for sync commits.
+# Defaults to `github-actions[bot]` when unset.
+
 name: Upstream
 
 on:
   schedule:
-    # Every hour at minute 0 (UTC). Picks up upstream agent rules and
-    # contributing/boilerplate file changes within ~1h and opens (or
-    # updates) maintenance PRs on `maintenance-sync-agents-rules` and
-    # `maintenance-sync-contributing`.
+    # Every hour at minute 0 (UTC). Picks up upstream changes within ~1h and
+    # opens (or updates) one maintenance PR per enabled sync kind.
     - cron: "0 * * * *"
   workflow_dispatch:
 
@@ -19,21 +24,18 @@ permissions:
 
 jobs:
   sync:
-    name: Sync agent rules
+    name: Sync from upstream
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: awinogradov/code-assistants/.github/actions/agents-rules-sync@main
+      - uses: awinogradov/code-assistants/.github/actions/upstream-sync@main
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
           bot_username: ${{ vars.BOT_USERNAME }}
-
-  sync-contributing:
-    name: Sync contributing files
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: awinogradov/code-assistants/.github/actions/contributing-sync@main
-        with:
-          bot_token: ${{ secrets.BOT_TOKEN }}
-          bot_username: ${{ vars.BOT_USERNAME }}
+          # Kind inputs are string booleans gated `== 'true'` — use literal
+          # true/false, never YAML yes/on (those serialize to "yes"/"on" and
+          # silently disable the kind).
+          # release: disabled — this repo ships its own tag-driven release.yml
+          # (binary builds); adopting upstream's release-create/publish/automerge
+          # pipeline is tracked in issue 201.
+          release: false
