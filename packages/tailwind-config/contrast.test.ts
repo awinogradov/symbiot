@@ -39,8 +39,27 @@ const themeCss = await readTheme();
 const injectableCss = stripUnparseableBlocks(themeCss);
 
 const themes = ["light", "dark"] as const;
-const tokens = ["--anno-delete", "--anno-insert", "--anno-replace", "--anno-comment"] as const;
+const tokens = [
+  "--anno-delete",
+  "--anno-insert",
+  "--anno-replace",
+  "--anno-comment",
+  "--heading",
+  "--inline-code",
+] as const;
 const cases = themes.flatMap((theme) => tokens.map((token) => ({ theme, token })));
+
+/*
+ * Text-on-surface pairs that render on a token surface other than
+ * `--background`: top-bar content on `--topbar`, muted text on `--muted`
+ * (md table th, Kbd, badges). Gated here so a surface-token edit that drops
+ * its text below AA fails CI like any `--background` regression.
+ */
+const surfacePairs = [
+  { foreground: "--foreground", surface: "--topbar" },
+  { foreground: "--muted-foreground", surface: "--muted" },
+] as const;
+const pairCases = themes.flatMap((theme) => surfacePairs.map((pair) => ({ theme, ...pair })));
 
 describe("theme.css dark variant", () => {
   it("declares @custom-variant dark with shadcn's class-based selector", () => {
@@ -79,6 +98,21 @@ describe("theme.css annotation tokens", () => {
     const ratio = contrastRatio(luminance(tokenRgb), luminance(backgroundRgb));
     expect(ratio).toBeGreaterThanOrEqual(4.5);
   });
+
+  it.each(pairCases)(
+    "$theme: $foreground meets WCAG AA (>= 4.5:1) vs $surface",
+    ({ theme, foreground, surface }) => {
+      const root = window.document.documentElement;
+      root.classList.toggle("dark", theme === "dark");
+
+      const computed = window.getComputedStyle(root);
+      const foregroundRgb = linearRgbFromOklch(computed.getPropertyValue(foreground).trim());
+      const surfaceRgb = linearRgbFromOklch(computed.getPropertyValue(surface).trim());
+
+      const ratio = contrastRatio(luminance(foregroundRgb), luminance(surfaceRgb));
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    }
+  );
 });
 
 describe("parseOklch", () => {
