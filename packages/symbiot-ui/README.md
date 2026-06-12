@@ -9,7 +9,7 @@ Wraps shadcn primitives with the symbiot design tokens from
 
 ## Surfaces
 
-- `ThemeProvider`, `TopBar`, `AppLogo`, `SidebarInset`, `SidebarProvider`.
+- `ThemeProvider`, `TopBar`, `SettingsMenu`, `AppLogo`, `SidebarInset`, `SidebarProvider`.
 - `AnnotationSidebar` — right-hand pane. Two tabs (Annotations + History) appear when ≥2 plan versions exist; otherwise it falls back to the single-purpose annotation list. The History tab hosts a `VersionBrowser` (newest-first list of persisted versions) and a Clean / Raw `ToggleGroup` that controls the editor's diff render mode. The toggle is rendered only when a historical version is active _and_ a predecessor exists. See [`docs/version-history.md`](../../docs/version-history.md).
 - `AnnotationComposer`, `GlobalCommentFab`, `ComposerForm`, `ImageAttachButton`, `ImagePreviewList` — annotation authoring popovers.
 - Re-exported shadcn primitives (`Sidebar`, `Tabs`, `ToggleGroup`, `AlertDialog`, `Badge`, `Tooltip`, `DropdownMenu`, ...) backed by Radix.
@@ -26,9 +26,9 @@ Wraps shadcn primitives with the symbiot design tokens from
             │                                              │
    ┌────────▼─────────┐                          ┌────────▼─────────┐
    │  TopBar          │                          │ SidebarProvider  │
-   │   ToggleGroup    │                          │   ├─ Annotations │
-   │   DropdownMenu   │                          │   └─ History     │
-   │   Settings       │                          │       VersionBrowser
+   │   SettingsMenu   │                          │   ├─ Annotations │
+   │    DropdownMenu  │                          │   └─ History     │
+   │                  │                          │       VersionBrowser
    └──────────────────┘                          │       ToggleGroup
                                                  └──────────────────┘
 
