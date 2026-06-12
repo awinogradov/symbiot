@@ -16,7 +16,7 @@ export const TableElement = ({ attributes, children }: TableElementProps): React
   <table
     {...attributes}
     data-testid="editor-table"
-    className="border-border my-4 w-full border-collapse border text-sm"
+    className="border-border my-4 w-full border-separate border-spacing-0 rounded-md border text-sm"
   >
     {children}
   </table>
@@ -25,17 +25,16 @@ export const TableElement = ({ attributes, children }: TableElementProps): React
 export const TableRowElement = ({
   attributes,
   children,
-}: TableElementProps): React.ReactElement => (
-  <tr {...attributes} className="border-border border-b">
-    {children}
-  </tr>
-);
+}: TableElementProps): React.ReactElement => <tr {...attributes}>{children}</tr>;
 
 export const TableCellElement = ({
   attributes,
   children,
 }: TableElementProps): React.ReactElement => (
-  <td {...attributes} className="border-border border px-3 py-2 align-top">
+  <td
+    {...attributes}
+    className="border-border border-r border-b px-3 py-2 align-top last:border-r-0 [&_p]:my-0 [tr:last-child_&]:border-b-0 [tr:last-child_&]:first:rounded-bl-md [tr:last-child_&]:last:rounded-br-md"
+  >
     {children}
   </td>
 );
@@ -44,7 +43,10 @@ export const TableCellHeaderElement = ({
   attributes,
   children,
 }: TableElementProps): React.ReactElement => (
-  <th {...attributes} className="border-border bg-muted border px-3 py-2 text-left font-semibold">
+  <th
+    {...attributes}
+    className="border-border bg-muted border-r border-b px-3 py-2 text-left font-semibold first:rounded-tl-md last:rounded-tr-md last:border-r-0 [&_p]:my-0"
+  >
     {children}
   </th>
 );

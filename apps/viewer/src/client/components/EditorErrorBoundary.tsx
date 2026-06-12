@@ -28,7 +28,7 @@ interface EditorErrorBoundaryState {
 const defaultFallback = (
   <div
     role="alert"
-    className="text-muted-foreground prose prose-neutral dark:prose-invert max-w-3xl text-sm"
+    className="text-muted-foreground prose prose-neutral dark:prose-invert mx-auto max-w-3xl text-sm"
   >
     The editor failed to load. Reload the page to try again.
   </div>

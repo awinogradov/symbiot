@@ -1,8 +1,10 @@
+import type { TElement } from "platejs";
 import type { ReactNode } from "react";
 
 interface ParagraphElementProps {
   attributes: Record<string, unknown>;
   children: ReactNode;
+  element: TElement;
 }
 
 /**
@@ -15,12 +17,21 @@ interface ParagraphElementProps {
  * The Plate `attributes` (carrying `data-slate-node="element"`, refs, and other
  * Slate-internal props) are spread first so the hardcoded `data-testid` wins
  * over any incoming value.
+ *
+ * List items are paragraph nodes decorated with `listStyleType` (see
+ * `ListElement`); those drop the prose paragraph margins so list rhythm
+ * matches the paragraph line-height instead of stacking 1.25em gaps per item.
  */
 export const ParagraphElement = ({
   attributes,
   children,
+  element,
 }: ParagraphElementProps): React.ReactElement => (
-  <p {...attributes} data-testid="editor-paragraph">
+  <p
+    {...attributes}
+    data-testid="editor-paragraph"
+    className={element["listStyleType"] === undefined ? undefined : "my-0!"}
+  >
     {children}
   </p>
 );

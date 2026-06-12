@@ -16,23 +16,20 @@ interface CodeBlockElementProps {
 /** `CSSProperties` plus the dual-theme custom properties React's type omits. */
 interface ShikiBlockStyle extends CSSProperties {
   "--shiki-dark"?: string;
-  "--shiki-dark-bg"?: string;
 }
 
 /**
- * Code blocks render against the Shiki theme's own background, not the app
- * `--muted`: github-light's syntax colours are tuned for AA contrast against
- * white (`#fff`), and only clear the WCAG-AA gate there — on the slightly darker
- * muted surface the reds drop below 4.5:1. Light values are the defaults; the
- * dark theme rides along as `--shiki-dark*` so the viewer's `html.dark .shiki`
- * rule promotes both colour and background in dark mode. Values mirror the
- * `github-light`/`github-dark` `editor.background` / `editor.foreground`.
+ * Code blocks render transparent against the page `--background`: white in
+ * light (where github-light's syntax colours are AA-tuned) and the darker
+ * GitHub-dark canvas in dark (darker than the `#24292e` github-dark was tuned
+ * for, so ratios only improve). Light foreground is the default; the dark
+ * theme rides along as `--shiki-dark` so the viewer's `html.dark .shiki` rule
+ * promotes the colour in dark mode. Values mirror the `github-light` /
+ * `github-dark` `editor.foreground`.
  */
 const blockStyle: ShikiBlockStyle = {
   color: "#24292e",
-  backgroundColor: "#fff",
   "--shiki-dark": "#e1e4e8",
-  "--shiki-dark-bg": "#24292e",
 };
 
 /**
@@ -57,7 +54,7 @@ export const CodeBlockElement = ({
       data-testid="code-block"
       data-lang={lang}
       style={blockStyle}
-      className="shiki border-border overflow-x-auto rounded-md border p-3 text-sm"
+      className="shiki overflow-x-auto py-3 pr-3 pl-0 text-sm"
     >
       <code>{children}</code>
     </pre>
