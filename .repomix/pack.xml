@@ -556,8 +556,8 @@ packages/
         SendIcon.test.tsx
         SendIcon.tsx
         Separator.tsx
-        SettingsDialog.test.tsx
-        SettingsDialog.tsx
+        SettingsMenu.test.tsx
+        SettingsMenu.tsx
         Sheet.tsx
         Sidebar.tsx
         SidebarChrome.tsx
@@ -9728,16 +9728,23 @@ const sharedOptions = {
 } as const;
 
 /**
- * Defence-in-depth check for any open Radix modal dialog. Used alongside the
- * `composerOpen` prop so non-tracked dialogs (e.g. SettingsDialog) also
- * suppress hotkeys. We restrict to `aria-modal="true"` so the FloatingToolbar
- * (which is a Radix Popover — also `role="dialog"` + `data-state="open"` but
- * not modal) does not match and we keep firing the hotkeys while the
- * selection toolbar is visible.
+ * Defence-in-depth check for any open Radix overlay that should swallow
+ * hotkeys. Used alongside the `composerOpen` prop so non-tracked overlays
+ * (e.g. the top-bar SettingsMenu dropdown) also suppress hotkeys. Dialogs are
+ * restricted to `aria-modal="true"` so the FloatingToolbar (which is a Radix
+ * Popover — also `role="dialog"` + `data-state="open"` but not modal) does
+ * not match and we keep firing the hotkeys while the selection toolbar is
+ * visible. Menus match on `role="menu"` because Radix dropdown menus capture
+ * keyboard focus without being marked `aria-modal` — their keydowns still
+ * bubble to the document-level bindings.
  */
-const isAnyDialogOpen = (): boolean => {
+const isAnyOverlayOpen = (): boolean => {
   if (typeof document === "undefined") return false;
-  return document.querySelector('[role="dialog"][data-state="open"][aria-modal="true"]') !== null;
+  return (
+    document.querySelector(
+      '[role="dialog"][data-state="open"][aria-modal="true"], [role="menu"][data-state="open"]'
+    ) !== null
+  );
 };
 
 /**
@@ -9783,7 +9790,7 @@ export const useReviewHotkeys = ({
   useHotkeys(
     "meta+enter, ctrl+enter",
     () => {
-      if (isAnyDialogOpen()) return;
+      if (isAnyOverlayOpen()) return;
       if (useApprove) onApprove();
       else onSubmit();
     },
@@ -9792,7 +9799,7 @@ export const useReviewHotkeys = ({
   );
 
   const onCommentHotkey = (): void => {
-    if (isAnyDialogOpen()) return;
+    if (isAnyOverlayOpen()) return;
     dispatchCommentHotkey(editorHandle, onOpenGlobalComment);
   };
 
@@ -9804,7 +9811,7 @@ export const useReviewHotkeys = ({
   useHotkeys(
     "i",
     () => {
-      if (isAnyDialogOpen()) return;
+      if (isAnyOverlayOpen()) return;
       editorHandle?.triggerAnnotation("insertion");
     },
     { ...sharedOptions, enabled: annotationsEnabled },
@@ -9814,7 +9821,7 @@ export const useReviewHotkeys = ({
   useHotkeys(
     "r",
     () => {
-      if (isAnyDialogOpen()) return;
+      if (isAnyOverlayOpen()) return;
       editorHandle?.triggerAnnotation("replacement");
     },
     { ...sharedOptions, enabled: annotationsEnabled },
@@ -9824,7 +9831,7 @@ export const useReviewHotkeys = ({
   useHotkeys(
     "d",
     () => {
-      if (isAnyDialogOpen()) return;
+      if (isAnyOverlayOpen()) return;
       editorHandle?.triggerAnnotation("deletion");
     },
     { ...sharedOptions, enabled: annotationsEnabled },
@@ -13584,7 +13591,7 @@ sets and assert zero **Critical** or **Serious** findings:
 - the viewer shell (plan mode)
 - the inline comment composer dialog (selection-anchored)
 - the annotation sidebar with one annotation persisted (annotate mode)
-- the Settings dialog
+- the Settings menu
 - the global comment composer dialog (annotate mode)
 
 **Minor** and **Moderate** violations are recorded in the attached JSON but
@@ -13621,19 +13628,19 @@ it does not perturb repo line coverage.
 Run on macOS Chrome at the test viewport (1280×800) with the reference plan
 loaded.
 
-| Step                                            | Expected focus target                                                                                            |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Reload the page                                 | the editor root (the first contentEditable region) holds focus                                                   |
-| Tab                                             | the floating "Approve" / "Request changes" button in the top bar                                                 |
-| Tab                                             | the Settings button (`top-bar-settings`)                                                                         |
-| Tab                                             | the sidebar trigger (annotate mode only)                                                                         |
-| Shift+Tab loops back                            | reaches `top-bar-brand` before wrapping                                                                          |
-| Open the Settings dialog (Enter on the trigger) | focus lands on the first ToggleGroup item; Esc returns focus to the Settings trigger                             |
-| Select text in the editor, then press `c`       | inline composer opens, focus on `composer-textarea`; Esc returns focus to the editor with the selection restored |
-| Press `c` outside a selection (annotate mode)   | global composer opens, focus on `global-composer-textarea`                                                       |
-| In any composer                                 | Enter saves, Esc cancels — neither bubbles to the page-level hotkeys                                             |
-| `Mod+Enter` outside the editor                  | Approve / Submit feedback fires (`useReviewHotkeys`)                                                             |
-| `Mod+Enter` inside an open composer             | suppressed — composer-textarea Enter takes precedence                                                            |
+| Step                                          | Expected focus target                                                                                                              |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Reload the page                               | the editor root (the first contentEditable region) holds focus                                                                     |
+| Tab                                           | the floating "Approve" / "Request changes" button in the top bar                                                                   |
+| Tab                                           | the Settings button (`top-bar-settings`)                                                                                           |
+| Tab                                           | the sidebar trigger (annotate mode only)                                                                                           |
+| Shift+Tab loops back                          | reaches `top-bar-brand` before wrapping                                                                                            |
+| Open the Settings menu (Enter on the trigger) | menu opens with focus on the first radio item (pointer-open highlights none); Esc closes and returns focus to the Settings trigger |
+| Select text in the editor, then press `c`     | inline composer opens, focus on `composer-textarea`; Esc returns focus to the editor with the selection restored                   |
+| Press `c` outside a selection (annotate mode) | global composer opens, focus on `global-composer-textarea`                                                                         |
+| In any composer                               | Enter saves, Esc cancels — neither bubbles to the page-level hotkeys                                                               |
+| `Mod+Enter` outside the editor                | Approve / Submit feedback fires (`useReviewHotkeys`)                                                                               |
+| `Mod+Enter` inside an open composer           | suppressed — composer-textarea Enter takes precedence                                                                              |
 
 Hotkeys are owned by
 [`../apps/viewer/src/client/hooks/useReviewHotkeys.ts`](../apps/viewer/src/client/hooks/useReviewHotkeys.ts).
@@ -13674,10 +13681,10 @@ selector rule lives in
 
 ### Top-bar surface
 
-| Component                       | testid                    | Accessible name  | Source                                               |
-| ------------------------------- | ------------------------- | ---------------- | ---------------------------------------------------- |
-| Settings trigger                | `top-bar-settings`        | "Settings"       | `aria-label` on Button                               |
-| Sidebar trigger (annotate mode) | `top-bar-sidebar-trigger` | "Toggle Sidebar" | `<span className="sr-only">` inside `SidebarTrigger` |
+| Component                       | testid                    | Accessible name  | Source                                                               |
+| ------------------------------- | ------------------------- | ---------------- | -------------------------------------------------------------------- |
+| Settings trigger                | `top-bar-settings`        | "Settings"       | `aria-label` on Button; Radix adds `aria-haspopup` / `aria-expanded` |
+| Sidebar trigger (annotate mode) | `top-bar-sidebar-trigger` | "Toggle Sidebar" | `<span className="sr-only">` inside `SidebarTrigger`                 |
 
 ### Editor + composer surface
 
@@ -13698,11 +13705,11 @@ selector rule lives in
 
 ### Dialog chrome
 
-| Component                    | testid                   | Accessible name                       | Source                                                                            |
-| ---------------------------- | ------------------------ | ------------------------------------- | --------------------------------------------------------------------------------- |
-| Sheet close (mobile sidebar) | _none_ (Radix internal)  | "Close"                               | `aria-label` on `SheetPrimitive.Close`; visible `×` glyph is `aria-hidden="true"` |
-| Settings theme group         | `settings-theme-group`   | "Color theme"                         | `aria-label` on ToggleGroup                                                       |
-| Settings theme options       | `settings-theme-<label>` | dynamic ("System" / "Light" / "Dark") | `aria-label` per ToggleGroupItem                                                  |
+| Component                    | testid                   | Accessible name             | Source                                                                            |
+| ---------------------------- | ------------------------ | --------------------------- | --------------------------------------------------------------------------------- |
+| Sheet close (mobile sidebar) | _none_ (Radix internal)  | "Close"                     | `aria-label` on `SheetPrimitive.Close`; visible `×` glyph is `aria-hidden="true"` |
+| Settings theme group         | _none_                   | "Color theme"               | `aria-label` on DropdownMenuRadioGroup                                            |
+| Settings theme options       | `settings-theme-<value>` | "System" / "Light" / "Dark" | visible text label per DropdownMenuRadioItem (`menuitemradio`)                    |
 
 ## Screen-reader smoke
 
@@ -14819,7 +14826,7 @@ Coverage is measured on these surfaces:
 - `packages/symbiot-annotations/src/**/*.ts` — markdown round-trip, annotation serialize/deserialize, share codec.
 - `packages/symbiot-editor/src/utils/**/*.ts` — diff computation and annotation-mark utilities.
 - `packages/symbiot-editor/src/components/**/*.{ts,tsx}` — Plate leaf renderers (including `DiffLeaf`), element renderers, toolbar wiring, and the `ReviewEditor` state/authoring/prune helper modules. The `contenteditable` surfaces themselves (`DiffEditor`, `ReviewEditor`) need a live Plate editor to test and are excluded explicitly below.
-- `packages/symbiot-ui/src/components/**/*.{ts,tsx}` — composition components that compose Radix primitives + project layout (annotation composer/sidebar, settings dialog, top bar, version browser, theme provider, etc.). Restyled shadcn primitives are excluded explicitly below.
+- `packages/symbiot-ui/src/components/**/*.{ts,tsx}` — composition components that compose Radix primitives + project layout (annotation composer/sidebar, settings menu, top bar, version browser, theme provider, etc.). Restyled shadcn primitives are excluded explicitly below.
 
 Out of scope and excluded explicitly:
 
@@ -15636,7 +15643,7 @@ Feature: Diagnostics — Browser tab title reflects the plan
 Feature: WCAG AA accessibility baseline — axe-core scan
   Lock today's clean a11y state in place so the next icon button or modal can
   not regress us silently. Each scenario opens a viewer surface (shell, sidebar,
-  inline composer, settings dialog, global composer) and runs axe-core with the
+  inline composer, settings menu, global composer) and runs axe-core with the
   WCAG 2.0/2.1 A and AA tag sets, asserting zero Critical or Serious findings.
   Minor / Moderate violations are recorded in the attached JSON but are
   intentionally non-blocking — see docs/a11y.md for the policy.
@@ -15657,9 +15664,9 @@ Feature: WCAG AA accessibility baseline — axe-core scan
     And I have at least one annotation persisted
     Then the page has no Critical or Serious WCAG AA violations
 
-  Scenario: the Settings dialog has no Critical or Serious WCAG AA violations
+  Scenario: the Settings menu has no Critical or Serious WCAG AA violations
     Given I open the viewer
-    When I open the Settings dialog
+    When I open the Settings menu
     Then the page has no Critical or Serious WCAG AA violations
 
   Scenario: the global comment composer has no Critical or Serious WCAG AA violations
@@ -15697,16 +15704,16 @@ Feature: Markdown element rendering
 <file path="features/nfr-theming/theme-toggle.feature">
 @NFR-9
 Feature: Settings — Theme toggle persists explicit user choice
-  The Settings dialog hosts a System/Light/Dark toggle. Explicit choices
+  The Settings menu hosts a System/Light/Dark radio group. Explicit choices
   persist across reloads via localStorage["symbiot.theme"]; System mode
-  follows the OS preference and is never persisted.
+  follows the OS preference and is never persisted. Selecting a theme closes
+  the menu (Radix default), so scenarios assert directly after choosing.
 
   @smoke
   Scenario: Switching to Dark persists across reloads
     Given I open the viewer
-    When I open the Settings dialog
+    When I open the Settings menu
     And I choose the "Dark" theme
-    And I close the Settings dialog
     Then the html has the dark class
     When I reload the viewer
     Then the html has the dark class
@@ -15715,16 +15722,15 @@ Feature: Settings — Theme toggle persists explicit user choice
   Scenario: System mode follows OS dark preference
     Given the OS color scheme is "dark"
     And I open the viewer
-    When I open the Settings dialog
+    When I open the Settings menu
     And I choose the "System" theme
     Then the html has the dark class
 
   Scenario: Explicit Light overrides OS dark across reloads
     Given the OS color scheme is "dark"
     And I open the viewer
-    When I open the Settings dialog
+    When I open the Settings menu
     And I choose the "Light" theme
-    And I close the Settings dialog
     Then the html does not have the dark class
     When I reload the viewer
     Then the html does not have the dark class
@@ -15732,10 +15738,15 @@ Feature: Settings — Theme toggle persists explicit user choice
   Scenario: Explicit Light overrides OS dark in prose colors
     Given the OS color scheme is "dark"
     And I open the viewer
-    When I open the Settings dialog
+    When I open the Settings menu
     And I choose the "Light" theme
-    And I close the Settings dialog
     Then the prose body text uses the light-theme color
+
+  Scenario: Escape closes the Settings menu without changing the theme
+    Given I open the viewer
+    When I open the Settings menu
+    And I close the Settings menu
+    Then the html does not have the dark class
 </file>
 
 <file path="features/nfr-upload-security/upload-security.feature">
@@ -16503,8 +16514,12 @@ Then("the global comment composer is visible in the viewport", async ({ page }) 
   await expect(page.getByTestId("global-composer-textarea")).toBeVisible();
 });
 
-Then("the Settings dialog is still visible", async ({ page }) => {
-  await expect(page.getByTestId("settings-dialog")).toBeVisible();
+Then("the Settings menu is still visible", async ({ page }) => {
+  await expect(page.getByTestId("settings-menu")).toBeVisible();
+});
+
+Then("the global comment composer is not visible", async ({ page }) => {
+  await expect(page.getByTestId("global-composer-textarea")).toBeHidden();
 });
 
 Then("no plan-review decision was recorded", async ({ page, planDecisionFile }) => {
@@ -16734,18 +16749,18 @@ Given("the OS color scheme is {string}", async ({ page }, scheme: string) => {
   await page.emulateMedia({ colorScheme: scheme as "light" | "dark" });
 });
 
-When("I open the Settings dialog", async ({ page }) => {
+When("I open the Settings menu", async ({ page }) => {
   await page.getByTestId("top-bar-settings").click();
-  await page.getByTestId("settings-dialog").waitFor({ state: "visible" });
+  await page.getByTestId("settings-menu").waitFor({ state: "visible" });
 });
 
 When("I choose the {string} theme", async ({ page }, label: string) => {
   await page.getByTestId(`settings-theme-${label.toLowerCase()}`).click();
 });
 
-When("I close the Settings dialog", async ({ page }) => {
+When("I close the Settings menu", async ({ page }) => {
   await page.keyboard.press("Escape");
-  await page.getByTestId("settings-dialog").waitFor({ state: "hidden" });
+  await page.getByTestId("settings-menu").waitFor({ state: "hidden" });
 });
 
 When("I reload the viewer", async ({ page }) => {
@@ -18234,16 +18249,23 @@ Feature: Three-kind feedback gate
 <file path="features/uc1-review-and-approve/hotkey-gating.feature">
 @P1 @UC1
 Feature: Plan-review hotkey gating
-  The plan-review hotkeys (Mod+Enter, c, i, r, d) must stay quiet when a
-  modal dialog steals focus — pressing a hotkey while the Settings dialog is
-  open must not approve / submit / open a composer behind the dialog.
+  The plan-review hotkeys (Mod+Enter, c, i, r, d) must stay quiet when an
+  overlay captures focus — pressing a hotkey while the Settings menu is
+  open must not approve / submit / open a composer behind the menu.
 
-  Scenario: Mod+Enter is suppressed while the Settings dialog is open
+  Scenario: Mod+Enter is suppressed while the Settings menu is open
     Given I open the viewer
-    When I open the Settings dialog
+    When I open the Settings menu
     And I press "Mod+Enter" anywhere outside the editor
     Then no plan-review decision was recorded
-    And the Settings dialog is still visible
+    And the Settings menu is still visible
+
+  Scenario: Annotation hotkeys are suppressed while the Settings menu is open
+    Given I open the viewer
+    When I open the Settings menu
+    And I press "c" anywhere outside the editor
+    Then the global comment composer is not visible
+    And the Settings menu is still visible
 
   Scenario: Mod+Enter routes to submit once annotations exist
     Given I open the viewer
@@ -31669,7 +31691,7 @@ export const DropdownMenuRadioItem = ({
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
       className
     )}
     {...rest}
@@ -32503,71 +32525,70 @@ export const Separator = ({
 );
 </file>
 
-<file path="packages/symbiot-ui/src/components/SettingsDialog.test.tsx">
+<file path="packages/symbiot-ui/src/components/SettingsMenu.test.tsx">
 // @vitest-environment happy-dom
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { SettingsDialog } from "./SettingsDialog.tsx";
+import { SettingsMenu } from "./SettingsMenu.tsx";
 import { ThemeProvider, useTheme } from "./ThemeProvider.tsx";
 
-const Probe = ({ onTheme }: { onTheme: (t: string) => void }): React.ReactElement => {
+const Probe = (): React.ReactElement => {
   const { theme } = useTheme();
-  onTheme(theme);
   return <span data-testid="probe">{theme}</span>;
 };
 
-const Wrapper = (props: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  spy: (t: string) => void;
-}) => (
-  <ThemeProvider defaultTheme="system">
-    <Probe onTheme={props.spy} />
-    <SettingsDialog open={props.open} onOpenChange={props.onOpenChange} />
-  </ThemeProvider>
-);
-
-describe("SettingsDialog", () => {
-  it.each(["system", "light", "dark"] as const)(
-    "clicking %s in the theme toggle propagates that value to setTheme via the provider",
-    async (target) => {
-      const user = userEvent.setup();
-      const seen: string[] = [];
-      render(<Wrapper open onOpenChange={vi.fn()} spy={(t) => seen.push(t)} />);
-      await user.click(screen.getByTestId(`settings-theme-${target}`));
-      expect(seen.at(-1)).toBe(target);
-    }
+const renderMenu = () =>
+  render(
+    <ThemeProvider defaultTheme="system">
+      <Probe />
+      <SettingsMenu />
+    </ThemeProvider>
   );
 
-  it("renders no dialog node when open is false", () => {
-    render(<Wrapper open={false} onOpenChange={vi.fn()} spy={() => {}} />);
-    expect(screen.queryByTestId("settings-dialog")).toBeNull();
+describe("SettingsMenu", () => {
+  it("renders no menu content until the trigger is activated", () => {
+    renderMenu();
+    expect(screen.queryByTestId("settings-menu")).toBeNull();
+  });
+
+  // Keyboard-driven path on purpose: Radix menus rely on pointer events that
+  // happy-dom implements only partially, so Enter-to-open + Arrow-to-select
+  // is the deterministic route (it also covers the documented a11y contract).
+  it("opening via keyboard and selecting Dark propagates the theme to the provider", async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    screen.getByTestId("top-bar-settings").focus();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByTestId("settings-menu")).not.toBeNull();
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    expect(screen.getByTestId("probe").textContent).toBe("dark");
+    expect(screen.queryByTestId("settings-menu")).toBeNull();
   });
 });
 </file>
 
-<file path="packages/symbiot-ui/src/components/SettingsDialog.tsx">
+<file path="packages/symbiot-ui/src/components/SettingsMenu.tsx">
 /**
- * Settings dialog with a Theme section. Controlled via `open` + `onOpenChange`
- * (mirrors `AnnotationComposer`). The layout reserves room for future
- * settings sections (e.g. author name) so they can drop in without restructuring.
+ * Settings dropdown menu anchored to the top-bar settings button. Hosts the
+ * System/Light/Dark theme selector as a menu radio group. Radix owns the open
+ * state and the menu closes on selection — the undimmed document behind it
+ * doubles as a live theme preview, so staying open buys nothing.
  */
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useCallback, type ComponentType, type SVGProps } from "react";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./Dialog.tsx";
+import { Button } from "./Button.tsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "./DropdownMenu.tsx";
 import { useTheme, type Theme } from "./ThemeProvider.tsx";
-import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup.tsx";
-
-/** Props for the controlled settings dialog. */
-interface SettingsDialogProps {
-  /** Mirrors Radix `Dialog.open`. */
-  open: boolean;
-  /** Mirrors Radix `Dialog.onOpenChange` — host owns the boolean. */
-  onOpenChange: (next: boolean) => void;
-}
 
 /** Renderable theme entry: persisted value + label + icon component. */
 interface ThemeOption {
@@ -32582,56 +32603,58 @@ const themeOptions: readonly ThemeOption[] = [
   { value: "dark", label: "Dark", Icon: Moon },
 ];
 
-const ThemeToggle = (): React.ReactElement => {
+const isThemeValue = (next: string): next is Theme =>
+  themeOptions.some((option) => option.value === next);
+
+export const SettingsMenu = (): React.ReactElement => {
   const { theme, setTheme } = useTheme();
 
-  // Radix emits an empty string when the active item is clicked again
-  // (deselection). The toggle must remain "single, required" — ignore.
   const onValueChange = useCallback(
     (next: string): void => {
-      if (next === "") return;
-      setTheme(next as Theme);
+      if (isThemeValue(next)) setTheme(next);
     },
     [setTheme]
   );
 
+  // Non-modal: the default modal menu aria-hides the rest of the page while
+  // leaving it focusable, which trips axe's aria-hidden-focus (serious) in
+  // the a11y baseline. The document staying live behind the menu is also the
+  // point of the dropdown — it doubles as a theme preview.
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium">Theme</span>
-      <ToggleGroup
-        type="single"
-        value={theme}
-        onValueChange={onValueChange}
-        variant="outline"
-        aria-label="Color theme"
-      >
-        {themeOptions.map(({ value, label, Icon }) => (
-          <ToggleGroupItem
-            key={value}
-            value={value}
-            aria-label={label}
-            data-testid={`settings-theme-${value}`}
-          >
-            <Icon />
-            {label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-    </div>
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          data-testid="top-bar-settings"
+          variant="ghost"
+          size="icon"
+          aria-label="Settings"
+          className="size-8"
+        >
+          <Settings />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent data-testid="settings-menu" align="end">
+        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          aria-label="Color theme"
+          value={theme}
+          onValueChange={onValueChange}
+        >
+          {themeOptions.map(({ value, label, Icon }) => (
+            <DropdownMenuRadioItem
+              key={value}
+              value={value}
+              data-testid={`settings-theme-${value}`}
+            >
+              <Icon />
+              {label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
-
-export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps): React.ReactElement => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent data-testid="settings-dialog" className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>Settings</DialogTitle>
-        <DialogDescription className="sr-only">Configure application preferences</DialogDescription>
-      </DialogHeader>
-      <ThemeToggle />
-    </DialogContent>
-  </Dialog>
-);
 </file>
 
 <file path="packages/symbiot-ui/src/components/Sheet.tsx">
@@ -34067,19 +34090,20 @@ describe("TopBar", () => {
     expect(onApprove).toHaveBeenCalledTimes(1);
   });
 
-  it("clicking the settings button mounts the settings dialog (initially absent)", async () => {
+  it("activating the settings button opens the settings menu (initially absent)", async () => {
     const user = userEvent.setup();
     renderTopBar({});
-    expect(screen.queryByTestId("settings-dialog")).toBeNull();
-    await user.click(screen.getByTestId("top-bar-settings"));
-    expect(screen.queryByTestId("settings-dialog")).not.toBeNull();
+    expect(screen.queryByTestId("settings-menu")).toBeNull();
+    // Keyboard activation: happy-dom's partial pointer events don't open Radix menus.
+    screen.getByTestId("top-bar-settings").focus();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByTestId("settings-menu")).not.toBeNull();
   });
 });
 </file>
 
 <file path="packages/symbiot-ui/src/components/TopBar.tsx">
-import { PanelRight, Settings } from "lucide-react";
-import { useCallback, useState } from "react";
+import { PanelRight } from "lucide-react";
 
 import { AppLogo } from "./AppLogo.tsx";
 import { Button } from "./Button.tsx";
@@ -34087,7 +34111,7 @@ import { CheckIcon } from "./CheckIcon.tsx";
 import { Kbd, formatHotkey } from "./Kbd.tsx";
 import { SendIcon } from "./SendIcon.tsx";
 import { Separator } from "./Separator.tsx";
-import { SettingsDialog } from "./SettingsDialog.tsx";
+import { SettingsMenu } from "./SettingsMenu.tsx";
 import { SidebarTrigger } from "./SidebarChrome.tsx";
 
 export type TopBarMode = "plan" | "annotate";
@@ -34159,23 +34183,6 @@ const SidebarTriggerSlot = ({ show }: { show: boolean }): React.ReactElement | n
   );
 };
 
-interface SettingsTriggerSlotProps {
-  onClick: () => void;
-}
-
-const SettingsTriggerSlot = ({ onClick }: SettingsTriggerSlotProps): React.ReactElement => (
-  <Button
-    data-testid="top-bar-settings"
-    variant="ghost"
-    size="icon"
-    aria-label="Settings"
-    onClick={onClick}
-    className="size-8"
-  >
-    <Settings />
-  </Button>
-);
-
 export const TopBar = ({
   onApprove,
   onDeny,
@@ -34184,40 +34191,32 @@ export const TopBar = ({
   mode = "plan",
   showSidebarTrigger = false,
   hasAnnotations = false,
-}: TopBarProps): React.ReactElement => {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const openSettings = useCallback((): void => setSettingsOpen(true), []);
-
-  return (
-    <>
-      <header
-        data-testid="top-bar"
-        data-mode={mode}
-        className="border-border bg-background flex h-14 items-center gap-2 border-b px-8"
-      >
-        <div data-testid="top-bar-brand" className="flex items-center gap-2">
-          <AppLogo size={20} className="text-foreground" />
-          <h1 className="text-sm font-medium">
-            Symbiot
-            <span className="text-muted-foreground">{` · ${projectName}`}</span>
-          </h1>
-        </div>
-        <div className="ml-auto flex items-center gap-3">
-          <SettingsTriggerSlot onClick={openSettings} />
-          <Actions
-            onApprove={onApprove}
-            onDeny={onDeny}
-            busy={busy}
-            mode={mode}
-            hasAnnotations={hasAnnotations}
-          />
-          <SidebarTriggerSlot show={showSidebarTrigger} />
-        </div>
-      </header>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-    </>
-  );
-};
+}: TopBarProps): React.ReactElement => (
+  <header
+    data-testid="top-bar"
+    data-mode={mode}
+    className="border-border bg-background flex h-14 items-center gap-2 border-b px-8"
+  >
+    <div data-testid="top-bar-brand" className="flex items-center gap-2">
+      <AppLogo size={20} className="text-foreground" />
+      <h1 className="text-sm font-medium">
+        Symbiot
+        <span className="text-muted-foreground">{` · ${projectName}`}</span>
+      </h1>
+    </div>
+    <div className="ml-auto flex items-center gap-3">
+      <SettingsMenu />
+      <Actions
+        onApprove={onApprove}
+        onDeny={onDeny}
+        busy={busy}
+        mode={mode}
+        hasAnnotations={hasAnnotations}
+      />
+      <SidebarTriggerSlot show={showSidebarTrigger} />
+    </div>
+  </header>
+);
 </file>
 
 <file path="packages/symbiot-ui/src/components/VersionBrowser.test.tsx">
@@ -34430,7 +34429,7 @@ Wraps shadcn primitives with the symbiot design tokens from
 
 ## Surfaces
 
-- `ThemeProvider`, `TopBar`, `AppLogo`, `SidebarInset`, `SidebarProvider`.
+- `ThemeProvider`, `TopBar`, `SettingsMenu`, `AppLogo`, `SidebarInset`, `SidebarProvider`.
 - `AnnotationSidebar` — right-hand pane. Two tabs (Annotations + History) appear when ≥2 plan versions exist; otherwise it falls back to the single-purpose annotation list. The History tab hosts a `VersionBrowser` (newest-first list of persisted versions) and a Clean / Raw `ToggleGroup` that controls the editor's diff render mode. The toggle is rendered only when a historical version is active _and_ a predecessor exists. See [`docs/version-history.md`](../../docs/version-history.md).
 - `AnnotationComposer`, `GlobalCommentFab`, `ComposerForm`, `ImageAttachButton`, `ImagePreviewList` — annotation authoring popovers.
 - Re-exported shadcn primitives (`Sidebar`, `Tabs`, `ToggleGroup`, `AlertDialog`, `Badge`, `Tooltip`, `DropdownMenu`, ...) backed by Radix.
@@ -34447,9 +34446,9 @@ Wraps shadcn primitives with the symbiot design tokens from
             │                                              │
    ┌────────▼─────────┐                          ┌────────▼─────────┐
    │  TopBar          │                          │ SidebarProvider  │
-   │   ToggleGroup    │                          │   ├─ Annotations │
-   │   DropdownMenu   │                          │   └─ History     │
-   │   Settings       │                          │       VersionBrowser
+   │   SettingsMenu   │                          │   ├─ Annotations │
+   │    DropdownMenu  │                          │   └─ History     │
+   │                  │                          │       VersionBrowser
    └──────────────────┘                          │       ToggleGroup
                                                  └──────────────────┘
 
