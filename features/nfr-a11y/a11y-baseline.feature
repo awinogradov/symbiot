@@ -2,7 +2,7 @@
 Feature: WCAG AA accessibility baseline — axe-core scan
   Lock today's clean a11y state in place so the next icon button or modal can
   not regress us silently. Each scenario opens a viewer surface (shell, sidebar,
-  inline composer, settings dialog, global composer) and runs axe-core with the
+  inline composer, settings menu, global composer) and runs axe-core with the
   WCAG 2.0/2.1 A and AA tag sets, asserting zero Critical or Serious findings.
   Minor / Moderate violations are recorded in the attached JSON but are
   intentionally non-blocking — see docs/a11y.md for the policy.
@@ -23,9 +23,9 @@ Feature: WCAG AA accessibility baseline — axe-core scan
     And I have at least one annotation persisted
     Then the page has no Critical or Serious WCAG AA violations
 
-  Scenario: the Settings dialog has no Critical or Serious WCAG AA violations
+  Scenario: the Settings menu has no Critical or Serious WCAG AA violations
     Given I open the viewer
-    When I open the Settings dialog
+    When I open the Settings menu
     Then the page has no Critical or Serious WCAG AA violations
 
   Scenario: the global comment composer has no Critical or Serious WCAG AA violations

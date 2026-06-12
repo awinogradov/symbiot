@@ -90,11 +90,13 @@ describe("TopBar", () => {
     expect(onApprove).toHaveBeenCalledTimes(1);
   });
 
-  it("clicking the settings button mounts the settings dialog (initially absent)", async () => {
+  it("activating the settings button opens the settings menu (initially absent)", async () => {
     const user = userEvent.setup();
     renderTopBar({});
-    expect(screen.queryByTestId("settings-dialog")).toBeNull();
-    await user.click(screen.getByTestId("top-bar-settings"));
-    expect(screen.queryByTestId("settings-dialog")).not.toBeNull();
+    expect(screen.queryByTestId("settings-menu")).toBeNull();
+    // Keyboard activation: happy-dom's partial pointer events don't open Radix menus.
+    screen.getByTestId("top-bar-settings").focus();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByTestId("settings-menu")).not.toBeNull();
   });
 });

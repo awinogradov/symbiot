@@ -6,18 +6,18 @@ Given("the OS color scheme is {string}", async ({ page }, scheme: string) => {
   await page.emulateMedia({ colorScheme: scheme as "light" | "dark" });
 });
 
-When("I open the Settings dialog", async ({ page }) => {
+When("I open the Settings menu", async ({ page }) => {
   await page.getByTestId("top-bar-settings").click();
-  await page.getByTestId("settings-dialog").waitFor({ state: "visible" });
+  await page.getByTestId("settings-menu").waitFor({ state: "visible" });
 });
 
 When("I choose the {string} theme", async ({ page }, label: string) => {
   await page.getByTestId(`settings-theme-${label.toLowerCase()}`).click();
 });
 
-When("I close the Settings dialog", async ({ page }) => {
+When("I close the Settings menu", async ({ page }) => {
   await page.keyboard.press("Escape");
-  await page.getByTestId("settings-dialog").waitFor({ state: "hidden" });
+  await page.getByTestId("settings-menu").waitFor({ state: "hidden" });
 });
 
 When("I reload the viewer", async ({ page }) => {
