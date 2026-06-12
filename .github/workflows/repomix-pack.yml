@@ -1,0 +1,69 @@
+# Requires repo secret `BOT_TOKEN`: a PAT (classic with `repo`, or fine-grained
+# with `contents: write`) or a GitHub App installation token. The default
+# `GITHUB_TOKEN` cannot push to a protected branch or trigger downstream
+# workflows under our settings — see `upstream.yml` for the same rationale.
+#
+# The final step pushes directly to `main`, so the `BOT_TOKEN` identity must
+# ALSO be a bypass actor on the protected-branch ruleset. `contents: write`
+# alone is not enough: when the ruleset requires PRs, a direct push is rejected
+# with `GH013` ("Changes must be made through a pull request") regardless of the
+# token's write scope. Add the bot to the ruleset's bypass list (Settings →
+# Rules → the branch ruleset → Bypass list).
+#
+# Optional repo variable `BOT_USERNAME`: git author login for the pack commit.
+# Defaults to `github-actions[bot]` when unset.
+
+name: Repomix pack
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+concurrency:
+  group: repomix-pack-${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    name: Pack codebase snapshot
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - name: Generate pack
+        run: npx --yes repomix@1.14.1
+
+      - name: Commit pack if changed
+        env:
+          BOT_USERNAME: ${{ vars.BOT_USERNAME }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git add .repomix/pack.xml
+          if git diff --cached --quiet -- .repomix/pack.xml; then
+            echo "No pack changes — skipping commit."
+            exit 0
+          fi
+          git config user.name "${BOT_USERNAME:-github-actions[bot]}"
+          git config user.email "${BOT_USERNAME:-github-actions[bot]}@users.noreply.github.com"
+          git commit -m "chore(repomix): refresh pack from #${PR_NUMBER}"
+          # main can advance between checkout and push (concurrent merge, the
+          # preceding pack commit, or a re-run); rebase onto it and retry.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push rejected — main advanced; rebasing onto latest main (attempt ${attempt}/3)."
+            git fetch origin main
+            git rebase origin/main
+          done
+          echo "::error::Failed to push refreshed pack after 3 attempts."
+          exit 1
