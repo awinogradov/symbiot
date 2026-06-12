@@ -160,7 +160,7 @@ export const ReviewEditor = ({
     <div
       ref={containerRef}
       data-testid="editor-root"
-      className="prose prose-neutral dark:prose-invert relative max-w-3xl"
+      className="prose prose-neutral dark:prose-invert relative mx-auto max-w-3xl"
     >
       <Plate editor={editor}>
         <PlateContent readOnly className="outline-none" />

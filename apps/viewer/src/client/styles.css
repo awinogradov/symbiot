@@ -30,15 +30,23 @@ body {
 }
 
 /*
- * Shiki dual themes: the highlighter inlines the light theme as
- * `color` / `background-color` and the dark theme as `--shiki-dark` /
- * `--shiki-dark-bg`. Promote the dark slot when the app is in dark mode.
- * `!important` overrides Shiki's inline styles on every span.
+ * Shiki dual themes: the highlighter inlines the light theme as `color` and
+ * the dark theme as `--shiki-dark`. Promote the dark slot when the app is in
+ * dark mode. `!important` overrides Shiki's inline styles on every span.
+ * Blocks carry no background — they render transparent on `--background`.
  */
 html.dark .shiki,
 html.dark .shiki span {
   color: var(--shiki-dark) !important;
-  background-color: var(--shiki-dark-bg) !important;
+}
+
+/*
+ * Typography gives `pre` its own slab background (a dark panel in light mode,
+ * 50%-black in invert mode). Code blocks render transparent on `--background`
+ * instead — token colours come from Shiki's inline styles.
+ */
+.prose pre {
+  background-color: transparent;
 }
 
 /*
@@ -51,6 +59,34 @@ html.dark .shiki span {
 .prose code::before,
 .prose code::after {
   content: none;
+}
+
+/*
+ * Markdown heading / inline-code colors ride the `--heading` / `--inline-code`
+ * theme tokens (packages/tailwind-config/theme.css). This file is unlayered,
+ * so these declarations beat the utility-layer `prose-invert` remap in both
+ * themes — the values flip with the `:root` / `.dark` token cascade instead.
+ */
+.prose {
+  --tw-prose-headings: var(--heading);
+  --tw-prose-code: var(--inline-code);
+}
+.prose :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+}
+.prose code {
+  font-weight: 400;
+}
+/*
+ * Inline-code chip: a translucent tint of the `--inline-code` token (same
+ * decorative-background pattern as the 10%-alpha annotation highlights), so
+ * it tracks the theme cascade. `:not(pre *)` keeps it off fenced code inside
+ * Shiki blocks.
+ */
+.prose code:not(pre *) {
+  background-color: color-mix(in oklab, var(--inline-code) 12%, transparent);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
 }
 
 /*

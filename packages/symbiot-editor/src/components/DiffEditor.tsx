@@ -62,7 +62,7 @@ export const DiffEditor = ({ current, previous, mode }: DiffEditorProps): React.
       data-testid="diff-editor-root"
       data-diff-mode={mode}
       data-diff-empty={!diff.hasChanges}
-      className="prose prose-neutral dark:prose-invert relative max-w-3xl"
+      className="prose prose-neutral dark:prose-invert relative mx-auto max-w-3xl"
     >
       {!diff.hasChanges && (
         <p

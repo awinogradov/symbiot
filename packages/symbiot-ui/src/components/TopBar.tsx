@@ -90,7 +90,7 @@ export const TopBar = ({
   <header
     data-testid="top-bar"
     data-mode={mode}
-    className="border-border bg-background flex h-14 items-center gap-2 border-b px-8"
+    className="border-border bg-topbar flex h-14 items-center gap-2 border-b pr-15 pl-10"
   >
     <div data-testid="top-bar-brand" className="flex items-center gap-2">
       <AppLogo size={20} className="text-foreground" />

@@ -85,7 +85,7 @@ const anyOpen = (...flags: boolean[]): boolean => flags.some((f) => f);
 const HistoricalPlaceholder = (): React.ReactElement => (
   <div
     data-testid="historical-loading"
-    className="text-muted-foreground prose prose-neutral dark:prose-invert max-w-3xl text-sm"
+    className="text-muted-foreground prose prose-neutral dark:prose-invert mx-auto max-w-3xl text-sm"
   >
     Loading version diff…
   </div>
@@ -214,7 +214,7 @@ export const ReviewScreen = ({
           showSidebarTrigger
           hasAnnotations={hasAnnotations}
         />
-        <main className="flex-1 overflow-auto px-8 py-6">
+        <main className="flex-1 overflow-auto p-15">
           <EditorErrorBoundary>
             <Suspense fallback={<LoadingFallback label="Loading editor…" />}>
               <EditorPane

@@ -10,17 +10,21 @@ import {
 } from "./TableElements.tsx";
 
 describe("Table element renderers", () => {
-  it("TableElement renders a <table> with collapse classes", () => {
+  it("TableElement renders a rounded <table> with separate borders", () => {
+    // border-collapse ignores border-radius per spec, so the rounded table
+    // relies on border-separate with per-cell dividers.
     const { container } = render(<TableElement attributes={{}}>cells</TableElement>);
     const table = container.querySelector("table");
     expect(table).not.toBeNull();
-    expect(table?.className).toContain("border-collapse");
+    expect(table?.className).toContain("border-separate");
+    expect(table?.className).toContain("rounded-md");
   });
 
-  it("TableRowElement renders a <tr> with bottom border", () => {
+  it("TableRowElement renders a plain <tr> (dividers live on cells)", () => {
     const { container } = render(<TableRowElement attributes={{}}>row</TableRowElement>);
-    expect(container.querySelector("tr")).not.toBeNull();
-    expect(container.querySelector("tr")?.className).toContain("border-b");
+    const row = container.querySelector("tr");
+    expect(row).not.toBeNull();
+    expect(row?.className).toBe("");
   });
 
   it("TableCellElement renders a <td>", () => {
