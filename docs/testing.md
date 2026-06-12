@@ -17,7 +17,7 @@ Coverage is measured on these surfaces:
 - `packages/symbiot-annotations/src/**/*.ts` — markdown round-trip, annotation serialize/deserialize, share codec.
 - `packages/symbiot-editor/src/utils/**/*.ts` — diff computation and annotation-mark utilities.
 - `packages/symbiot-editor/src/components/**/*.{ts,tsx}` — Plate leaf renderers (including `DiffLeaf`), element renderers, toolbar wiring, and the `ReviewEditor` state/authoring/prune helper modules. The `contenteditable` surfaces themselves (`DiffEditor`, `ReviewEditor`) need a live Plate editor to test and are excluded explicitly below.
-- `packages/symbiot-ui/src/components/**/*.{ts,tsx}` — composition components that compose Radix primitives + project layout (annotation composer/sidebar, settings dialog, top bar, version browser, theme provider, etc.). Restyled shadcn primitives are excluded explicitly below.
+- `packages/symbiot-ui/src/components/**/*.{ts,tsx}` — composition components that compose Radix primitives + project layout (annotation composer/sidebar, settings menu, top bar, version browser, theme provider, etc.). Restyled shadcn primitives are excluded explicitly below.
 
 Out of scope and excluded explicitly:
 
