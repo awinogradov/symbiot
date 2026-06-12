@@ -41,16 +41,23 @@ const sharedOptions = {
 } as const;
 
 /**
- * Defence-in-depth check for any open Radix modal dialog. Used alongside the
- * `composerOpen` prop so non-tracked dialogs (e.g. SettingsDialog) also
- * suppress hotkeys. We restrict to `aria-modal="true"` so the FloatingToolbar
- * (which is a Radix Popover — also `role="dialog"` + `data-state="open"` but
- * not modal) does not match and we keep firing the hotkeys while the
- * selection toolbar is visible.
+ * Defence-in-depth check for any open Radix overlay that should swallow
+ * hotkeys. Used alongside the `composerOpen` prop so non-tracked overlays
+ * (e.g. the top-bar SettingsMenu dropdown) also suppress hotkeys. Dialogs are
+ * restricted to `aria-modal="true"` so the FloatingToolbar (which is a Radix
+ * Popover — also `role="dialog"` + `data-state="open"` but not modal) does
+ * not match and we keep firing the hotkeys while the selection toolbar is
+ * visible. Menus match on `role="menu"` because Radix dropdown menus capture
+ * keyboard focus without being marked `aria-modal` — their keydowns still
+ * bubble to the document-level bindings.
  */
 const isAnyDialogOpen = (): boolean => {
   if (typeof document === "undefined") return false;
-  return document.querySelector('[role="dialog"][data-state="open"][aria-modal="true"]') !== null;
+  return (
+    document.querySelector(
+      '[role="dialog"][data-state="open"][aria-modal="true"], [role="menu"][data-state="open"]'
+    ) !== null
+  );
 };
 
 /**

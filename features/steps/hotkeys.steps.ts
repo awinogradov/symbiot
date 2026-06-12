@@ -30,8 +30,12 @@ Then("the global comment composer is visible in the viewport", async ({ page }) 
   await expect(page.getByTestId("global-composer-textarea")).toBeVisible();
 });
 
-Then("the Settings dialog is still visible", async ({ page }) => {
-  await expect(page.getByTestId("settings-dialog")).toBeVisible();
+Then("the Settings menu is still visible", async ({ page }) => {
+  await expect(page.getByTestId("settings-menu")).toBeVisible();
+});
+
+Then("the global comment composer is not visible", async ({ page }) => {
+  await expect(page.getByTestId("global-composer-textarea")).toBeHidden();
 });
 
 Then("no plan-review decision was recorded", async ({ page, planDecisionFile }) => {

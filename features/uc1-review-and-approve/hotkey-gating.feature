@@ -1,15 +1,22 @@
 @P1 @UC1
 Feature: Plan-review hotkey gating
-  The plan-review hotkeys (Mod+Enter, c, i, r, d) must stay quiet when a
-  modal dialog steals focus — pressing a hotkey while the Settings dialog is
-  open must not approve / submit / open a composer behind the dialog.
+  The plan-review hotkeys (Mod+Enter, c, i, r, d) must stay quiet when an
+  overlay captures focus — pressing a hotkey while the Settings menu is
+  open must not approve / submit / open a composer behind the menu.
 
-  Scenario: Mod+Enter is suppressed while the Settings dialog is open
+  Scenario: Mod+Enter is suppressed while the Settings menu is open
     Given I open the viewer
-    When I open the Settings dialog
+    When I open the Settings menu
     And I press "Mod+Enter" anywhere outside the editor
     Then no plan-review decision was recorded
-    And the Settings dialog is still visible
+    And the Settings menu is still visible
+
+  Scenario: Annotation hotkeys are suppressed while the Settings menu is open
+    Given I open the viewer
+    When I open the Settings menu
+    And I press "c" anywhere outside the editor
+    Then the global comment composer is not visible
+    And the Settings menu is still visible
 
   Scenario: Mod+Enter routes to submit once annotations exist
     Given I open the viewer
