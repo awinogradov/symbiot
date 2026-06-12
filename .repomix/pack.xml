@@ -69,6 +69,7 @@ The content is organized as follows:
 .github/
   workflows/
     auto-label.yml
+    code-review.yml
     contributing.yml
     licenses.yml
     perf.yml
@@ -3268,6 +3269,66 @@ jobs:
           # identity, not github-actions[bot]. BOT_TOKEN is required: an empty
           # value fails the label API calls with HTTP 401 (no fallback).
           token: ${{ secrets.BOT_TOKEN }}
+</file>
+
+<file path=".github/workflows/code-review.yml">
+# Source: https://github.com/awinogradov/code-assistants/blob/main/.github/workflows/code-review.yml
+# This file is distributed to downstream repositories by an automated sync.
+# Edits made downstream are overwritten on the next run.
+# To change it, open a pull request against the source file above.
+#
+# Repository variables consumed by this workflow:
+#   - `BOT_USERNAME` (required): GitHub login of the AI reviewer bot. Without this the
+#     `ai-review` job is skipped entirely.
+#   - `RELEASE_PR_AUTHORS` (optional): comma-separated list of trusted authors whose
+#     `release-*` / `delivery-*` branch PRs get an auto-approval after AI review is
+#     skipped. Leave unset to keep the previous skip-only behaviour. Set this only
+#     for identities you trust to open release PRs (e.g. `github-actions[bot]`).
+
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+concurrency:
+  # comment.id gives each comment its own group so bursty replies aren't cancelled;
+  # it's empty for pull_request events, which stay grouped per-PR (event_name + number).
+  group: code-review-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.event.comment.id }}
+  # Cancel superseded runs so only the latest push/comment is reviewed. The action
+  # no longer edits the PR body, so no bot self-edit can abort an in-flight review.
+  cancel-in-progress: true
+
+jobs:
+  ai-review:
+    # The bot's own events (its review and inline comments) are skipped here so they
+    # don't spawn a no-op react run — the in-action guard would skip them only after a
+    # runner spins up, so filtering at the job `if:` is cheaper.
+    #
+    # The last clause re-runs review when a user edits a PR title/body, so a
+    # description fix clears a stale CHANGES_REQUESTED verdict without the prior
+    # close/reopen workaround (introduced de-facto by #233's alignment checks).
+    # Base retargets (changes.base) are skipped — a later push re-covers them.
+    if: >-
+      (github.event_name != 'issue_comment' || github.event.issue.pull_request)
+      && vars.BOT_USERNAME != ''
+      && github.event.sender.login != vars.BOT_USERNAME
+      && (github.event.action != 'edited' || github.event.changes.title || github.event.changes.body)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: awinogradov/code-assistants/.github/actions/code-review-action@main
+        with:
+          reviewer: ${{ vars.BOT_USERNAME }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_CODE_REVIEW }}
+          release_pr_authors: ${{ vars.RELEASE_PR_AUTHORS }}
 </file>
 
 <file path=".github/workflows/contributing.yml">
