@@ -51,7 +51,7 @@ const sharedOptions = {
  * keyboard focus without being marked `aria-modal` — their keydowns still
  * bubble to the document-level bindings.
  */
-const isAnyDialogOpen = (): boolean => {
+const isAnyOverlayOpen = (): boolean => {
   if (typeof document === "undefined") return false;
   return (
     document.querySelector(
@@ -103,7 +103,7 @@ export const useReviewHotkeys = ({
   useHotkeys(
     "meta+enter, ctrl+enter",
     () => {
-      if (isAnyDialogOpen()) return;
+      if (isAnyOverlayOpen()) return;
       if (useApprove) onApprove();
       else onSubmit();
     },
@@ -112,7 +112,7 @@ export const useReviewHotkeys = ({
   );
 
   const onCommentHotkey = (): void => {
-    if (isAnyDialogOpen()) return;
+    if (isAnyOverlayOpen()) return;
     dispatchCommentHotkey(editorHandle, onOpenGlobalComment);
   };
 
@@ -124,7 +124,7 @@ export const useReviewHotkeys = ({
   useHotkeys(
     "i",
     () => {
-      if (isAnyDialogOpen()) return;
+      if (isAnyOverlayOpen()) return;
       editorHandle?.triggerAnnotation("insertion");
     },
     { ...sharedOptions, enabled: annotationsEnabled },
@@ -134,7 +134,7 @@ export const useReviewHotkeys = ({
   useHotkeys(
     "r",
     () => {
-      if (isAnyDialogOpen()) return;
+      if (isAnyOverlayOpen()) return;
       editorHandle?.triggerAnnotation("replacement");
     },
     { ...sharedOptions, enabled: annotationsEnabled },
@@ -144,7 +144,7 @@ export const useReviewHotkeys = ({
   useHotkeys(
     "d",
     () => {
-      if (isAnyDialogOpen()) return;
+      if (isAnyOverlayOpen()) return;
       editorHandle?.triggerAnnotation("deletion");
     },
     { ...sharedOptions, enabled: annotationsEnabled },
