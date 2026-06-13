@@ -1,39 +1,8 @@
-import type { ComponentProps, HTMLAttributes, Ref } from "react";
+import type { HTMLAttributes, Ref } from "react";
 
 import { cn } from "../utils/cn.ts";
 
-import { Button } from "./Button.tsx";
 import { useSidebar } from "./SidebarProvider.tsx";
-
-type SidebarTriggerProps = ComponentProps<typeof Button>;
-
-/** Hamburger button that toggles the sidebar via {@link useSidebar}. */
-export const SidebarTrigger = ({
-  className,
-  onClick,
-  ...rest
-}: SidebarTriggerProps): React.ReactElement => {
-  const { toggleSidebar } = useSidebar();
-  return (
-    <Button
-      data-sidebar="trigger"
-      data-slot="sidebar-trigger"
-      variant="ghost"
-      size="icon"
-      className={cn("size-7", className)}
-      onClick={(event) => {
-        onClick?.(event);
-        toggleSidebar();
-      }}
-      {...rest}
-    >
-      <span aria-hidden className="text-base leading-none">
-        ☰
-      </span>
-      <span className="sr-only">Toggle Sidebar</span>
-    </Button>
-  );
-};
 
 /** Hover-target rail that toggles the sidebar without a visible button. */
 export const SidebarRail = ({

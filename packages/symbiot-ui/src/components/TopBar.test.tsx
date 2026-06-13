@@ -17,7 +17,6 @@ const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) 
           projectName={props.projectName ?? "demo"}
           busy={props.busy}
           mode={props.mode}
-          showSidebarTrigger={props.showSidebarTrigger}
           hasAnnotations={props.hasAnnotations}
         />
       </SidebarProvider>
@@ -68,19 +67,6 @@ describe("TopBar", () => {
     renderTopBar({ busy: true, hasAnnotations: false });
     expect(screen.getByTestId<HTMLButtonElement>("top-bar-approve").disabled).toBe(true);
   });
-
-  it.each([
-    { showSidebarTrigger: true, present: true },
-    { showSidebarTrigger: false, present: false },
-  ])(
-    "sidebar trigger visibility ($present) tracks showSidebarTrigger=$showSidebarTrigger",
-    ({ showSidebarTrigger, present }) => {
-      renderTopBar({ showSidebarTrigger });
-      const trigger = screen.queryByTestId("top-bar-sidebar-trigger");
-      if (present) expect(trigger).not.toBeNull();
-      else expect(trigger).toBeNull();
-    }
-  );
 
   it("clicking the Approve action invokes onApprove exactly once", async () => {
     const user = userEvent.setup();

@@ -96,7 +96,7 @@ export const AnnotationSidebar = ({
   );
   const showClearAll = entries.length > 0 && effectiveTab === "annotations";
   return (
-    <Sidebar side="right" collapsible="offcanvas" data-testid="annotation-sidebar" className="w-80">
+    <Sidebar side="right" collapsible="none" data-testid="annotation-sidebar">
       <SidebarContent>
         <Tabs
           value={effectiveTab}

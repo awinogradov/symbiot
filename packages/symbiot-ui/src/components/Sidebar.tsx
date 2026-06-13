@@ -22,7 +22,10 @@ const NoCollapseSidebar = ({
     ref={ref}
     data-slot="sidebar"
     className={cn(
-      "bg-sidebar text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
+      // h-svh, not h-full: the SidebarProvider wrapper is min-h-svh (no definite
+      // height), so a percentage height collapses to content height. Pin to the
+      // viewport like SidebarInset so the always-visible panel fills the column.
+      "bg-sidebar text-sidebar-foreground sticky top-0 flex h-svh w-(--sidebar-width) flex-col",
       className
     )}
     {...rest}
