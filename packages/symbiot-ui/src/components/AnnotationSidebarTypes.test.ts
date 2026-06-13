@@ -18,6 +18,7 @@ const expectedLabel: Record<Kind, string> = {
   global: "Global",
   insertion: "Insertion",
   replacement: "Replacement",
+  task: "Task",
 };
 
 const expectedPaletteToken: Record<Kind, string> = {
@@ -26,6 +27,7 @@ const expectedPaletteToken: Record<Kind, string> = {
   deletion: "text-anno-delete",
   insertion: "text-anno-insert",
   replacement: "text-anno-replace",
+  task: "text-task-done",
 };
 
 const expectedRemovalNoun: Record<Kind, string> = {
@@ -34,6 +36,7 @@ const expectedRemovalNoun: Record<Kind, string> = {
   global: "global comment",
   insertion: "insertion suggestion",
   replacement: "replacement suggestion",
+  task: "task change",
 };
 
 const kinds = Object.keys(expectedLabel) as Kind[];

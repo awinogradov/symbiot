@@ -16,10 +16,12 @@ import {
   dispatchComposerSave,
   useReadyHandle,
   useRemoveAnnotation,
+  useTaskToggle,
   useToolbarHandlers,
   useUpdateAnnotation,
 } from "./ReviewEditorAuthoring.tsx";
 import { snapshotOf } from "./ReviewEditorPrune.tsx";
+import { TaskToggleContext } from "./TaskToggleContext.ts";
 import { useAnnotationState } from "./ReviewEditorState.tsx";
 import { ToolbarButtons } from "./ReviewEditorToolbar.tsx";
 import {
@@ -156,21 +158,25 @@ export const ReviewEditor = ({
     setPending(null);
   }, [pending, editor, maps, onChange]);
 
+  const onToggleTask = useTaskToggle(editor, maps, onChange);
+
   return (
     <div
       ref={containerRef}
       data-testid="editor-root"
       className="prose prose-neutral dark:prose-invert relative mx-auto max-w-3xl"
     >
-      <Plate editor={editor}>
-        <PlateContent readOnly className="outline-none" />
-        <ToolbarButtons
-          onComment={onCommentClick}
-          onInsert={onInsertClick}
-          onReplace={onReplaceClick}
-          onDelete={onDeleteClick}
-        />
-      </Plate>
+      <TaskToggleContext value={onToggleTask}>
+        <Plate editor={editor}>
+          <PlateContent readOnly className="outline-none" />
+          <ToolbarButtons
+            onComment={onCommentClick}
+            onInsert={onInsertClick}
+            onReplace={onReplaceClick}
+            onDelete={onDeleteClick}
+          />
+        </Plate>
+      </TaskToggleContext>
       <AnnotationComposer
         kind={pending?.kind ?? "comment"}
         open={pending !== null}

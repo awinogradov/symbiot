@@ -5,6 +5,7 @@ import {
   toGlobalCommentTuple,
   toInsertionTuple,
   toReplacementTuple,
+  toTaskToggleTuple,
 } from "./types.ts";
 
 type EncoderTable = {
@@ -17,6 +18,7 @@ const encoders: EncoderTable = {
   deletion: toDeletionTuple,
   insertion: toInsertionTuple,
   replacement: toReplacementTuple,
+  task: toTaskToggleTuple,
 };
 
 const encodeOne = (entry: AnnotationEntry): AnnotationTuple =>

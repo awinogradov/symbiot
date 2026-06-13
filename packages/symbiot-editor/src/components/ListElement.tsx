@@ -1,6 +1,8 @@
 import { ULIST_STYLE_TYPES } from "@platejs/list";
 import type { TElement } from "platejs";
-import type { ReactNode } from "react";
+import { use, useCallback, type ReactNode } from "react";
+
+import { TaskToggleContext } from "./TaskToggleContext.ts";
 
 interface ListElementProps {
   attributes: Record<string, unknown>;
@@ -12,6 +14,7 @@ interface TodoListProps {
   attributes: Record<string, unknown>;
   children: ReactNode;
   checked: boolean;
+  element: TElement;
 }
 
 const unorderedStyles = ULIST_STYLE_TYPES as readonly string[];
@@ -23,39 +26,56 @@ const markerStyle = (listStyleType: string | undefined): React.CSSProperties =>
   listStyleType === undefined ? { margin: 0 } : { listStyleType, margin: 0 };
 
 /**
- * GFM task item: a read-only checkbox marker instead of a CSS marker — `todo`
- * is not a valid `list-style-type`, so without this branch the browser falls
- * back to decimal numbering and the checked state is lost. Not `disabled`:
- * Chrome renders disabled checkboxes gray, ignoring `accent-color`;
- * pointer-events + tabIndex keep it non-interactive instead. The checkbox sits
- * in a `contentEditable={false}` span so Slate never treats it as editable
- * text, and -ml-6 pulls it into the marker gutter (16px box + 8px gap) so item
- * text aligns with the other list kinds.
+ * GFM task item: a checkbox marker instead of a CSS marker — `todo` is not a
+ * valid `list-style-type`, so without this branch the browser falls back to
+ * decimal numbering and the checked state is lost. Never `disabled`: Chrome
+ * renders disabled checkboxes gray, ignoring `accent-color`. In the authoring
+ * editor a {@link TaskToggleContext} handler makes the checkbox interactive —
+ * clicking records the toggle as feedback; in read-only surfaces (the diff
+ * view) the context is `null` and the checkbox is inert. The box sits in a
+ * `contentEditable={false}` span so Slate never treats it as editable text,
+ * and -ml-6 pulls it into the marker gutter (16px box + 8px gap) so item text
+ * aligns with the other list kinds.
  */
-const TodoList = ({ attributes, children, checked }: TodoListProps): React.ReactElement => (
-  <ul
-    {...attributes}
-    data-testid="editor-list"
-    data-list-type="todo"
-    style={{ listStyleType: "none", margin: 0 }}
-    className="[&_li]:my-0"
-  >
-    <li className="flex items-start gap-2">
-      <span contentEditable={false} className="-ml-6 flex h-7 items-center">
-        <input
-          type="checkbox"
-          data-testid="editor-task-checkbox"
-          checked={checked}
-          readOnly
-          tabIndex={-1}
-          aria-label={checked ? "Completed task" : "Open task"}
-          className="accent-task-done pointer-events-none size-4"
-        />
-      </span>
-      <span className="min-w-0">{children}</span>
-    </li>
-  </ul>
-);
+const TodoList = ({
+  attributes,
+  children,
+  checked,
+  element,
+}: TodoListProps): React.ReactElement => {
+  const onToggle = use(TaskToggleContext);
+  const interactive = onToggle !== null;
+  const onChange = useCallback((): void => onToggle?.(element), [onToggle, element]);
+  return (
+    <ul
+      {...attributes}
+      data-testid="editor-list"
+      data-list-type="todo"
+      style={{ listStyleType: "none", margin: 0 }}
+      className="[&_li]:my-0"
+    >
+      <li className="flex items-start gap-2">
+        <span contentEditable={false} className="-ml-6 flex h-7 items-center">
+          <input
+            type="checkbox"
+            data-testid="editor-task-checkbox"
+            checked={checked}
+            readOnly={!interactive}
+            tabIndex={interactive ? 0 : -1}
+            aria-label={checked ? "Completed task" : "Open task"}
+            onChange={interactive ? onChange : undefined}
+            className={
+              interactive
+                ? "accent-task-done size-4 cursor-pointer"
+                : "accent-task-done pointer-events-none size-4"
+            }
+          />
+        </span>
+        <span className="min-w-0">{children}</span>
+      </li>
+    </ul>
+  );
+};
 
 /**
  * Renderer for Plate list elements. Mirrors Plate's default rendering — each
@@ -80,7 +100,7 @@ export const ListElement = ({
   const listStart = element["listStart"] as number | undefined;
   if (listStyleType === "todo") {
     return (
-      <TodoList attributes={attributes} checked={element["checked"] === true}>
+      <TodoList attributes={attributes} checked={element["checked"] === true} element={element}>
         {children}
       </TodoList>
     );

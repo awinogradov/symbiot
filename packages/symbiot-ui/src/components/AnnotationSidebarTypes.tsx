@@ -17,10 +17,10 @@ import { type AnnotationComposerKind } from "./AnnotationComposer.tsx";
  */
 export interface AnnotationSidebarEntry {
   id: string;
-  kind: "comment" | "deletion" | "global" | "insertion" | "replacement";
+  kind: "comment" | "deletion" | "global" | "insertion" | "replacement" | "task";
   /** Either the anchored selection (C/D/I context) or the body (G). */
   primary: string;
-  /** Comment body for C, proposed new text for I; undefined for G/D. */
+  /** Comment body for C, proposed new text for I, toggle direction for T; undefined for G/D. */
   body?: string;
   lines?: { startLine: number; endLine: number };
   /**
@@ -40,6 +40,7 @@ const kindLabels: Record<AnnotationSidebarEntry["kind"], string> = {
   global: "Global",
   insertion: "Insertion",
   replacement: "Replacement",
+  task: "Task",
 };
 
 const kindClasses: Record<AnnotationSidebarEntry["kind"], string> = {
@@ -48,6 +49,7 @@ const kindClasses: Record<AnnotationSidebarEntry["kind"], string> = {
   deletion: "text-anno-delete",
   insertion: "text-anno-insert",
   replacement: "text-anno-replace",
+  task: "text-task-done",
 };
 
 const removalDescriptions: Record<AnnotationSidebarEntry["kind"], string> = {
@@ -56,6 +58,7 @@ const removalDescriptions: Record<AnnotationSidebarEntry["kind"], string> = {
   global: "This removes the global comment from the plan. It can't be undone.",
   insertion: "This removes the insertion suggestion from the plan. It can't be undone.",
   replacement: "This removes the replacement suggestion from the plan. It can't be undone.",
+  task: "This removes the task change from the plan. It can't be undone.",
 };
 
 /** Human-readable label for the row's kind chip. */

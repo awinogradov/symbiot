@@ -3,6 +3,9 @@ import type { PlateValue } from "@symbiot/annotations";
 /** Annotation kind that the host can remove via the editor handle. */
 export type AnnotationHandleKind = "comment" | "deletion" | "insertion" | "replacement";
 
+/** Kinds the host can remove — author-able kinds plus value-derived task toggles. */
+export type RemovableAnnotationKind = AnnotationHandleKind | "task";
+
 /** Imperative handle the host uses to read the current value and annotation maps. */
 export interface ReviewEditorHandle {
   /** True when the editor has a non-empty selection that can host an annotation. */
@@ -26,7 +29,7 @@ export interface ReviewEditorHandle {
   getReplacementImages: () => Map<string, string[]>;
   /** `originalText` snapshot captured at replacement creation; drives drift detection. */
   getReplacementOriginalTexts: () => Map<string, string>;
-  removeAnnotation: (kind: AnnotationHandleKind, id: string) => void;
+  removeAnnotation: (kind: RemovableAnnotationKind, id: string) => void;
   /**
    * Replace the body + images of an existing body-bearing annotation in place.
    * Touches only the text + image maps for `id`, leaving the Plate mark and the

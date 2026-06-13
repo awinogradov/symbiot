@@ -6,6 +6,7 @@ import type {
   GlobalCommentEntry,
   InsertionEntry,
   ReplacementEntry,
+  TaskToggleEntry,
 } from "./types.ts";
 
 /**
@@ -19,6 +20,7 @@ import type {
  * - Deletion     → `Suggest removing: "<originalText>"`.
  * - Insertion    → `Insert after: "<contextText>"` + `> <newText>`.
  * - Replacement  → `Suggest replacing: "<originalText>"` + `> Replace with: "<replacementText>"`.
+ * - Task         → `Suggest marking as done|not done: "<originalText>"`.
  *
  * The output is byte-pinned against the fixtures under `fixtures/golden/`.
  */
@@ -94,6 +96,13 @@ const formatReplacement = (
   "",
 ];
 
+const formatTask = (entry: TaskToggleEntry & { kind: "task" }, index: number): string[] => [
+  `## ${index}. ${linePrefix(entry.lines)}Suggest marking as ${
+    entry.checked ? "done" : "not done"
+  }: "${entry.originalText}"`,
+  "",
+];
+
 type FormatterTable = {
   [K in AnnotationEntry["kind"]]: (
     entry: Extract<AnnotationEntry, { kind: K }>,
@@ -107,6 +116,7 @@ const formatters: FormatterTable = {
   global: formatGlobal,
   insertion: formatInsertion,
   replacement: formatReplacement,
+  task: formatTask,
 };
 
 const formatEntry = (entry: AnnotationEntry, index: number): string[] =>
