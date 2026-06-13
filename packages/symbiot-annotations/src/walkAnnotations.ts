@@ -10,12 +10,14 @@ import type {
   PlateTextLeaf,
   PlateValue,
   ReplacementEntry,
+  TaskToggleEntry,
 } from "./types.ts";
 
 const commentIdPrefix = "comment_";
 const suggestionIdPrefix = "suggestion_";
 const insertionIdPrefix = "insertion_";
 const replacementIdPrefix = "replacement_";
+const taskIdPrefix = "task_";
 const blockLinesMark = "__symbiotBlockLines";
 
 const isText = (node: PlateNode): node is PlateTextLeaf =>
@@ -36,6 +38,8 @@ interface LeafWithLines {
   lines: BlockLines | undefined;
   /** Top-level block index this leaf descends from. Used as `pathAnchor` for drift resolution. */
   topIndex: number;
+  /** `checked` of the enclosing top-level block (GFM task items); undefined for non-task blocks. */
+  checked: boolean | undefined;
 }
 
 const isBlockLines = (raw: unknown): raw is BlockLines => {
@@ -50,14 +54,20 @@ const readBlockLines = (node: PlateNode | undefined): BlockLines | undefined => 
   return isBlockLines(raw) ? { startLine: raw.startLine, endLine: raw.endLine } : undefined;
 };
 
+const readChecked = (node: PlateNode): boolean | undefined => {
+  const raw = (node as Record<string, unknown>)["checked"];
+  return typeof raw === "boolean" ? raw : undefined;
+};
+
 const collectLeavesWithLines = (value: PlateValue): LeafWithLines[] => {
   const out: LeafWithLines[] = [];
   for (let topIndex = 0; topIndex < value.length; topIndex += 1) {
     const top = value[topIndex] as PlateNode;
     const lines = readBlockLines(top);
+    const checked = readChecked(top);
     const visit = (node: PlateNode): void => {
       if (isText(node)) {
-        out.push({ leaf: node, lines, topIndex });
+        out.push({ leaf: node, lines, topIndex, checked });
         return;
       }
       for (const child of node.children) visit(child);
@@ -82,27 +92,31 @@ interface Fragment {
   lines: BlockLines | undefined;
   /** Top-level block index of the first leaf in the fragment. Used for drift resolution. */
   topIndex: number;
+  /** `checked` of the fragment's enclosing task block (first leaf wins). */
+  checked: boolean | undefined;
 }
 
 const mergeFragment = (
   existing: Fragment | undefined,
   leaf: PlateTextLeaf,
   lines: BlockLines | undefined,
-  topIndex: number
+  topIndex: number,
+  checked: boolean | undefined
 ): Fragment => {
-  if (existing === undefined) return { text: leaf.text, lines, topIndex };
+  if (existing === undefined) return { text: leaf.text, lines, topIndex, checked };
   return {
     text: existing.text + leaf.text,
     lines: earliestLines(existing.lines, lines),
     topIndex: existing.topIndex,
+    checked: existing.checked,
   };
 };
 
 const groupContiguous = (entries: LeafWithLines[], prefix: string): Map<string, Fragment> => {
   const out = new Map<string, Fragment>();
-  for (const { leaf, lines, topIndex } of entries) {
+  for (const { leaf, lines, topIndex, checked } of entries) {
     for (const id of markIdsOf(leaf, prefix)) {
-      out.set(id, mergeFragment(out.get(id), leaf, lines, topIndex));
+      out.set(id, mergeFragment(out.get(id), leaf, lines, topIndex, checked));
     }
   }
   return out;
@@ -381,6 +395,33 @@ const walkReplacementEntries = (
   return out;
 };
 
+const buildTaskEntry = (id: string, fragment: Fragment): { kind: "task" } & TaskToggleEntry => {
+  const entry: { kind: "task" } & TaskToggleEntry = {
+    kind: "task",
+    id,
+    originalText: fragment.text,
+    checked: fragment.checked === true,
+  };
+  decorateLines(entry, fragment);
+  return entry;
+};
+
+/**
+ * Task toggles read their state straight from the editor value: a `task_<id>`
+ * mark flags an item the reviewer toggled, and the enclosing block's `checked`
+ * is the proposed new state. No sidecar map — the toggle lives in the value,
+ * so it persists and shares with the rest of the snapshot. A fragment without
+ * a resolved `checked` (mark on a non-task block) is skipped.
+ */
+const walkTaskEntries = (entries: LeafWithLines[]): AnnotationEntry[] => {
+  const out: AnnotationEntry[] = [];
+  for (const [id, fragment] of groupContiguous(entries, taskIdPrefix)) {
+    if (fragment.checked === undefined) continue;
+    out.push(buildTaskEntry(id, fragment));
+  }
+  return out;
+};
+
 const walkGlobalEntries = (globals: GlobalCommentEntry[]): AnnotationEntry[] =>
   globals.map((g) => ({ kind: "global", ...g }));
 
@@ -419,6 +460,7 @@ export const walkAnnotations = (sources: AnnotationSources): AnnotationEntry[] =
       sources.replacementOriginalTexts,
       sources.value
     ),
+    ...walkTaskEntries(entries),
     ...walkGlobalEntries(sources.globalComments),
   ];
 };
@@ -485,6 +527,19 @@ export const onlyGlobals = (entries: AnnotationEntry[]): GlobalCommentEntry[] =>
 export const onlyInsertions = (entries: AnnotationEntry[]): InsertionEntry[] =>
   entries.filter((e) => e.kind === "insertion").map(stripInsertionKind);
 
+const stripTaskKind = (e: { kind: "task" } & TaskToggleEntry): TaskToggleEntry => ({
+  id: e.id,
+  originalText: e.originalText,
+  checked: e.checked,
+  ...(e.author === undefined ? {} : { author: e.author }),
+  ...(e.lines === undefined ? {} : { lines: e.lines }),
+  ...(e.drifted === undefined ? {} : { drifted: e.drifted }),
+});
+
 /** Filter a walk to replacements only. */
 export const onlyReplacements = (entries: AnnotationEntry[]): ReplacementEntry[] =>
   entries.filter((e) => e.kind === "replacement").map(stripReplacementKind);
+
+/** Filter a walk to task toggles only. */
+export const onlyTasks = (entries: AnnotationEntry[]): TaskToggleEntry[] =>
+  entries.filter((e) => e.kind === "task").map(stripTaskKind);

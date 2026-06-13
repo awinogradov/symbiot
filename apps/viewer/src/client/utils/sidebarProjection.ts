@@ -28,14 +28,19 @@ export interface SourceWindow {
 type SidebarKind = AnnotationSidebarEntry["kind"];
 type SupportedEntry = Extract<AnnotationEntry, { kind: SidebarKind }>;
 
-// Narrows a walked entry to the five sidebar-renderable kinds: Comment,
-// Deletion, Global, Insertion, Replacement.
+// The six sidebar-renderable kinds: Comment, Deletion, Global, Insertion,
+// Replacement, Task. (Set membership keeps the guard under the complexity cap.)
+const sidebarKinds = new Set<AnnotationEntry["kind"]>([
+  "comment",
+  "deletion",
+  "global",
+  "insertion",
+  "replacement",
+  "task",
+]);
+
 const isSupportedSidebarEntry = (entry: AnnotationEntry): entry is SupportedEntry =>
-  entry.kind === "comment" ||
-  entry.kind === "deletion" ||
-  entry.kind === "global" ||
-  entry.kind === "insertion" ||
-  entry.kind === "replacement";
+  sidebarKinds.has(entry.kind);
 
 type AnchoredEntry = Exclude<SupportedEntry, { kind: "global" }>;
 
@@ -44,10 +49,13 @@ const anchoredPrimary = (entry: AnchoredEntry): string => {
   return entry.originalText;
 };
 
+const taskBody = (checked: boolean): string => (checked ? "Mark as done" : "Mark as not done");
+
 const anchoredBody = (entry: AnchoredEntry): string | undefined => {
   if (entry.kind === "comment") return entry.body;
   if (entry.kind === "insertion") return entry.newText;
   if (entry.kind === "replacement") return entry.replacementText;
+  if (entry.kind === "task") return taskBody(entry.checked);
   return undefined;
 };
 

@@ -265,7 +265,7 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
         onUpdateGlobalComment(entry.id, body, images);
         return;
       }
-      if (entry.kind === "deletion") return;
+      if (entry.kind === "deletion" || entry.kind === "task") return;
       editorHandle?.updateAnnotation(entry.kind, entry.id, body, images);
     },
     [editorHandle, onUpdateGlobalComment]

@@ -7,6 +7,7 @@ import {
   hasValidSelection,
   type AppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
+import { applyTaskToggle, removeTaskToggle } from "../utils/applyTaskToggle.ts";
 import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
 import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
@@ -245,11 +246,34 @@ export const useRemoveAnnotation = (
 ): ReviewEditorHandle["removeAnnotation"] =>
   useCallback(
     (kind, id) => {
+      if (kind === "task") {
+        removeTaskToggle(editor, id);
+        onChange?.(snapshotOf(editor, maps));
+        return;
+      }
       removeAnnotationMark(editor, kind, id);
       const next = pruneRemovedAnnotation(kind, id, maps, setters);
       onChange?.(snapshotOf(editor, next));
     },
     [editor, maps, onChange, setters]
+  );
+
+/**
+ * Memoized task-checkbox toggle handler for {@link TaskToggleContext}. Applies
+ * the toggle to the editor value (see `applyTaskToggle`) and re-emits the
+ * snapshot so the host persists the new `checked` + `task_<id>` marks.
+ */
+export const useTaskToggle = (
+  editor: PlateEditor,
+  maps: AnnotationMaps,
+  onChange?: (snapshot: EditorSnapshot) => void
+): ((element: unknown) => void) =>
+  useCallback(
+    (element) => {
+      applyTaskToggle(editor, element);
+      onChange?.(snapshotOf(editor, maps));
+    },
+    [editor, maps, onChange]
   );
 
 /**

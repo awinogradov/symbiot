@@ -62,6 +62,17 @@ describe("encodeAnnotations", () => {
       ["G", "msg", "", ["img-2"]],
     ]);
   });
+
+  it("encodes task toggles with the checked flag and optional author", () => {
+    const entries: AnnotationEntry[] = [
+      { kind: "task", id: "1", originalText: "Ship it", checked: true },
+      { kind: "task", id: "2", originalText: "Draft only", checked: false, author: "ana" },
+    ];
+    expect(encodeAnnotations(entries)).toEqual([
+      ["T", "Ship it", "1"],
+      ["T", "Draft only", "0", "ana"],
+    ]);
+  });
 });
 
 describe("decodeAnnotations", () => {
@@ -126,5 +137,16 @@ describe("decodeAnnotations", () => {
       author: "ana",
       images: ["i-2"],
     });
+  });
+
+  it("round-trips task toggles in both checked states", () => {
+    const back = decodeAnnotations(
+      encodeAnnotations([
+        { kind: "task", id: "x", originalText: "Ship it", checked: true },
+        { kind: "task", id: "y", originalText: "Draft only", checked: false },
+      ])
+    );
+    expect(back[0]).toMatchObject({ kind: "task", originalText: "Ship it", checked: true });
+    expect(back[1]).toMatchObject({ kind: "task", originalText: "Draft only", checked: false });
   });
 });

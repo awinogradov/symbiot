@@ -95,6 +95,15 @@ describe("serializeFeedback", () => {
     expect(serializeFeedback(entries)).toBe(expected);
   });
 
+  it("matches the synthesized task fixture (byte-equality)", async () => {
+    const expected = await loadFixture("golden/task.md");
+    const entries: AnnotationEntry[] = [
+      { kind: "task", id: "t1", originalText: "Open task", checked: true },
+      { kind: "task", id: "t2", originalText: "Completed task", checked: false },
+    ];
+    expect(serializeFeedback(entries)).toBe(expected);
+  });
+
   it("emits (lines N–M) prefix when block lines are present", () => {
     const entries: AnnotationEntry[] = [
       {

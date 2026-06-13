@@ -7,13 +7,16 @@ export type GlobalCommentTuple = ["G", string, string?, string[]?];
 export type DeletionTuple = ["D", string, string?, string[]?];
 export type InsertionTuple = ["I", string, string, string?, string[]?];
 export type ReplacementTuple = ["R", string, string, string?, string[]?];
+/** Task-checkbox toggle: `["T", originalText, "1" | "0", author?]` (`"1"` = mark done). */
+export type TaskToggleTuple = ["T", string, "0" | "1", string?];
 
 export type AnnotationTuple =
   | CommentTuple
   | GlobalCommentTuple
   | DeletionTuple
   | InsertionTuple
-  | ReplacementTuple;
+  | ReplacementTuple
+  | TaskToggleTuple;
 
 /** Source-line range for a block (1-based, inclusive). Optional. */
 export interface BlockLines {
@@ -87,13 +90,29 @@ export interface ReplacementEntry {
   drifted?: boolean;
 }
 
-/** Per-anchor or global, tagged with its kind so a single walker can return all five. */
+/**
+ * Reviewer toggle of a GFM task checkbox. `originalText` is the item label
+ * (the anchor); `checked` is the proposed new state (`true` = mark done). The
+ * plan is annotate-only, so the toggle is feedback, not a source edit.
+ */
+export interface TaskToggleEntry {
+  id: string;
+  originalText: string;
+  checked: boolean;
+  author?: string;
+  lines?: BlockLines;
+  /** See {@link CommentEntry.drifted}. */
+  drifted?: boolean;
+}
+
+/** Per-anchor or global, tagged with its kind so a single walker can return all six. */
 export type AnnotationEntry =
   | ({ kind: "comment" } & CommentEntry)
   | ({ kind: "global" } & GlobalCommentEntry)
   | ({ kind: "deletion" } & DeletionEntry)
   | ({ kind: "insertion" } & InsertionEntry)
-  | ({ kind: "replacement" } & ReplacementEntry);
+  | ({ kind: "replacement" } & ReplacementEntry)
+  | ({ kind: "task" } & TaskToggleEntry);
 
 /** Convert a CommentEntry into its compact tuple form. */
 export const toCommentTuple = (entry: CommentEntry): CommentTuple => {
@@ -133,6 +152,13 @@ export const toReplacementTuple = (entry: ReplacementEntry): ReplacementTuple =>
   if (entry.author !== undefined)
     return ["R", entry.originalText, entry.replacementText, entry.author];
   return ["R", entry.originalText, entry.replacementText];
+};
+
+/** Convert a TaskToggleEntry into its compact tuple form. */
+export const toTaskToggleTuple = (entry: TaskToggleEntry): TaskToggleTuple => {
+  const checked = entry.checked ? "1" : "0";
+  if (entry.author !== undefined) return ["T", entry.originalText, checked, entry.author];
+  return ["T", entry.originalText, checked];
 };
 
 /** A text leaf in a Plate value; mark keys (e.g. `comment_<id>: true`) live alongside `text`. */

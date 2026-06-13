@@ -7,6 +7,7 @@ import {
   onlyGlobals,
   onlyInsertions,
   onlyReplacements,
+  onlyTasks,
   walkAnnotations,
 } from "./walkAnnotations.ts";
 
@@ -194,6 +195,25 @@ describe("walkAnnotations insertions + replacements", () => {
     expect(onlyReplacements(entries)).toEqual([
       { id: "r1", originalText: "redundant clause", replacementText: "concise note" },
     ]);
+  });
+
+  it("extracts task toggles from `task_<id>` marks, reading checked from the block", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        listStyleType: "todo",
+        checked: true,
+        children: [{ text: "Open task", task_t1: true }],
+      },
+    ];
+    const entries = walkAnnotations({ value, commentBodies: new Map(), globalComments: [] });
+    expect(onlyTasks(entries)).toEqual([{ id: "t1", originalText: "Open task", checked: true }]);
+  });
+
+  it("skips `task_` marks on a block without a boolean checked state", () => {
+    const value: PlateValue = [{ type: "p", children: [{ text: "not a task", task_t1: true }] }];
+    const entries = walkAnnotations({ value, commentBodies: new Map(), globalComments: [] });
+    expect(onlyTasks(entries)).toEqual([]);
   });
 
   it("skips insertion / replacement marks when sidecar text is missing", () => {

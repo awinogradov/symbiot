@@ -20,8 +20,8 @@ export interface EditContent {
   images: string[];
 }
 
-/** Body-bearing kinds the edit composer accepts plus the non-editable `deletion`. */
-type EditableKind = "comment" | "deletion" | "global" | "insertion" | "replacement";
+/** Body-bearing kinds the edit composer accepts plus the non-editable `deletion` / `task`. */
+type EditableKind = "comment" | "deletion" | "global" | "insertion" | "replacement" | "task";
 type AnchoredKind = "comment" | "insertion" | "replacement";
 
 /** Build a global comment, attaching `images` only when non-empty (keeps the persisted shape lean). */
@@ -78,6 +78,8 @@ export const resolveEditContent = (
   handle: ReviewEditorHandle | null
 ): EditContent => {
   if (kind === "global") return globalEditContent(globalComments, id);
-  if (kind === "deletion" || handle === null) return { body: fallbackBody, images: [] };
+  if (kind === "deletion" || kind === "task" || handle === null) {
+    return { body: fallbackBody, images: [] };
+  }
   return anchoredEditContent(handle, kind, id);
 };

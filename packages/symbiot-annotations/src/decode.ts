@@ -6,6 +6,7 @@ import type {
   GlobalCommentTuple,
   InsertionTuple,
   ReplacementTuple,
+  TaskToggleTuple,
 } from "./types.ts";
 
 const decodeComment = (tuple: CommentTuple, index: number): AnnotationEntry => {
@@ -63,6 +64,18 @@ const decodeReplacement = (tuple: ReplacementTuple, index: number): AnnotationEn
   return entry;
 };
 
+const decodeTaskToggle = (tuple: TaskToggleTuple, index: number): AnnotationEntry => {
+  const [, originalText, checkedFlag, author] = tuple;
+  const entry: AnnotationEntry = {
+    kind: "task",
+    id: `t-${index}`,
+    originalText,
+    checked: checkedFlag === "1",
+  };
+  if (author !== undefined && author.length > 0) entry.author = author;
+  return entry;
+};
+
 type DecoderTable = {
   [K in AnnotationTuple[0]]: (
     tuple: Extract<AnnotationTuple, readonly [K, ...unknown[]]>,
@@ -76,6 +89,7 @@ const decoders: DecoderTable = {
   D: decodeDeletion,
   I: decodeInsertion,
   R: decodeReplacement,
+  T: decodeTaskToggle,
 };
 
 /**

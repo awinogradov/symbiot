@@ -16,6 +16,8 @@ export type {
   PlateValue,
   ReplacementEntry,
   ReplacementTuple,
+  TaskToggleEntry,
+  TaskToggleTuple,
 } from "./types.ts";
 export {
   toCommentTuple,
@@ -23,6 +25,7 @@ export {
   toGlobalCommentTuple,
   toInsertionTuple,
   toReplacementTuple,
+  toTaskToggleTuple,
 } from "./types.ts";
 export {
   walkAnnotations,
@@ -31,6 +34,7 @@ export {
   onlyGlobals,
   onlyInsertions,
   onlyReplacements,
+  onlyTasks,
   type AnnotationSources,
 } from "./walkAnnotations.ts";
 export { encodeAnnotations } from "./encode.ts";

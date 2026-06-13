@@ -248,6 +248,7 @@ const tupleArity: Record<string, [number, number]> = {
   D: [2, 4],
   I: [3, 5],
   R: [3, 5],
+  T: [3, 4],
 };
 
 const validateAnnotationTuples = (arr: unknown[]): void => {
