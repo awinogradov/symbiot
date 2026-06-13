@@ -1,13 +1,9 @@
-import { PanelRight } from "lucide-react";
-
 import { AppLogo } from "./AppLogo.tsx";
 import { Button } from "./Button.tsx";
 import { CheckIcon } from "./CheckIcon.tsx";
 import { Kbd, formatHotkey } from "./Kbd.tsx";
 import { SendIcon } from "./SendIcon.tsx";
-import { Separator } from "./Separator.tsx";
 import { SettingsMenu } from "./SettingsMenu.tsx";
-import { SidebarTrigger } from "./SidebarChrome.tsx";
 
 export type TopBarMode = "plan" | "annotate";
 
@@ -18,8 +14,6 @@ interface TopBarProps {
   projectName: string;
   busy?: boolean;
   mode?: TopBarMode;
-  /** When true, renders the annotation-sidebar toggle trigger on the right side. */
-  showSidebarTrigger?: boolean;
   /** In `plan` mode, swaps the action button: Approve when false, Request changes when true. */
   hasAnnotations?: boolean;
 }
@@ -66,31 +60,18 @@ const Actions = ({
   );
 };
 
-const SidebarTriggerSlot = ({ show }: { show: boolean }): React.ReactElement | null => {
-  if (!show) return null;
-  return (
-    <>
-      <Separator orientation="vertical" className="h-6" />
-      <SidebarTrigger data-testid="top-bar-sidebar-trigger" className="size-8">
-        <PanelRight />
-      </SidebarTrigger>
-    </>
-  );
-};
-
 export const TopBar = ({
   onApprove,
   onDeny,
   projectName,
   busy = false,
   mode = "plan",
-  showSidebarTrigger = false,
   hasAnnotations = false,
 }: TopBarProps): React.ReactElement => (
   <header
     data-testid="top-bar"
     data-mode={mode}
-    className="border-border bg-topbar flex h-14 items-center gap-2 border-b pr-15 pl-10"
+    className="border-border bg-topbar flex h-14 items-center gap-2 border-b pr-6 pl-10"
   >
     <div data-testid="top-bar-brand" className="flex items-center gap-2">
       <AppLogo size={20} className="text-foreground" />
@@ -108,7 +89,6 @@ export const TopBar = ({
         mode={mode}
         hasAnnotations={hasAnnotations}
       />
-      <SidebarTriggerSlot show={showSidebarTrigger} />
     </div>
   </header>
 );

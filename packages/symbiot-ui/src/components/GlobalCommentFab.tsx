@@ -63,7 +63,7 @@ export const GlobalCommentFab = ({
             onClick={onOpen}
             disabled={disabled}
             className={cn(
-              "absolute right-24 bottom-6 z-10 size-12 rounded-full shadow-lg",
+              "absolute right-6 bottom-12 z-10 size-12 rounded-full shadow-lg",
               className
             )}
             aria-label="Global comment"

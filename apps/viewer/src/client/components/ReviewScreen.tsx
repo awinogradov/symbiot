@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useState } from "react";
+import { Suspense, lazy, useCallback, useState, type CSSProperties } from "react";
 import { AnnotationSidebar } from "@symbiot/ui/components/AnnotationSidebar";
 import { GlobalCommentFab } from "@symbiot/ui/components/GlobalCommentFab";
 import { SidebarInset } from "@symbiot/ui/components/SidebarChrome";
@@ -203,7 +203,7 @@ export const ReviewScreen = ({
   };
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider defaultOpen style={{ "--sidebar-width": "20rem" } as CSSProperties}>
       <SidebarInset className="flex h-svh flex-col">
         <TopBar
           onApprove={onApprove}
@@ -211,10 +211,9 @@ export const ReviewScreen = ({
           projectName={plan.meta.displayName}
           busy={phase === "submitting"}
           mode={plan.mode}
-          showSidebarTrigger
           hasAnnotations={hasAnnotations}
         />
-        <main className="flex-1 overflow-auto p-15">
+        <div className="flex-1 overflow-auto p-15">
           <EditorErrorBoundary>
             <Suspense fallback={<LoadingFallback label="Loading editor…" />}>
               <EditorPane
@@ -228,7 +227,7 @@ export const ReviewScreen = ({
               />
             </Suspense>
           </EditorErrorBoundary>
-        </main>
+        </div>
         {!isHistorical && !inCompareOverlay && (
           <GlobalCommentFab
             onAddGlobalComment={state.onAddGlobalComment}
