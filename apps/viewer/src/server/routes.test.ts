@@ -308,6 +308,11 @@ describe("GET /api/image", () => {
     expect(res?.status).toBe(400);
   });
 
+  it("returns 400 for a non-whitelisted extension", async () => {
+    const res = await send("GET", `/api/image?id=${validId}&ext=.svg`, ctxFor("image-bad-ext"));
+    expect(res?.status).toBe(400);
+  });
+
   it("returns 404 when the image is absent", async () => {
     const res = await send("GET", `/api/image?id=${validId}&ext=.png`, ctxFor("image-missing"));
     expect(res?.status).toBe(404);
