@@ -37,7 +37,7 @@
     },
     "apps/claude-code": {
       "name": "@symbiot/claude-code",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@symbiot/agent-runtime": "workspace:*",
         "@symbiot/viewer": "workspace:*",
@@ -53,7 +53,7 @@
     },
     "apps/codex": {
       "name": "@symbiot/codex",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@symbiot/agent-runtime": "workspace:*",
         "@symbiot/viewer": "workspace:*",
@@ -69,7 +69,7 @@
     },
     "apps/copilot": {
       "name": "@symbiot/copilot",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@symbiot/agent-runtime": "workspace:*",
         "@symbiot/viewer": "workspace:*",
@@ -85,7 +85,7 @@
     },
     "apps/gemini": {
       "name": "@symbiot/gemini",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@symbiot/agent-runtime": "workspace:*",
         "@symbiot/viewer": "workspace:*",
@@ -101,21 +101,19 @@
     },
     "apps/opencode-plugin": {
       "name": "@symbiot/opencode-plugin",
-      "version": "0.2.0",
-      "dependencies": {
-        "@symbiot/agent-runtime": "workspace:*",
-        "@symbiot/viewer": "workspace:*",
-        "zod": "4.4.3",
-      },
+      "version": "0.3.0",
       "devDependencies": {
         "@opencode-ai/plugin": "1.15.13",
         "@opencode-ai/sdk": "1.15.13",
+        "@symbiot/agent-runtime": "workspace:*",
         "@symbiot/eslint-config": "workspace:*",
         "@symbiot/typescript-config": "workspace:*",
+        "@symbiot/viewer": "workspace:*",
         "@types/bun": "1.3.14",
         "eslint": "10.4.0",
         "typescript": "6.0.3",
         "vitest": "4.1.6",
+        "zod": "4.4.3",
       },
     },
     "apps/portal": {
@@ -131,7 +129,7 @@
     },
     "apps/viewer": {
       "name": "@symbiot/viewer",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@symbiot/annotations": "workspace:*",
         "@symbiot/editor": "workspace:*",
@@ -304,6 +302,9 @@
     "packages/tailwind-config": {
       "name": "@symbiot/tailwind-config",
       "version": "0.0.0",
+      "dependencies": {
+        "tw-animate-css": "1.4.0",
+      },
       "devDependencies": {
         "@symbiot/eslint-config": "workspace:*",
         "@symbiot/typescript-config": "workspace:*",
@@ -2373,6 +2374,8 @@
     "tslib": ["tslib@2.8.1", "", {}, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
 
     "turbo": ["turbo@2.9.14", "", { "optionalDependencies": { "@turbo/darwin-64": "2.9.14", "@turbo/darwin-arm64": "2.9.14", "@turbo/linux-64": "2.9.14", "@turbo/linux-arm64": "2.9.14", "@turbo/windows-64": "2.9.14", "@turbo/windows-arm64": "2.9.14" }, "bin": { "turbo": "bin/turbo" } }, "sha512-BQqXRr4UoWI3UPFrtznCLykYHxwxWh53iCB57x092jPMjIlW1wnm3N895g5irpiXmnxUhREBB0n6+y8BHhs4nw=="],
+
+    "tw-animate-css": ["tw-animate-css@1.4.0", "", {}, "sha512-7bziOlRqH0hJx80h/3mbicLW7o8qLsH5+RaLR2t+OHM3D0JlWGODQKQ4cxbK7WlvmUxpcj6Kgu6EKqjrGFe3QQ=="],
 
     "type-check": ["type-check@0.4.0", "", { "dependencies": { "prelude-ls": "^1.2.1" } }, "sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew=="],
 

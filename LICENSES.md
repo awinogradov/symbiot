@@ -2,7 +2,7 @@
 
 # Third-party licenses
 
-47 unique production dependencies across 10 workspaces. Regenerate with `bun run licenses:audit`.
+49 unique production dependencies across 11 workspaces. Regenerate with `bun run licenses:audit`.
 
 | Package | License | Repository |
 | --- | --- | --- |
@@ -50,6 +50,8 @@
 | remark-parse@11.0.0 | MIT | https://github.com/remarkjs/remark.git#main |
 | shiki@1.29.2 | MIT | https://github.com/shikijs/shiki |
 | tailwind-merge@3.3.1 | MIT | https://github.com/dcastil/tailwind-merge |
+| tailwindcss@4.3.0 | MIT | https://github.com/tailwindlabs/tailwindcss |
+| tw-animate-css@1.4.0 | MIT | https://github.com/Wombosvideo/tw-animate-css |
 | typescript-eslint@8.59.4 | MIT | https://github.com/typescript-eslint/typescript-eslint |
 | unified@11.0.5 | MIT | https://github.com/unifiedjs/unified |
 | zod@4.4.3 | MIT | https://github.com/colinhacks/zod |
