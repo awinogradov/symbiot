@@ -31914,7 +31914,7 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../utils/cn.ts";
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[color,background-color,box-shadow,transform] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -31990,10 +31990,7 @@ export const CardHeader = ({ className, ref, ...rest }: BaseProps): React.ReactE
   <div
     ref={ref}
     data-slot="card-header"
-    className={cn(
-      "grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto]",
-      className
-    )}
+    className={cn("grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6", className)}
     {...rest}
   />
 );
@@ -32012,15 +32009,6 @@ export const CardDescription = ({ className, ref, ...rest }: BaseProps): React.R
     ref={ref}
     data-slot="card-description"
     className={cn("text-muted-foreground text-sm", className)}
-    {...rest}
-  />
-);
-
-export const CardAction = ({ className, ref, ...rest }: BaseProps): React.ReactElement => (
-  <div
-    ref={ref}
-    data-slot="card-action"
-    className={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
     {...rest}
   />
 );
@@ -32537,7 +32525,7 @@ export const DropdownMenuContent = ({
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "border-border bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 z-50 min-w-[8rem] overflow-hidden rounded-md border p-1 shadow-md",
+        "border-border bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 z-50 min-w-32 overflow-hidden rounded-md border p-1 shadow-md",
         className
       )}
       {...rest}
@@ -32656,7 +32644,7 @@ export const DropdownMenuSubContent = ({
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "border-border bg-popover text-popover-foreground z-50 min-w-[8rem] overflow-hidden rounded-md border p-1 shadow-md",
+      "border-border bg-popover text-popover-foreground z-50 min-w-32 overflow-hidden rounded-md border p-1 shadow-md",
       className
     )}
     {...rest}
@@ -34078,13 +34066,13 @@ export const SidebarMenuItem = ({
 
 /** Class-variance-authority variants for `SidebarMenuButton`. */
 export const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding,transform] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:scale-[0.98] active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
         default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         outline:
-          "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
+          "bg-background ring-1 ring-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:ring-sidebar-accent",
       },
       size: {
         default: "h-8 text-sm",
@@ -35875,9 +35863,11 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
   transform-box: fill-box;
   transform-origin: center;
 }
-[data-slot="button"]:hover .symbiot-check-path,
-.symbiot-icon:hover .symbiot-check-path {
-  animation: symbiot-draw-check 0.4s ease;
+@media (hover: hover) {
+  [data-slot="button"]:hover .symbiot-check-path,
+  .symbiot-icon:hover .symbiot-check-path {
+    animation: symbiot-draw-check 0.4s ease;
+  }
 }
 @keyframes symbiot-draw-check {
   0% {
@@ -35895,11 +35885,13 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
 .symbiot-send-plane {
   transform-box: fill-box;
   transform-origin: center;
-  transition: transform 0.5s ease;
+  transition: transform 0.2s ease-out;
 }
-[data-slot="button"]:hover .symbiot-send-plane,
-.symbiot-icon:hover .symbiot-send-plane {
-  transform: translate(3px, -3px) scale(0.8);
+@media (hover: hover) {
+  [data-slot="button"]:hover .symbiot-send-plane,
+  .symbiot-icon:hover .symbiot-send-plane {
+    transform: translate(3px, -3px) scale(0.8);
+  }
 }
 .symbiot-send-trail {
   stroke-dasharray: 1;
@@ -35909,10 +35901,12 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
     stroke-dashoffset 0.55s ease 0.1s,
     opacity 0.3s ease;
 }
-[data-slot="button"]:hover .symbiot-send-trail,
-.symbiot-icon:hover .symbiot-send-trail {
-  stroke-dashoffset: 0;
-  opacity: 1;
+@media (hover: hover) {
+  [data-slot="button"]:hover .symbiot-send-trail,
+  .symbiot-icon:hover .symbiot-send-trail {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
 }
 
 /*
