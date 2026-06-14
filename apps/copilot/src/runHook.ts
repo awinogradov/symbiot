@@ -31,7 +31,13 @@ import { join } from "node:path";
 
 import { runPlanReview } from "@symbiot/agent-runtime";
 import { emitDecision } from "@symbiot/agent-runtime/decision";
-import { flagValue, parsePort, readHookInput } from "@symbiot/agent-runtime/hook-input";
+import {
+  flagValue,
+  isNonEmptyString,
+  isRecord,
+  parsePort,
+  readHookInput,
+} from "@symbiot/agent-runtime/hook-input";
 import { createMarkerStore } from "@symbiot/agent-runtime/marker-store";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
@@ -52,12 +58,6 @@ export interface CopilotAgentStopInput {
   stopReason?: string;
 }
 
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.length > 0;
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
 /**
  * Validate a parsed stdin payload as a genuine `agentStop` turn-end event, or
  * return `null` to pass through. Pure — gates on `stopReason === "end_turn"` and a
@@ -65,7 +65,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
  * missing `sessionId` degrades to `""` (the re-entrancy guard is then a no-op).
  */
 export const parseAgentStop = (input: unknown): Required<CopilotAgentStopInput> | null => {
-  if (!isObject(input)) return null;
+  if (!isRecord(input)) return null;
   const { sessionId, transcriptPath, stopReason } = input as CopilotAgentStopInput;
   if (stopReason !== "end_turn") return null;
   if (!isNonEmptyString(transcriptPath)) return null;

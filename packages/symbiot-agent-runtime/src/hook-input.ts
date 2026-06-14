@@ -44,10 +44,12 @@ export const parsePort = (raw: string | null): number | null => {
   return n >= 1 && n <= 65535 ? n : null;
 };
 
-const isNonEmptyString = (value: unknown): value is string =>
+/** Narrow `value` to a non-empty string — the "present and not blank" guard for hook payload fields. */
+export const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+/** Narrow `value` to a non-null object so its fields can be read off an `unknown` hook payload. */
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 /** Options for {@link createStopPlanExtractor}. */

@@ -27,7 +27,8 @@ import { join } from "node:path";
 
 import { writeAtomic } from "./managed-file.ts";
 
-const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
+/** Hex SHA-256 of `value` — the shared hash for marker payloads, filenames, and plan fingerprints. */
+export const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
 
 /** A marker store bound to a directory + TTL. */
 export interface MarkerStore {
