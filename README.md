@@ -189,71 +189,78 @@ Conventions and selector rules for scenarios live in [`features`](./features/REA
 ## Project structure
 
 ```
-apps/
-  viewer/        Bun HTTP server + React/Vite client; ships as a single binary
-  claude-code/   Claude Code hook that opens the viewer and resolves plans
-  codex/         Codex CLI hook (Stop) that opens the viewer and resolves plans
-  gemini/        Gemini CLI hook (AfterAgent) that opens the viewer and resolves plans
-  copilot/       Copilot CLI hook (agentStop) that opens the viewer and resolves plans
-  opencode-plugin/  OpenCode in-process plugin (session.idle); opens the viewer, steers the next turn
-  portal/        Static viewer for shared review links (planned; not yet released)
-packages/
-  symbiot-agent-runtime/  Shared spawn-and-decide loop (runPlanReview) for agent hooks
-  symbiot-annotations/  Annotation tuple model + codec
-  symbiot-editor/       PlateJS editor as a reusable React package
-  symbiot-ui/           shadcn/ui components + ThemeProvider + chrome
-  eslint-config/        Shared flat ESLint 10 config
-  prettier-config/      Shared Prettier config
-  tailwind-config/      Tailwind v4 tokens (semantic + annotation)
-  typescript-config/    tsconfig presets (base / react / node)
-docs/            Cross-cutting architecture, product, and contract docs
-features/        Playwright-BDD scenarios and step helpers
-fixtures/        Sample markdown + golden serializer fixtures
-CLAUDE.md        Codebase conventions for humans and AI assistants
+.
+├── apps/
+│   ├── viewer/                 Bun HTTP server + React/Vite client; single-binary build
+│   ├── claude-code/            Claude Code hook (PreToolUse/PermissionRequest)
+│   ├── codex/                  Codex CLI hook (Stop)
+│   ├── gemini/                 Gemini CLI hook (AfterAgent)
+│   ├── copilot/                Copilot CLI hook (agentStop)
+│   ├── opencode-plugin/        OpenCode in-process plugin (session.idle)
+│   └── portal/                 Static share-viewer (planned; not yet released)
+├── packages/
+│   ├── symbiot-agent-runtime/  Shared spawn-and-decide loop (runPlanReview)
+│   ├── symbiot-annotations/    Annotation tuple model + codec
+│   ├── symbiot-editor/         PlateJS editor as a reusable React package
+│   ├── symbiot-ui/             shadcn/ui components + ThemeProvider + chrome
+│   ├── eslint-config/          Shared flat ESLint 10 config
+│   ├── prettier-config/        Shared Prettier config
+│   ├── tailwind-config/        Tailwind v4 tokens (semantic + annotation)
+│   └── typescript-config/      tsconfig presets (base / react / node)
+├── docs/                       Cross-cutting architecture, product, and contract docs
+├── features/                   Playwright-BDD scenarios and step helpers
+├── fixtures/                   Sample markdown + golden serializer fixtures
+└── CLAUDE.md                   Codebase conventions for humans and AI assistants
 ```
 
 ## Documentation
 
-Read this list before touching the code — it's the documentation index CLAUDE.md points contributors at.
+Read this index before touching the code — it's what CLAUDE.md points contributors at. Cross-cutting design notes live in [`docs/`](./docs/README.md); per-area READMEs sit next to their sources.
 
-- [`CLAUDE.md`](./CLAUDE.md) — core principles, naming, lint/style rules, post-task checks.
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — branch, commit, and PR conventions.
-- [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) — community standards.
-- [`LICENSES.md`](./LICENSES.md) — third-party license manifest (distinct from `LICENSE.md`).
-- [`docs`](./docs/README.md) — cross-cutting architecture, product, and contract docs. Start here when a change spans more than one package.
-- [`docs/product.md`](./docs/product.md) — product goals, non-goals, personas, principles, NFRs, success metrics.
-- [`docs/architecture.md`](./docs/architecture.md) — app composition, package layering, HTTP surface, monorepo invariants, and the architectural specials.
-- [`docs/agents/adding-an-integration.md`](./docs/agents/adding-an-integration.md) — how to add a new agent integration: the shared `@symbiot/agent-runtime` building blocks and a step-by-step.
-- [`docs/server-contract.md`](./docs/server-contract.md) — HTTP surface between the hook and the viewer.
-- [`docs/theming.md`](./docs/theming.md) — annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).
-- [`docs/a11y.md`](./docs/a11y.md) — WCAG AA baseline: axe-core scenarios, keyboard nav checklist, focus-ring policy, ARIA-label inventory, screen-reader smoke.
-- [`docs/version-history.md`](./docs/version-history.md) — on-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.
-- [`docs/release.md`](./docs/release.md) — release pipeline + shim/binary contract; cut and roll back releases here, plus the cross-browser smoke checklist for release sign-off.
-- [`docs/perf.md`](./docs/perf.md) — performance budget, bundle visualizer + Lighthouse reproduction.
-- [`features`](./features/README.md) — Playwright-BDD layout, selector conventions, how to add a scenario.
-- [`fixtures/markdown`](./fixtures/markdown/README.md) — sample markdown fixtures + the inline-diff smoke flow.
-- [`fixtures/golden`](./fixtures/golden/README.md) — byte-equality regression fixtures for the annotation serializer.
+| Doc                                                                              | What it covers                                                                                                                    |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [`CLAUDE.md`](./CLAUDE.md)                                                       | Core principles, naming, lint/style rules, post-task checks.                                                                      |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md)                                           | Branch, commit, and PR conventions.                                                                                               |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)                                     | Community standards.                                                                                                              |
+| [`LICENSES.md`](./LICENSES.md)                                                   | Third-party license manifest (distinct from `LICENSE.md`).                                                                        |
+| [`docs/`](./docs/README.md)                                                      | Cross-cutting architecture, product, and contract docs — start here when a change spans more than one package.                    |
+| [`docs/product.md`](./docs/product.md)                                           | Product goals, non-goals, personas, principles, NFRs, success metrics.                                                            |
+| [`docs/architecture.md`](./docs/architecture.md)                                 | App composition, package layering, HTTP surface, monorepo invariants, and the architectural specials.                             |
+| [`docs/server-contract.md`](./docs/server-contract.md)                           | HTTP surface between the hook and the viewer.                                                                                     |
+| [`docs/version-history.md`](./docs/version-history.md)                           | On-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.                                             |
+| [`docs/theming.md`](./docs/theming.md)                                           | Annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).                                               |
+| [`docs/a11y.md`](./docs/a11y.md)                                                 | WCAG AA baseline: axe-core scenarios, keyboard nav, focus-ring policy, ARIA-label inventory, screen-reader smoke, reduced motion. |
+| [`docs/perf.md`](./docs/perf.md)                                                 | Performance budget, bundle visualizer + Lighthouse reproduction.                                                                  |
+| [`docs/release.md`](./docs/release.md)                                           | Release pipeline + shim/binary contract; cut and roll back releases, plus the cross-browser smoke checklist.                      |
+| [`docs/agents/adding-an-integration.md`](./docs/agents/adding-an-integration.md) | How to add a new agent integration: the shared `@symbiot/agent-runtime` building blocks and a step-by-step.                       |
+| [`features/`](./features/README.md)                                              | Playwright-BDD layout, selector conventions, how to add a scenario.                                                               |
+| [`fixtures/markdown`](./fixtures/markdown/README.md)                             | Sample markdown fixtures + the inline-diff smoke flow.                                                                            |
+| [`fixtures/golden`](./fixtures/golden/README.md)                                 | Byte-equality regression fixtures for the annotation serializer.                                                                  |
 
-Apps:
+### Apps
 
-- [`apps/viewer`](./apps/viewer/README.md) — fullstack viewer (server + client).
-- [`apps/claude-code`](./apps/claude-code/README.md) — Claude Code hook entry point.
-- [`apps/codex`](./apps/codex/README.md) — Codex CLI hook entry point.
-- [`apps/gemini`](./apps/gemini/README.md) — Gemini CLI hook entry point.
-- [`apps/copilot`](./apps/copilot/README.md) — Copilot CLI hook entry point.
-- [`apps/opencode-plugin`](./apps/opencode-plugin/README.md) — OpenCode in-process plugin entry point.
-- [`apps/portal`](./apps/portal/README.md) — shared-link viewer.
+| App                                                        | Entry point                             |
+| ---------------------------------------------------------- | --------------------------------------- |
+| [`apps/viewer`](./apps/viewer/README.md)                   | Fullstack viewer (server + client).     |
+| [`apps/claude-code`](./apps/claude-code/README.md)         | Claude Code hook entry point.           |
+| [`apps/codex`](./apps/codex/README.md)                     | Codex CLI hook entry point.             |
+| [`apps/gemini`](./apps/gemini/README.md)                   | Gemini CLI hook entry point.            |
+| [`apps/copilot`](./apps/copilot/README.md)                 | Copilot CLI hook entry point.           |
+| [`apps/opencode-plugin`](./apps/opencode-plugin/README.md) | OpenCode in-process plugin entry point. |
+| [`apps/portal`](./apps/portal/README.md)                   | Shared-link viewer (planned).           |
 
-Packages:
+### Packages
 
-- [`packages/symbiot-agent-runtime`](./packages/symbiot-agent-runtime/README.md) — shared spawn-and-decide loop (`runPlanReview`) for agent integrations.
-- [`packages/symbiot-annotations`](./packages/symbiot-annotations/README.md) — annotation tuples + codec.
-- [`packages/symbiot-editor`](./packages/symbiot-editor/README.md) — Plate editor package, kits, modes.
-- [`packages/symbiot-ui`](./packages/symbiot-ui/README.md) — shared UI primitives.
-- [`packages/eslint-config`](./packages/eslint-config/README.md) — ESLint rulesets and `configure()`.
-- [`packages/prettier-config`](./packages/prettier-config/README.md) — Prettier settings.
-- [`packages/tailwind-config`](./packages/tailwind-config/README.md) — design tokens and annotation hues.
-- [`packages/typescript-config`](./packages/typescript-config/README.md) — tsconfig presets.
+| Package                                                                        | What it provides                                                       |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [`packages/symbiot-agent-runtime`](./packages/symbiot-agent-runtime/README.md) | Shared spawn-and-decide loop (`runPlanReview`) for agent integrations. |
+| [`packages/symbiot-annotations`](./packages/symbiot-annotations/README.md)     | Annotation tuples + codec.                                             |
+| [`packages/symbiot-editor`](./packages/symbiot-editor/README.md)               | Plate editor package, kits, modes.                                     |
+| [`packages/symbiot-ui`](./packages/symbiot-ui/README.md)                       | Shared UI primitives.                                                  |
+| [`packages/eslint-config`](./packages/eslint-config/README.md)                 | ESLint rulesets and `configure()`.                                     |
+| [`packages/prettier-config`](./packages/prettier-config/README.md)             | Prettier settings.                                                     |
+| [`packages/tailwind-config`](./packages/tailwind-config/README.md)             | Design tokens and annotation hues.                                     |
+| [`packages/typescript-config`](./packages/typescript-config/README.md)         | tsconfig presets.                                                      |
 
 ## Contributing
 
