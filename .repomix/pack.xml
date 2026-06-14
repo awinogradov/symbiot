@@ -299,6 +299,7 @@ features/
     selection.steps.ts
     settings.steps.ts
     sidebar.steps.ts
+    task.steps.ts
     upload.steps.ts
     versionHistory.steps.ts
     versionHistoryDiff.steps.ts
@@ -342,6 +343,7 @@ features/
     image-attach.feature
     inline-comment.feature
     round-trip.feature
+    task-checkbox.feature
   opencode-harness.ts
   README.md
 fixtures/
@@ -374,6 +376,7 @@ fixtures/
     mixed.md
     README.md
     replacement.md
+    task.md
   markdown/
     elements-revised.md
     elements.md
@@ -488,6 +491,7 @@ packages/
         ReviewEditorTypes.tsx
         TableElements.test.tsx
         TableElements.tsx
+        TaskToggleContext.ts
         VoidElements.test.tsx
         VoidElements.tsx
         VoidImage.test.tsx
@@ -496,6 +500,8 @@ packages/
         annotationKind.ts
         applyAnnotation.test.ts
         applyAnnotation.ts
+        applyTaskToggle.test.ts
+        applyTaskToggle.ts
         codeSyntax.ts
         codeTokens.test.ts
         codeTokens.ts
@@ -571,7 +577,6 @@ packages/
         ThemeProvider.render.test.tsx
         ThemeProvider.test.ts
         ThemeProvider.tsx
-        ToggleGroup.tsx
         Tooltip.tsx
         TopBar.test.tsx
         TopBar.tsx
@@ -8921,7 +8926,7 @@ interface EditorErrorBoundaryState {
 const defaultFallback = (
   <div
     role="alert"
-    className="text-muted-foreground prose prose-neutral dark:prose-invert max-w-3xl text-sm"
+    className="text-muted-foreground prose prose-neutral dark:prose-invert mx-auto max-w-3xl text-sm"
   >
     The editor failed to load. Reload the page to try again.
   </div>
@@ -9148,7 +9153,7 @@ export const PlanLoaded = ({ plan }: PlanLoadedProps): React.ReactElement => {
 </file>
 
 <file path="apps/viewer/src/client/components/ReviewScreen.tsx">
-import { Suspense, lazy, useCallback, useState } from "react";
+import { Suspense, lazy, useCallback, useState, type CSSProperties } from "react";
 import { AnnotationSidebar } from "@symbiot/ui/components/AnnotationSidebar";
 import { GlobalCommentFab } from "@symbiot/ui/components/GlobalCommentFab";
 import { SidebarInset } from "@symbiot/ui/components/SidebarChrome";
@@ -9235,7 +9240,7 @@ const anyOpen = (...flags: boolean[]): boolean => flags.some((f) => f);
 const HistoricalPlaceholder = (): React.ReactElement => (
   <div
     data-testid="historical-loading"
-    className="text-muted-foreground prose prose-neutral dark:prose-invert max-w-3xl text-sm"
+    className="text-muted-foreground prose prose-neutral dark:prose-invert mx-auto max-w-3xl text-sm"
   >
     Loading version diff…
   </div>
@@ -9353,7 +9358,7 @@ export const ReviewScreen = ({
   };
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider defaultOpen style={{ "--sidebar-width": "20rem" } as CSSProperties}>
       <SidebarInset className="flex h-svh flex-col">
         <TopBar
           onApprove={onApprove}
@@ -9361,10 +9366,9 @@ export const ReviewScreen = ({
           projectName={plan.meta.displayName}
           busy={phase === "submitting"}
           mode={plan.mode}
-          showSidebarTrigger
           hasAnnotations={hasAnnotations}
         />
-        <main className="flex-1 overflow-auto px-8 py-6">
+        <div className="flex-1 overflow-auto p-15">
           <EditorErrorBoundary>
             <Suspense fallback={<LoadingFallback label="Loading editor…" />}>
               <EditorPane
@@ -9378,7 +9382,7 @@ export const ReviewScreen = ({
               />
             </Suspense>
           </EditorErrorBoundary>
-        </main>
+        </div>
         {!isHistorical && !inCompareOverlay && (
           <GlobalCommentFab
             onAddGlobalComment={state.onAddGlobalComment}
@@ -10274,7 +10278,7 @@ export const useReviewState = ({ draft, saveDraft }: ReviewStateProps): ReviewSt
         onUpdateGlobalComment(entry.id, body, images);
         return;
       }
-      if (entry.kind === "deletion") return;
+      if (entry.kind === "deletion" || entry.kind === "task") return;
       editorHandle?.updateAnnotation(entry.kind, entry.id, body, images);
     },
     [editorHandle, onUpdateGlobalComment]
@@ -10767,14 +10771,19 @@ export interface SourceWindow {
 type SidebarKind = AnnotationSidebarEntry["kind"];
 type SupportedEntry = Extract<AnnotationEntry, { kind: SidebarKind }>;
 
-// Narrows a walked entry to the five sidebar-renderable kinds: Comment,
-// Deletion, Global, Insertion, Replacement.
+// The six sidebar-renderable kinds: Comment, Deletion, Global, Insertion,
+// Replacement, Task. (Set membership keeps the guard under the complexity cap.)
+const sidebarKinds = new Set<AnnotationEntry["kind"]>([
+  "comment",
+  "deletion",
+  "global",
+  "insertion",
+  "replacement",
+  "task",
+]);
+
 const isSupportedSidebarEntry = (entry: AnnotationEntry): entry is SupportedEntry =>
-  entry.kind === "comment" ||
-  entry.kind === "deletion" ||
-  entry.kind === "global" ||
-  entry.kind === "insertion" ||
-  entry.kind === "replacement";
+  sidebarKinds.has(entry.kind);
 
 type AnchoredEntry = Exclude<SupportedEntry, { kind: "global" }>;
 
@@ -10783,10 +10792,13 @@ const anchoredPrimary = (entry: AnchoredEntry): string => {
   return entry.originalText;
 };
 
+const taskBody = (checked: boolean): string => (checked ? "Mark as done" : "Mark as not done");
+
 const anchoredBody = (entry: AnchoredEntry): string | undefined => {
   if (entry.kind === "comment") return entry.body;
   if (entry.kind === "insertion") return entry.newText;
   if (entry.kind === "replacement") return entry.replacementText;
+  if (entry.kind === "task") return taskBody(entry.checked);
   return undefined;
 };
 
@@ -10912,15 +10924,23 @@ body {
 }
 
 /*
- * Shiki dual themes: the highlighter inlines the light theme as
- * `color` / `background-color` and the dark theme as `--shiki-dark` /
- * `--shiki-dark-bg`. Promote the dark slot when the app is in dark mode.
- * `!important` overrides Shiki's inline styles on every span.
+ * Shiki dual themes: the highlighter inlines the light theme as `color` and
+ * the dark theme as `--shiki-dark`. Promote the dark slot when the app is in
+ * dark mode. `!important` overrides Shiki's inline styles on every span.
+ * Blocks carry no background — they render transparent on `--background`.
  */
 html.dark .shiki,
 html.dark .shiki span {
   color: var(--shiki-dark) !important;
-  background-color: var(--shiki-dark-bg) !important;
+}
+
+/*
+ * Typography gives `pre` its own slab background (a dark panel in light mode,
+ * 50%-black in invert mode). Code blocks render transparent on `--background`
+ * instead — token colours come from Shiki's inline styles.
+ */
+.prose pre {
+  background-color: transparent;
 }
 
 /*
@@ -10936,16 +10956,43 @@ html.dark .shiki span {
 }
 
 /*
+ * Markdown heading / inline-code colors ride the `--heading` / `--inline-code`
+ * theme tokens (packages/tailwind-config/theme.css). This file is unlayered,
+ * so these declarations beat the utility-layer `prose-invert` remap in both
+ * themes — the values flip with the `:root` / `.dark` token cascade instead.
+ */
+.prose {
+  --tw-prose-headings: var(--heading);
+  --tw-prose-code: var(--inline-code);
+}
+.prose :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+}
+.prose code {
+  font-weight: 400;
+}
+/*
+ * Inline-code chip: a translucent tint of the `--inline-code` token (same
+ * decorative-background pattern as the 10%-alpha annotation highlights), so
+ * it tracks the theme cascade. `:not(pre *)` keeps it off fenced code inside
+ * Shiki blocks.
+ */
+.prose code:not(pre *) {
+  background-color: color-mix(in oklab, var(--inline-code) 12%, transparent);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+}
+
+/*
  * The DebugBar is a viewport-fixed global badge (default bottom-right,
  * 0.75rem inset). While the right annotation sidebar is expanded it would sit
- * on top of the sidebar's "Clear all" footer and the editor's comment FAB, so
- * dock it left of the sidebar (w-80 = 20rem) and above the FAB
- * (bottom-6 1.5rem + size-12 3rem) while the sidebar is open. DebugBar reads
- * these vars with a 0.75rem fallback (= its default right-3 / bottom-3).
+ * on top of the sidebar's "Clear all" footer, so dock it left of the
+ * always-visible annotation sidebar (--sidebar-width = 20rem), right-aligned
+ * with the comment FAB (both 1.5rem inset). The badge keeps its 0.75rem bottom
+ * fallback (bottom corner); the FAB sits above it via `bottom-12`.
  */
-:root:has([data-slot="sidebar"][data-side="right"][data-state="expanded"]) {
-  --debug-bar-right: calc(20rem + 0.75rem);
-  --debug-bar-bottom: 5rem;
+:root:has([data-testid="annotation-sidebar"]) {
+  --debug-bar-right: calc(20rem + 1.5rem);
 }
 </file>
 
@@ -13697,7 +13744,6 @@ loaded.
 | Reload the page                               | the editor root (the first contentEditable region) holds focus                                                                     |
 | Tab                                           | the floating "Approve" / "Request changes" button in the top bar                                                                   |
 | Tab                                           | the Settings button (`top-bar-settings`)                                                                                           |
-| Tab                                           | the sidebar trigger (annotate mode only)                                                                                           |
 | Shift+Tab loops back                          | reaches `top-bar-brand` before wrapping                                                                                            |
 | Open the Settings menu (Enter on the trigger) | menu opens with focus on the first radio item (pointer-open highlights none); Esc closes and returns focus to the Settings trigger |
 | Select text in the editor, then press `c`     | inline composer opens, focus on `composer-textarea`; Esc returns focus to the editor with the selection restored                   |
@@ -13721,8 +13767,8 @@ focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none
 ```
 
 Every shadcn-derived primitive in `@symbiot/ui` (`Button`, `Badge`, `Input`,
-`Textarea`, `ScrollArea`, `Tabs`, `Sheet` close, `ToggleGroup`,
-`SidebarMenu`, `SidebarSection`) inherits the same `ring-2 ring-ring`
+`Textarea`, `ScrollArea`, `Tabs`, `Sheet` close, `SidebarMenu`,
+`SidebarSection`) inherits the same `ring-2 ring-ring`
 pattern; the sidebar variants substitute `ring-sidebar-ring` so the ring
 contrasts against the sidebar surface. The token `--ring` lives in
 [`../packages/tailwind-config/theme.css`](../packages/tailwind-config/theme.css)
@@ -13745,10 +13791,12 @@ selector rule lives in
 
 ### Top-bar surface
 
-| Component                       | testid                    | Accessible name  | Source                                                               |
-| ------------------------------- | ------------------------- | ---------------- | -------------------------------------------------------------------- |
-| Settings trigger                | `top-bar-settings`        | "Settings"       | `aria-label` on Button; Radix adds `aria-haspopup` / `aria-expanded` |
-| Sidebar trigger (annotate mode) | `top-bar-sidebar-trigger` | "Toggle Sidebar" | `<span className="sr-only">` inside `SidebarTrigger`                 |
+| Component        | testid             | Accessible name | Source                                                               |
+| ---------------- | ------------------ | --------------- | -------------------------------------------------------------------- |
+| Settings trigger | `top-bar-settings` | "Settings"      | `aria-label` on Button; Radix adds `aria-haspopup` / `aria-expanded` |
+
+The annotation sidebar is always visible (`collapsible="none"`); there is no
+show/hide trigger or rail in the top bar.
 
 ### Editor + composer surface
 
@@ -13760,12 +13808,11 @@ selector rule lives in
 
 ### Sidebar surface
 
-| Component                    | testid                                | Accessible name            | Source                                                            |
-| ---------------------------- | ------------------------------------- | -------------------------- | ----------------------------------------------------------------- |
-| Sidebar entry remove         | `sidebar-entry-<id>-remove`           | "Remove annotation"        | `aria-label` on `SidebarMenuAction`                               |
-| Sidebar rail (hover toggle)  | _none_ (mouse-only redundant trigger) | "Toggle Sidebar"           | `aria-label` + `tabIndex={-1}` — kept out of Tab order on purpose |
-| History toggle: changed-only | _none_                                | "Show only changed blocks" | `aria-label` on ToggleGroupItem                                   |
-| History toggle: full diff    | _none_                                | "Show the full diff"       | `aria-label` on ToggleGroupItem                                   |
+| Component                    | testid                      | Accessible name            | Source                              |
+| ---------------------------- | --------------------------- | -------------------------- | ----------------------------------- |
+| Sidebar entry remove         | `sidebar-entry-<id>-remove` | "Remove annotation"        | `aria-label` on `SidebarMenuAction` |
+| History toggle: changed-only | _none_                      | "Show only changed blocks" | `aria-label` on TabsTrigger         |
+| History toggle: full diff    | _none_                      | "Show the full diff"       | `aria-label` on TabsTrigger         |
 
 ### Dialog chrome
 
@@ -13814,8 +13861,9 @@ Annotation hue contrast is verified at the **token** level, not at the
 rendered level. The check lives next to the token file:
 
 - [`../packages/tailwind-config/contrast.test.ts`](../packages/tailwind-config/contrast.test.ts) — JSDOM-backed
-  Vitest suite that resolves every `--anno-*` token against `--background`
-  in both themes and asserts ≥ 4.5:1 (WCAG AA for normal-weight text).
+  Vitest suite that resolves the annotation, typography, and surface tokens —
+  and their text-on-surface pairs — in both themes and asserts ≥ 4.5:1 (WCAG AA
+  for normal-weight text).
 - [`./theming.md`](./theming.md) — chosen OKLCH values, hex equivalents,
   measured ratios, and the relative-luminance methodology.
 
@@ -14896,7 +14944,7 @@ Out of scope and excluded explicitly:
 
 - `packages/symbiot-editor/src/utils/{shiki,codeSyntax,sourceLines,typingGuard,selectionRect}.ts` — adjacent utilities not named by NFR-8 (Shiki highlighter, code-block syntax-highlight `decorate` glue, source-line resolution, type guards, UI selection geometry). The pure offset/colour math the decorate wires in lives in `codeTokens.ts`, which **is** unit-tested.
 - `packages/symbiot-editor/src/components/{DiffEditor,ReviewEditor}.tsx` — Plate/Slate `contenteditable` surfaces. Testing them needs a live Plate editor with `contenteditable` semantics happy-dom does not implement. Exercised by Playwright-BDD specs. Keep this list narrow; **everything else under `components/**` must be unit-testable** — if a new component pattern resists testing, extract pure helpers (`diffClassFor`, `pruneRemovedAnnotation`, etc.) or mock the heavy dependency, do not extend this list.
-- `packages/symbiot-ui/src/components/{Button,Card,Dialog,DropdownMenu,Input,Popover,ScrollArea,Separator,Sheet,Skeleton,Tabs,Textarea,ToggleGroup,Tooltip,Badge,AlertDialog,Sidebar,SidebarMenu,SidebarProvider,SidebarChrome,SidebarSection}.tsx` — restyled shadcn / Radix primitives. Maintained as a list because the directory layout doesn't separate them.
+- `packages/symbiot-ui/src/components/{Button,Card,Dialog,DropdownMenu,Input,Popover,ScrollArea,Separator,Sheet,Skeleton,Tabs,Textarea,Tooltip,Badge,AlertDialog,Sidebar,SidebarMenu,SidebarProvider,SidebarChrome,SidebarSection}.tsx` — restyled shadcn / Radix primitives. Maintained as a list because the directory layout doesn't separate them.
 - `apps/**` — coverage on app code lives behind the e2e flow (`bun run test:e2e:coverage` + `mcr.config.ts`), not this gate.
 
 ## Running locally
@@ -15148,16 +15196,56 @@ foreground `text-anno-*` color is contrast-verified.
 | `--anno-replace` | `oklch(0.52 0.1 75)`  | `#8a5f18` | 5.63:1 ✓ |
 | `--anno-comment` | `oklch(0.54 0.13 48)` | `#a9531e` | 5.33:1 ✓ |
 
-### Dark theme — `--background: oklch(0.145 0 0)` (≈ `#252525`)
+### Dark theme — `--background: oklch(0.176 0.014 258.4)` (≈ `#0d1117`, GitHub dark canvas)
 
 | Token            | OKLCH                  | Hex       | Ratio    |
 | ---------------- | ---------------------- | --------- | -------- |
-| `--anno-delete`  | `oklch(0.7 0.18 30)`   | `#fa6a57` | 5.30:1 ✓ |
-| `--anno-insert`  | `oklch(0.75 0.18 145)` | `#57cb60` | 7.38:1 ✓ |
-| `--anno-replace` | `oklch(0.78 0.16 75)`  | `#f2a618` | 7.48:1 ✓ |
-| `--anno-comment` | `oklch(0.75 0.14 50)`  | `#f49157` | 6.59:1 ✓ |
+| `--anno-delete`  | `oklch(0.7 0.18 30)`   | `#fa6a57` | 6.56:1 ✓ |
+| `--anno-insert`  | `oklch(0.75 0.18 145)` | `#57cb60` | 9.08:1 ✓ |
+| `--anno-replace` | `oklch(0.78 0.16 75)`  | `#f2a618` | 9.24:1 ✓ |
+| `--anno-comment` | `oklch(0.75 0.14 50)`  | `#f49157` | 8.15:1 ✓ |
 
 All eight pairs clear the WCAG AA threshold for normal-weight text (4.5:1).
+
+## Surface & markdown typography tokens
+
+The GitHub-palette design pass added surface and typography tokens alongside
+the annotation hues. Dark values are the GitHub-dark palette; light values are
+derived same-hue analogues. Text tokens are AA-gated against `--background`;
+the surfaces are gated as (foreground, surface) pairs — all in
+`contrast.test.ts`.
+
+| Token                           | Light OKLCH (hex)                      | Dark OKLCH (hex)                       | Ratio (L / D)                              |
+| ------------------------------- | -------------------------------------- | -------------------------------------- | ------------------------------------------ |
+| `--topbar`                      | `oklch(0.978 0.003 247.9)` (`#f6f8fa`) | `oklch(0.216 0.013 258.4)` (`#161a20`) | vs `--foreground`: 18.58 / 16.74 ✓         |
+| `--muted`                       | `oklch(0.978 0.003 247.9)` (`#f6f8fa`) | `oklch(0.278 0.012 248.2)` (`#24292e`) | vs `--muted-foreground`: 7.94 / 5.66 ✓     |
+| `--heading`                     | `oklch(0.278 0.012 248.2)` (`#24292e`) | `oklch(0.857 0.014 248.0)` (`#c9d1d9`) | vs `--background`: 14.67 / 12.27 ✓         |
+| `--inline-code`                 | `oklch(0.48 0.17 277.5)` (`#4b4cba`)   | `oklch(0.802 0.091 278.6)` (`#b1b9f9`) | vs `--background`: 6.92 / 10.06 ✓          |
+| `--task-done`                   | `oklch(0.58 0.157 148.1)` (`#1c923f`)  | `oklch(0.705 0.157 148.1)` (`#4eba65`) | decorative checkbox accent — not gated     |
+| `--sidebar`                     | `oklch(0.985 0 0)` (`#fafafa`)         | `oklch(0.258 0.013 253.1)` (`#1F242A`) | vs `--sidebar-foreground`: 18.96 / 14.96 ✓ |
+| `--accent` / `--sidebar-accent` | `oklch(0.97 0 0)` (`#f5f5f5`)          | `oklch(0.319 0.017 255.6)` (`#2d333b`) | vs `--muted-foreground`: 7.76 / 4.91 ✓     |
+
+Surface tokens are gated as `(foreground, surface)` pairs in `contrast.test.ts`,
+not against `--background` — the Ratio column names the foreground token measured
+on each surface. `--sidebar` and the shared `--accent` / `--sidebar-accent` hover
+moved only in **dark** (the GitHub-dark request); their light values keep the
+neutral shadcn analogues, so the four hover surfaces stay mutually consistent in
+both themes.
+
+`--accent` and `--sidebar-accent` deliberately hold the **same** value so one
+edit re-tints every on-palette hover surface at once — the app-wide hover (the
+global-comment FAB, the top-bar feedback/approve button, modal Cancel, and every
+ghost/outline button) and the sidebar hover (annotation rows, sidebar menu
+actions). They are kept as two named tokens rather than collapsed into one so the
+sidebar hover can diverge from the app hover later without a rename. Solid-primary
+CTAs (modal Confirm, composer Save) are intentionally excluded — they keep
+`hover:bg-primary/90` so the primary affordance reads as distinct from
+secondary/ghost surfaces.
+
+`--topbar` is registered in `@theme inline` (consumed as `bg-topbar` by the
+TopBar); `--heading` and `--inline-code` are consumed only via `var()` from
+the viewer's `.prose` overrides, so they carry no utility registration;
+`--task-done` is registered as the `accent-task-done` checkbox accent.
 
 ## Differentiation from `--destructive`
 
@@ -15196,11 +15284,15 @@ formulas above.
 
 ## Automated contrast test
 
-`packages/tailwind-config/contrast.test.ts` locks every annotation token's
-contrast against `--background` at the WCAG AA threshold (>= 4.5:1) in both
-light and dark themes. Each test case reads the actual `theme.css` cascade
-through JSDOM by toggling the `.dark` class on `document.documentElement`,
-so a hue edit that drops below AA fails CI before review.
+`packages/tailwind-config/contrast.test.ts` locks every contrast-checked
+token at the WCAG AA threshold (>= 4.5:1) in both light and dark themes:
+the text tokens (`--anno-*`, `--heading`, `--inline-code`) against
+`--background`, plus explicit (foreground, surface) pairs for text that
+renders on a non-background surface (`--foreground` vs `--topbar`,
+`--muted-foreground` vs `--muted`). Each test case reads the actual
+`theme.css` cascade through JSDOM by toggling the `.dark` class on
+`document.documentElement`, so a hue edit that drops below AA fails CI
+before review.
 
 JSDOM was picked over a headless browser because the assertion is a values
 check — there is no rendered fixture to inspect — and spinning Playwright
@@ -15225,8 +15317,10 @@ composer surface). Run with:
 bun --filter @symbiot/tailwind-config test
 ```
 
-Adding a new annotation token to `theme.css` requires extending the test's
-`tokens` tuple; adding a new theme requires extending the `themes` tuple.
+Adding a new text token to `theme.css` requires extending the test's
+`tokens` tuple (it holds all contrast-checked text tokens, not only
+annotation hues); a new text-on-surface combination extends the
+`surfacePairs` tuple; a new theme extends the `themes` tuple.
 
 ## Cross-references
 
@@ -15358,7 +15452,8 @@ Key invariants:
 - `VersionBrowser` lists versions newest-first; the active row gets
   `data-active="true"` via `SidebarMenuButton`'s `isActive` prop and shows
   "current" as its secondary label.
-- The Clean / Raw `ToggleGroup` sits above the version list. It is rendered
+- The Clean / Raw toggle — the same `Tabs` segmented control as the sidebar's
+  Annotations / History tab bar — sits above the version list. It is rendered
   only when `showDiffToggle === true`, derived in `ReviewScreen` as
   `isHistorical && previousPlan !== null`. So: not visible on the current
   version; not visible on the smallest version (no predecessor exists).
@@ -16934,6 +17029,25 @@ Then("no annotation anchor was scrolled into view", async ({ page }) => {
 
 Then("the sidebar total count reads {string}", async ({ page }, expected: string) => {
   await expect(page.getByTestId("sidebar-total-count")).toHaveText(expected);
+});
+</file>
+
+<file path="features/steps/task.steps.ts">
+import { expect } from "@playwright/test";
+
+import { Then, When } from "../support/bdd.ts";
+
+When("I toggle task checkbox {int}", async ({ page }, n: number) => {
+  await page
+    .getByTestId("editor-task-checkbox")
+    .nth(n - 1)
+    .click();
+});
+
+Then("the annotation sidebar shows a task entry {string}", async ({ page }, body: string) => {
+  await expect(
+    page.locator('[data-testid^="sidebar-entry-"][data-kind="task"]', { hasText: body })
+  ).toHaveCount(1);
 });
 </file>
 
@@ -18790,6 +18904,21 @@ Feature: Annotate mode — submit feedback for an arbitrary markdown file
     Then the recorded annotate feedback contains "Should this be a wolf?"
 </file>
 
+<file path="features/uc3-annotate-doc/task-checkbox.feature">
+@P1 @UC3
+Feature: Annotate mode — task checkbox feedback
+  Toggling a GFM task checkbox records it as a task annotation. The sidebar
+  projects the toggle with a "Mark as done" body when the box ends up checked
+  and "Mark as not done" when it ends up unchecked.
+
+  Scenario: Toggling task checkboxes records them in the annotation sidebar
+    Given I open the viewer in annotate mode
+    When I toggle task checkbox 1
+    And I toggle task checkbox 2
+    Then the annotation sidebar shows a task entry "Mark as done"
+    And the annotation sidebar shows a task entry "Mark as not done"
+</file>
+
 <file path="features/opencode-harness.ts">
 /**
  * Bun-only harness that drives the in-process OpenCode plugin against a fixture so
@@ -19507,6 +19636,18 @@ I've reviewed this plan and have 1 piece of feedback:
 
 ## 1. Suggest replacing: "redundant clause"
 > Replace with: "concise note"
+
+---
+</file>
+
+<file path="fixtures/golden/task.md">
+# Plan Feedback
+
+I've reviewed this plan and have 2 pieces of feedback:
+
+## 1. Suggest marking as done: "Open task"
+
+## 2. Suggest marking as not done: "Completed task"
 
 ---
 </file>
@@ -22196,6 +22337,7 @@ import type {
   GlobalCommentTuple,
   InsertionTuple,
   ReplacementTuple,
+  TaskToggleTuple,
 } from "./types.ts";
 
 const decodeComment = (tuple: CommentTuple, index: number): AnnotationEntry => {
@@ -22253,6 +22395,18 @@ const decodeReplacement = (tuple: ReplacementTuple, index: number): AnnotationEn
   return entry;
 };
 
+const decodeTaskToggle = (tuple: TaskToggleTuple, index: number): AnnotationEntry => {
+  const [, originalText, checkedFlag, author] = tuple;
+  const entry: AnnotationEntry = {
+    kind: "task",
+    id: `t-${index}`,
+    originalText,
+    checked: checkedFlag === "1",
+  };
+  if (author !== undefined && author.length > 0) entry.author = author;
+  return entry;
+};
+
 type DecoderTable = {
   [K in AnnotationTuple[0]]: (
     tuple: Extract<AnnotationTuple, readonly [K, ...unknown[]]>,
@@ -22266,6 +22420,7 @@ const decoders: DecoderTable = {
   D: decodeDeletion,
   I: decodeInsertion,
   R: decodeReplacement,
+  T: decodeTaskToggle,
 };
 
 /**
@@ -22491,6 +22646,17 @@ describe("encodeAnnotations", () => {
       ["G", "msg", "", ["img-2"]],
     ]);
   });
+
+  it("encodes task toggles with the checked flag and optional author", () => {
+    const entries: AnnotationEntry[] = [
+      { kind: "task", id: "1", originalText: "Ship it", checked: true },
+      { kind: "task", id: "2", originalText: "Draft only", checked: false, author: "ana" },
+    ];
+    expect(encodeAnnotations(entries)).toEqual([
+      ["T", "Ship it", "1"],
+      ["T", "Draft only", "0", "ana"],
+    ]);
+  });
 });
 
 describe("decodeAnnotations", () => {
@@ -22556,6 +22722,17 @@ describe("decodeAnnotations", () => {
       images: ["i-2"],
     });
   });
+
+  it("round-trips task toggles in both checked states", () => {
+    const back = decodeAnnotations(
+      encodeAnnotations([
+        { kind: "task", id: "x", originalText: "Ship it", checked: true },
+        { kind: "task", id: "y", originalText: "Draft only", checked: false },
+      ])
+    );
+    expect(back[0]).toMatchObject({ kind: "task", originalText: "Ship it", checked: true });
+    expect(back[1]).toMatchObject({ kind: "task", originalText: "Draft only", checked: false });
+  });
 });
 </file>
 
@@ -22567,6 +22744,7 @@ import {
   toGlobalCommentTuple,
   toInsertionTuple,
   toReplacementTuple,
+  toTaskToggleTuple,
 } from "./types.ts";
 
 type EncoderTable = {
@@ -22579,6 +22757,7 @@ const encoders: EncoderTable = {
   deletion: toDeletionTuple,
   insertion: toInsertionTuple,
   replacement: toReplacementTuple,
+  task: toTaskToggleTuple,
 };
 
 const encodeOne = (entry: AnnotationEntry): AnnotationTuple =>
@@ -22612,6 +22791,8 @@ export type {
   PlateValue,
   ReplacementEntry,
   ReplacementTuple,
+  TaskToggleEntry,
+  TaskToggleTuple,
 } from "./types.ts";
 export {
   toCommentTuple,
@@ -22619,6 +22800,7 @@ export {
   toGlobalCommentTuple,
   toInsertionTuple,
   toReplacementTuple,
+  toTaskToggleTuple,
 } from "./types.ts";
 export {
   walkAnnotations,
@@ -22627,6 +22809,7 @@ export {
   onlyGlobals,
   onlyInsertions,
   onlyReplacements,
+  onlyTasks,
   type AnnotationSources,
 } from "./walkAnnotations.ts";
 export { encodeAnnotations } from "./encode.ts";
@@ -22739,6 +22922,15 @@ describe("serializeFeedback", () => {
         originalText: "redundant clause",
         replacementText: "concise note",
       },
+    ];
+    expect(serializeFeedback(entries)).toBe(expected);
+  });
+
+  it("matches the synthesized task fixture (byte-equality)", async () => {
+    const expected = await loadFixture("golden/task.md");
+    const entries: AnnotationEntry[] = [
+      { kind: "task", id: "t1", originalText: "Open task", checked: true },
+      { kind: "task", id: "t2", originalText: "Completed task", checked: false },
     ];
     expect(serializeFeedback(entries)).toBe(expected);
   });
@@ -22888,6 +23080,7 @@ import type {
   GlobalCommentEntry,
   InsertionEntry,
   ReplacementEntry,
+  TaskToggleEntry,
 } from "./types.ts";
 
 /**
@@ -22901,6 +23094,7 @@ import type {
  * - Deletion     → `Suggest removing: "<originalText>"`.
  * - Insertion    → `Insert after: "<contextText>"` + `> <newText>`.
  * - Replacement  → `Suggest replacing: "<originalText>"` + `> Replace with: "<replacementText>"`.
+ * - Task         → `Suggest marking as done|not done: "<originalText>"`.
  *
  * The output is byte-pinned against the fixtures under `fixtures/golden/`.
  */
@@ -22976,6 +23170,13 @@ const formatReplacement = (
   "",
 ];
 
+const formatTask = (entry: TaskToggleEntry & { kind: "task" }, index: number): string[] => [
+  `## ${index}. ${linePrefix(entry.lines)}Suggest marking as ${
+    entry.checked ? "done" : "not done"
+  }: "${entry.originalText}"`,
+  "",
+];
+
 type FormatterTable = {
   [K in AnnotationEntry["kind"]]: (
     entry: Extract<AnnotationEntry, { kind: K }>,
@@ -22989,6 +23190,7 @@ const formatters: FormatterTable = {
   global: formatGlobal,
   insertion: formatInsertion,
   replacement: formatReplacement,
+  task: formatTask,
 };
 
 const formatEntry = (entry: AnnotationEntry, index: number): string[] =>
@@ -23246,6 +23448,7 @@ const tupleArity: Record<string, [number, number]> = {
   D: [2, 4],
   I: [3, 5],
   R: [3, 5],
+  T: [3, 4],
 };
 
 const validateAnnotationTuples = (arr: unknown[]): void => {
@@ -23357,13 +23560,16 @@ export type GlobalCommentTuple = ["G", string, string?, string[]?];
 export type DeletionTuple = ["D", string, string?, string[]?];
 export type InsertionTuple = ["I", string, string, string?, string[]?];
 export type ReplacementTuple = ["R", string, string, string?, string[]?];
+/** Task-checkbox toggle: `["T", originalText, "1" | "0", author?]` (`"1"` = mark done). */
+export type TaskToggleTuple = ["T", string, "0" | "1", string?];
 
 export type AnnotationTuple =
   | CommentTuple
   | GlobalCommentTuple
   | DeletionTuple
   | InsertionTuple
-  | ReplacementTuple;
+  | ReplacementTuple
+  | TaskToggleTuple;
 
 /** Source-line range for a block (1-based, inclusive). Optional. */
 export interface BlockLines {
@@ -23437,13 +23643,29 @@ export interface ReplacementEntry {
   drifted?: boolean;
 }
 
-/** Per-anchor or global, tagged with its kind so a single walker can return all five. */
+/**
+ * Reviewer toggle of a GFM task checkbox. `originalText` is the item label
+ * (the anchor); `checked` is the proposed new state (`true` = mark done). The
+ * plan is annotate-only, so the toggle is feedback, not a source edit.
+ */
+export interface TaskToggleEntry {
+  id: string;
+  originalText: string;
+  checked: boolean;
+  author?: string;
+  lines?: BlockLines;
+  /** See {@link CommentEntry.drifted}. */
+  drifted?: boolean;
+}
+
+/** Per-anchor or global, tagged with its kind so a single walker can return all six. */
 export type AnnotationEntry =
   | ({ kind: "comment" } & CommentEntry)
   | ({ kind: "global" } & GlobalCommentEntry)
   | ({ kind: "deletion" } & DeletionEntry)
   | ({ kind: "insertion" } & InsertionEntry)
-  | ({ kind: "replacement" } & ReplacementEntry);
+  | ({ kind: "replacement" } & ReplacementEntry)
+  | ({ kind: "task" } & TaskToggleEntry);
 
 /** Convert a CommentEntry into its compact tuple form. */
 export const toCommentTuple = (entry: CommentEntry): CommentTuple => {
@@ -23485,6 +23707,13 @@ export const toReplacementTuple = (entry: ReplacementEntry): ReplacementTuple =>
   return ["R", entry.originalText, entry.replacementText];
 };
 
+/** Convert a TaskToggleEntry into its compact tuple form. */
+export const toTaskToggleTuple = (entry: TaskToggleEntry): TaskToggleTuple => {
+  const checked = entry.checked ? "1" : "0";
+  if (entry.author !== undefined) return ["T", entry.originalText, checked, entry.author];
+  return ["T", entry.originalText, checked];
+};
+
 /** A text leaf in a Plate value; mark keys (e.g. `comment_<id>: true`) live alongside `text`. */
 export interface PlateTextLeaf {
   text: string;
@@ -23513,6 +23742,7 @@ import {
   onlyGlobals,
   onlyInsertions,
   onlyReplacements,
+  onlyTasks,
   walkAnnotations,
 } from "./walkAnnotations.ts";
 
@@ -23700,6 +23930,25 @@ describe("walkAnnotations insertions + replacements", () => {
     expect(onlyReplacements(entries)).toEqual([
       { id: "r1", originalText: "redundant clause", replacementText: "concise note" },
     ]);
+  });
+
+  it("extracts task toggles from `task_<id>` marks, reading checked from the block", () => {
+    const value: PlateValue = [
+      {
+        type: "p",
+        listStyleType: "todo",
+        checked: true,
+        children: [{ text: "Open task", task_t1: true }],
+      },
+    ];
+    const entries = walkAnnotations({ value, commentBodies: new Map(), globalComments: [] });
+    expect(onlyTasks(entries)).toEqual([{ id: "t1", originalText: "Open task", checked: true }]);
+  });
+
+  it("skips `task_` marks on a block without a boolean checked state", () => {
+    const value: PlateValue = [{ type: "p", children: [{ text: "not a task", task_t1: true }] }];
+    const entries = walkAnnotations({ value, commentBodies: new Map(), globalComments: [] });
+    expect(onlyTasks(entries)).toEqual([]);
   });
 
   it("skips insertion / replacement marks when sidecar text is missing", () => {
@@ -23907,12 +24156,14 @@ import type {
   PlateTextLeaf,
   PlateValue,
   ReplacementEntry,
+  TaskToggleEntry,
 } from "./types.ts";
 
 const commentIdPrefix = "comment_";
 const suggestionIdPrefix = "suggestion_";
 const insertionIdPrefix = "insertion_";
 const replacementIdPrefix = "replacement_";
+const taskIdPrefix = "task_";
 const blockLinesMark = "__symbiotBlockLines";
 
 const isText = (node: PlateNode): node is PlateTextLeaf =>
@@ -23933,6 +24184,8 @@ interface LeafWithLines {
   lines: BlockLines | undefined;
   /** Top-level block index this leaf descends from. Used as `pathAnchor` for drift resolution. */
   topIndex: number;
+  /** `checked` of the enclosing top-level block (GFM task items); undefined for non-task blocks. */
+  checked: boolean | undefined;
 }
 
 const isBlockLines = (raw: unknown): raw is BlockLines => {
@@ -23947,14 +24200,20 @@ const readBlockLines = (node: PlateNode | undefined): BlockLines | undefined => 
   return isBlockLines(raw) ? { startLine: raw.startLine, endLine: raw.endLine } : undefined;
 };
 
+const readChecked = (node: PlateNode): boolean | undefined => {
+  const raw = (node as Record<string, unknown>)["checked"];
+  return typeof raw === "boolean" ? raw : undefined;
+};
+
 const collectLeavesWithLines = (value: PlateValue): LeafWithLines[] => {
   const out: LeafWithLines[] = [];
   for (let topIndex = 0; topIndex < value.length; topIndex += 1) {
     const top = value[topIndex] as PlateNode;
     const lines = readBlockLines(top);
+    const checked = readChecked(top);
     const visit = (node: PlateNode): void => {
       if (isText(node)) {
-        out.push({ leaf: node, lines, topIndex });
+        out.push({ leaf: node, lines, topIndex, checked });
         return;
       }
       for (const child of node.children) visit(child);
@@ -23979,27 +24238,31 @@ interface Fragment {
   lines: BlockLines | undefined;
   /** Top-level block index of the first leaf in the fragment. Used for drift resolution. */
   topIndex: number;
+  /** `checked` of the fragment's enclosing task block (first leaf wins). */
+  checked: boolean | undefined;
 }
 
 const mergeFragment = (
   existing: Fragment | undefined,
   leaf: PlateTextLeaf,
   lines: BlockLines | undefined,
-  topIndex: number
+  topIndex: number,
+  checked: boolean | undefined
 ): Fragment => {
-  if (existing === undefined) return { text: leaf.text, lines, topIndex };
+  if (existing === undefined) return { text: leaf.text, lines, topIndex, checked };
   return {
     text: existing.text + leaf.text,
     lines: earliestLines(existing.lines, lines),
     topIndex: existing.topIndex,
+    checked: existing.checked,
   };
 };
 
 const groupContiguous = (entries: LeafWithLines[], prefix: string): Map<string, Fragment> => {
   const out = new Map<string, Fragment>();
-  for (const { leaf, lines, topIndex } of entries) {
+  for (const { leaf, lines, topIndex, checked } of entries) {
     for (const id of markIdsOf(leaf, prefix)) {
-      out.set(id, mergeFragment(out.get(id), leaf, lines, topIndex));
+      out.set(id, mergeFragment(out.get(id), leaf, lines, topIndex, checked));
     }
   }
   return out;
@@ -24278,6 +24541,33 @@ const walkReplacementEntries = (
   return out;
 };
 
+const buildTaskEntry = (id: string, fragment: Fragment): { kind: "task" } & TaskToggleEntry => {
+  const entry: { kind: "task" } & TaskToggleEntry = {
+    kind: "task",
+    id,
+    originalText: fragment.text,
+    checked: fragment.checked === true,
+  };
+  decorateLines(entry, fragment);
+  return entry;
+};
+
+/**
+ * Task toggles read their state straight from the editor value: a `task_<id>`
+ * mark flags an item the reviewer toggled, and the enclosing block's `checked`
+ * is the proposed new state. No sidecar map — the toggle lives in the value,
+ * so it persists and shares with the rest of the snapshot. A fragment without
+ * a resolved `checked` (mark on a non-task block) is skipped.
+ */
+const walkTaskEntries = (entries: LeafWithLines[]): AnnotationEntry[] => {
+  const out: AnnotationEntry[] = [];
+  for (const [id, fragment] of groupContiguous(entries, taskIdPrefix)) {
+    if (fragment.checked === undefined) continue;
+    out.push(buildTaskEntry(id, fragment));
+  }
+  return out;
+};
+
 const walkGlobalEntries = (globals: GlobalCommentEntry[]): AnnotationEntry[] =>
   globals.map((g) => ({ kind: "global", ...g }));
 
@@ -24316,6 +24606,7 @@ export const walkAnnotations = (sources: AnnotationSources): AnnotationEntry[] =
       sources.replacementOriginalTexts,
       sources.value
     ),
+    ...walkTaskEntries(entries),
     ...walkGlobalEntries(sources.globalComments),
   ];
 };
@@ -24382,9 +24673,22 @@ export const onlyGlobals = (entries: AnnotationEntry[]): GlobalCommentEntry[] =>
 export const onlyInsertions = (entries: AnnotationEntry[]): InsertionEntry[] =>
   entries.filter((e) => e.kind === "insertion").map(stripInsertionKind);
 
+const stripTaskKind = (e: { kind: "task" } & TaskToggleEntry): TaskToggleEntry => ({
+  id: e.id,
+  originalText: e.originalText,
+  checked: e.checked,
+  ...(e.author === undefined ? {} : { author: e.author }),
+  ...(e.lines === undefined ? {} : { lines: e.lines }),
+  ...(e.drifted === undefined ? {} : { drifted: e.drifted }),
+});
+
 /** Filter a walk to replacements only. */
 export const onlyReplacements = (entries: AnnotationEntry[]): ReplacementEntry[] =>
   entries.filter((e) => e.kind === "replacement").map(stripReplacementKind);
+
+/** Filter a walk to task toggles only. */
+export const onlyTasks = (entries: AnnotationEntry[]): TaskToggleEntry[] =>
+  entries.filter((e) => e.kind === "task").map(stripTaskKind);
 </file>
 
 <file path="packages/symbiot-annotations/package.json">
@@ -24684,23 +24988,20 @@ interface CodeBlockElementProps {
 /** `CSSProperties` plus the dual-theme custom properties React's type omits. */
 interface ShikiBlockStyle extends CSSProperties {
   "--shiki-dark"?: string;
-  "--shiki-dark-bg"?: string;
 }
 
 /**
- * Code blocks render against the Shiki theme's own background, not the app
- * `--muted`: github-light's syntax colours are tuned for AA contrast against
- * white (`#fff`), and only clear the WCAG-AA gate there — on the slightly darker
- * muted surface the reds drop below 4.5:1. Light values are the defaults; the
- * dark theme rides along as `--shiki-dark*` so the viewer's `html.dark .shiki`
- * rule promotes both colour and background in dark mode. Values mirror the
- * `github-light`/`github-dark` `editor.background` / `editor.foreground`.
+ * Code blocks render transparent against the page `--background`: white in
+ * light (where github-light's syntax colours are AA-tuned) and the darker
+ * GitHub-dark canvas in dark (darker than the `#24292e` github-dark was tuned
+ * for, so ratios only improve). Light foreground is the default; the dark
+ * theme rides along as `--shiki-dark` so the viewer's `html.dark .shiki` rule
+ * promotes the colour in dark mode. Values mirror the `github-light` /
+ * `github-dark` `editor.foreground`.
  */
 const blockStyle: ShikiBlockStyle = {
   color: "#24292e",
-  backgroundColor: "#fff",
   "--shiki-dark": "#e1e4e8",
-  "--shiki-dark-bg": "#24292e",
 };
 
 /**
@@ -24725,7 +25026,7 @@ export const CodeBlockElement = ({
       data-testid="code-block"
       data-lang={lang}
       style={blockStyle}
-      className="shiki border-border overflow-x-auto rounded-md border p-3 text-sm"
+      className="shiki overflow-x-auto py-3 pr-3 pl-0 text-sm"
     >
       <code>{children}</code>
     </pre>
@@ -25137,7 +25438,7 @@ export const DiffEditor = ({ current, previous, mode }: DiffEditorProps): React.
       data-testid="diff-editor-root"
       data-diff-mode={mode}
       data-diff-empty={!diff.hasChanges}
-      className="prose prose-neutral dark:prose-invert relative max-w-3xl"
+      className="prose prose-neutral dark:prose-invert relative mx-auto max-w-3xl"
     >
       {!diff.hasChanges && (
         <p
@@ -25847,6 +26148,40 @@ describe("ListElement", () => {
     expect(list.querySelector("li")?.textContent).toBe("item one");
   });
 
+  it("renders a read-only checkbox for todo items reflecting checked state", () => {
+    const { container } = render(
+      <ListElement
+        attributes={{ "data-slate-node": "element" }}
+        element={listElement({ listStyleType: "todo", checked: true })}
+      >
+        done task
+      </ListElement>
+    );
+    const list = container.firstElementChild as HTMLElement;
+    expect(list.tagName).toBe("UL");
+    expect(list.getAttribute("data-list-type")).toBe("todo");
+    const checkbox = list.querySelector<HTMLInputElement>('[data-testid="editor-task-checkbox"]');
+    expect(checkbox?.checked).toBe(true);
+    // Non-interactive without `disabled` — Chrome grays out disabled
+    // checkboxes and ignores `accent-color`.
+    expect(checkbox?.disabled).toBe(false);
+    expect(checkbox?.tabIndex).toBe(-1);
+    expect(checkbox?.getAttribute("aria-label")).toBe("Completed task");
+    expect(list.textContent).toContain("done task");
+  });
+
+  it("renders an unchecked checkbox for open todo items", () => {
+    const { container } = render(
+      <ListElement attributes={{}} element={listElement({ listStyleType: "todo" })}>
+        open task
+      </ListElement>
+    );
+    const checkbox = container.querySelector<HTMLInputElement>(
+      '[data-testid="editor-task-checkbox"]'
+    );
+    expect(checkbox?.checked).toBe(false);
+  });
+
   it("renders an ordered list with start attribute for decimal style", () => {
     const { container } = render(
       <ListElement
@@ -25867,7 +26202,9 @@ describe("ListElement", () => {
 <file path="packages/symbiot-editor/src/components/ListElement.tsx">
 import { ULIST_STYLE_TYPES } from "@platejs/list";
 import type { TElement } from "platejs";
-import type { ReactNode } from "react";
+import { use, useCallback, type ReactNode } from "react";
+
+import { TaskToggleContext } from "./TaskToggleContext.ts";
 
 interface ListElementProps {
   attributes: Record<string, unknown>;
@@ -25875,7 +26212,72 @@ interface ListElementProps {
   element: TElement;
 }
 
+interface TodoListProps {
+  attributes: Record<string, unknown>;
+  children: ReactNode;
+  checked: boolean;
+  element: TElement;
+}
+
 const unorderedStyles = ULIST_STYLE_TYPES as readonly string[];
+
+const isOrderedStyle = (listStyleType: string | undefined): boolean =>
+  listStyleType !== undefined && !unorderedStyles.includes(listStyleType);
+
+const markerStyle = (listStyleType: string | undefined): React.CSSProperties =>
+  listStyleType === undefined ? { margin: 0 } : { listStyleType, margin: 0 };
+
+/**
+ * GFM task item: a checkbox marker instead of a CSS marker — `todo` is not a
+ * valid `list-style-type`, so without this branch the browser falls back to
+ * decimal numbering and the checked state is lost. Never `disabled`: Chrome
+ * renders disabled checkboxes gray, ignoring `accent-color`. In the authoring
+ * editor a {@link TaskToggleContext} handler makes the checkbox interactive —
+ * clicking records the toggle as feedback; in read-only surfaces (the diff
+ * view) the context is `null` and the checkbox is inert. The box sits in a
+ * `contentEditable={false}` span so Slate never treats it as editable text,
+ * and -ml-6 pulls it into the marker gutter (16px box + 8px gap) so item text
+ * aligns with the other list kinds.
+ */
+const TodoList = ({
+  attributes,
+  children,
+  checked,
+  element,
+}: TodoListProps): React.ReactElement => {
+  const onToggle = use(TaskToggleContext);
+  const interactive = onToggle !== null;
+  const onChange = useCallback((): void => onToggle?.(element), [onToggle, element]);
+  return (
+    <ul
+      {...attributes}
+      data-testid="editor-list"
+      data-list-type="todo"
+      style={{ listStyleType: "none", margin: 0 }}
+      className="[&_li]:my-0"
+    >
+      <li className="flex items-start gap-2">
+        <span contentEditable={false} className="-ml-6 flex h-7 items-center">
+          <input
+            type="checkbox"
+            data-testid="editor-task-checkbox"
+            checked={checked}
+            readOnly={!interactive}
+            tabIndex={interactive ? 0 : -1}
+            aria-label={checked ? "Completed task" : "Open task"}
+            onChange={interactive ? onChange : undefined}
+            className={
+              interactive
+                ? "accent-task-done size-4 cursor-pointer"
+                : "accent-task-done pointer-events-none size-4"
+            }
+          />
+        </span>
+        <span className="min-w-0">{children}</span>
+      </li>
+    </ul>
+  );
+};
 
 /**
  * Renderer for Plate list elements. Mirrors Plate's default rendering — each
@@ -25888,6 +26290,8 @@ const unorderedStyles = ULIST_STYLE_TYPES as readonly string[];
  * via `ListPlugin.configure({ render: { belowNodes } })` in `utils/kit.ts`
  * because Plate's list "items" are actually paragraph elements decorated with
  * `listStyleType` — the wrapper renders `belowNodes`, not `withComponent`.
+ * GFM task items (`listStyleType: "todo"` + `checked` flag) render via
+ * {@link TodoList}.
  */
 export const ListElement = ({
   attributes,
@@ -25896,16 +26300,23 @@ export const ListElement = ({
 }: ListElementProps): React.ReactElement => {
   const listStyleType = element["listStyleType"] as string | undefined;
   const listStart = element["listStart"] as number | undefined;
-  const ordered = listStyleType !== undefined && !unorderedStyles.includes(listStyleType);
+  if (listStyleType === "todo") {
+    return (
+      <TodoList attributes={attributes} checked={element["checked"] === true} element={element}>
+        {children}
+      </TodoList>
+    );
+  }
+  const ordered = isOrderedStyle(listStyleType);
   const Tag = ordered ? "ol" : "ul";
-  const style = listStyleType === undefined ? { margin: 0 } : { listStyleType, margin: 0 };
   return (
     <Tag
       {...attributes}
       data-testid="editor-list"
       data-list-type={ordered ? "ordered" : "unordered"}
       start={listStart}
-      style={style}
+      style={markerStyle(listStyleType)}
+      className="[&_li]:my-0"
     >
       <li>{children}</li>
     </Tag>
@@ -25920,20 +26331,28 @@ import { describe, expect, it } from "vitest";
 
 import { ParagraphElement } from "./ParagraphElement.tsx";
 
+const paragraphNode = { type: "p", children: [{ text: "" }] };
+
 describe("ParagraphElement", () => {
   it("renders a <p> with the editor-paragraph testid and children", () => {
     const { container } = render(
-      <ParagraphElement attributes={{ "data-slate-node": "element" }}>hello</ParagraphElement>
+      <ParagraphElement attributes={{ "data-slate-node": "element" }} element={paragraphNode}>
+        hello
+      </ParagraphElement>
     );
     const p = container.firstElementChild as HTMLElement;
     expect(p.tagName).toBe("P");
     expect(p.getAttribute("data-testid")).toBe("editor-paragraph");
     expect(p.textContent).toBe("hello");
+    expect(p.className).toBe("");
   });
 
   it("preserves Slate-internal attributes spread by Plate", () => {
     const { container } = render(
-      <ParagraphElement attributes={{ "data-slate-node": "element", "data-slate-test": "x" }}>
+      <ParagraphElement
+        attributes={{ "data-slate-node": "element", "data-slate-test": "x" }}
+        element={paragraphNode}
+      >
         {null}
       </ParagraphElement>
     );
@@ -25941,15 +26360,26 @@ describe("ParagraphElement", () => {
     expect(p.getAttribute("data-slate-node")).toBe("element");
     expect(p.getAttribute("data-slate-test")).toBe("x");
   });
+
+  it("drops prose margins on list-decorated paragraphs", () => {
+    const { container } = render(
+      <ParagraphElement attributes={{}} element={{ ...paragraphNode, listStyleType: "disc" }}>
+        item
+      </ParagraphElement>
+    );
+    expect((container.firstElementChild as HTMLElement).className).toBe("my-0!");
+  });
 });
 </file>
 
 <file path="packages/symbiot-editor/src/components/ParagraphElement.tsx">
+import type { TElement } from "platejs";
 import type { ReactNode } from "react";
 
 interface ParagraphElementProps {
   attributes: Record<string, unknown>;
   children: ReactNode;
+  element: TElement;
 }
 
 /**
@@ -25962,12 +26392,21 @@ interface ParagraphElementProps {
  * The Plate `attributes` (carrying `data-slate-node="element"`, refs, and other
  * Slate-internal props) are spread first so the hardcoded `data-testid` wins
  * over any incoming value.
+ *
+ * List items are paragraph nodes decorated with `listStyleType` (see
+ * `ListElement`); those drop the prose paragraph margins so list rhythm
+ * matches the paragraph line-height instead of stacking 1.25em gaps per item.
  */
 export const ParagraphElement = ({
   attributes,
   children,
+  element,
 }: ParagraphElementProps): React.ReactElement => (
-  <p {...attributes} data-testid="editor-paragraph">
+  <p
+    {...attributes}
+    data-testid="editor-paragraph"
+    className={element["listStyleType"] === undefined ? undefined : "my-0!"}
+  >
     {children}
   </p>
 );
@@ -26024,10 +26463,12 @@ import {
   dispatchComposerSave,
   useReadyHandle,
   useRemoveAnnotation,
+  useTaskToggle,
   useToolbarHandlers,
   useUpdateAnnotation,
 } from "./ReviewEditorAuthoring.tsx";
 import { snapshotOf } from "./ReviewEditorPrune.tsx";
+import { TaskToggleContext } from "./TaskToggleContext.ts";
 import { useAnnotationState } from "./ReviewEditorState.tsx";
 import { ToolbarButtons } from "./ReviewEditorToolbar.tsx";
 import {
@@ -26164,21 +26605,25 @@ export const ReviewEditor = ({
     setPending(null);
   }, [pending, editor, maps, onChange]);
 
+  const onToggleTask = useTaskToggle(editor, maps, onChange);
+
   return (
     <div
       ref={containerRef}
       data-testid="editor-root"
-      className="prose prose-neutral dark:prose-invert relative max-w-3xl"
+      className="prose prose-neutral dark:prose-invert relative mx-auto max-w-3xl"
     >
-      <Plate editor={editor}>
-        <PlateContent readOnly className="outline-none" />
-        <ToolbarButtons
-          onComment={onCommentClick}
-          onInsert={onInsertClick}
-          onReplace={onReplaceClick}
-          onDelete={onDeleteClick}
-        />
-      </Plate>
+      <TaskToggleContext value={onToggleTask}>
+        <Plate editor={editor}>
+          <PlateContent readOnly className="outline-none" />
+          <ToolbarButtons
+            onComment={onCommentClick}
+            onInsert={onInsertClick}
+            onReplace={onReplaceClick}
+            onDelete={onDeleteClick}
+          />
+        </Plate>
+      </TaskToggleContext>
       <AnnotationComposer
         kind={pending?.kind ?? "comment"}
         open={pending !== null}
@@ -26552,6 +26997,7 @@ import {
   hasValidSelection,
   type AppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
+import { applyTaskToggle, removeTaskToggle } from "../utils/applyTaskToggle.ts";
 import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
 import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
@@ -26790,11 +27236,34 @@ export const useRemoveAnnotation = (
 ): ReviewEditorHandle["removeAnnotation"] =>
   useCallback(
     (kind, id) => {
+      if (kind === "task") {
+        removeTaskToggle(editor, id);
+        onChange?.(snapshotOf(editor, maps));
+        return;
+      }
       removeAnnotationMark(editor, kind, id);
       const next = pruneRemovedAnnotation(kind, id, maps, setters);
       onChange?.(snapshotOf(editor, next));
     },
     [editor, maps, onChange, setters]
+  );
+
+/**
+ * Memoized task-checkbox toggle handler for {@link TaskToggleContext}. Applies
+ * the toggle to the editor value (see `applyTaskToggle`) and re-emits the
+ * snapshot so the host persists the new `checked` + `task_<id>` marks.
+ */
+export const useTaskToggle = (
+  editor: PlateEditor,
+  maps: AnnotationMaps,
+  onChange?: (snapshot: EditorSnapshot) => void
+): ((element: unknown) => void) =>
+  useCallback(
+    (element) => {
+      applyTaskToggle(editor, element);
+      onChange?.(snapshotOf(editor, maps));
+    },
+    [editor, maps, onChange]
   );
 
 /**
@@ -27439,6 +27908,9 @@ import type { PlateValue } from "@symbiot/annotations";
 /** Annotation kind that the host can remove via the editor handle. */
 export type AnnotationHandleKind = "comment" | "deletion" | "insertion" | "replacement";
 
+/** Kinds the host can remove — author-able kinds plus value-derived task toggles. */
+export type RemovableAnnotationKind = AnnotationHandleKind | "task";
+
 /** Imperative handle the host uses to read the current value and annotation maps. */
 export interface ReviewEditorHandle {
   /** True when the editor has a non-empty selection that can host an annotation. */
@@ -27462,7 +27934,7 @@ export interface ReviewEditorHandle {
   getReplacementImages: () => Map<string, string[]>;
   /** `originalText` snapshot captured at replacement creation; drives drift detection. */
   getReplacementOriginalTexts: () => Map<string, string>;
-  removeAnnotation: (kind: AnnotationHandleKind, id: string) => void;
+  removeAnnotation: (kind: RemovableAnnotationKind, id: string) => void;
   /**
    * Replace the body + images of an existing body-bearing annotation in place.
    * Touches only the text + image maps for `id`, leaving the Plate mark and the
@@ -27508,17 +27980,21 @@ import {
 } from "./TableElements.tsx";
 
 describe("Table element renderers", () => {
-  it("TableElement renders a <table> with collapse classes", () => {
+  it("TableElement renders a rounded <table> with separate borders", () => {
+    // border-collapse ignores border-radius per spec, so the rounded table
+    // relies on border-separate with per-cell dividers.
     const { container } = render(<TableElement attributes={{}}>cells</TableElement>);
     const table = container.querySelector("table");
     expect(table).not.toBeNull();
-    expect(table?.className).toContain("border-collapse");
+    expect(table?.className).toContain("border-separate");
+    expect(table?.className).toContain("rounded-md");
   });
 
-  it("TableRowElement renders a <tr> with bottom border", () => {
+  it("TableRowElement renders a plain <tr> (dividers live on cells)", () => {
     const { container } = render(<TableRowElement attributes={{}}>row</TableRowElement>);
-    expect(container.querySelector("tr")).not.toBeNull();
-    expect(container.querySelector("tr")?.className).toContain("border-b");
+    const row = container.querySelector("tr");
+    expect(row).not.toBeNull();
+    expect(row?.className).toBe("");
   });
 
   it("TableCellElement renders a <td>", () => {
@@ -27557,7 +28033,7 @@ export const TableElement = ({ attributes, children }: TableElementProps): React
   <table
     {...attributes}
     data-testid="editor-table"
-    className="border-border my-4 w-full border-collapse border text-sm"
+    className="border-border my-4 w-full border-separate border-spacing-0 rounded-md border text-sm"
   >
     {children}
   </table>
@@ -27566,17 +28042,16 @@ export const TableElement = ({ attributes, children }: TableElementProps): React
 export const TableRowElement = ({
   attributes,
   children,
-}: TableElementProps): React.ReactElement => (
-  <tr {...attributes} className="border-border border-b">
-    {children}
-  </tr>
-);
+}: TableElementProps): React.ReactElement => <tr {...attributes}>{children}</tr>;
 
 export const TableCellElement = ({
   attributes,
   children,
 }: TableElementProps): React.ReactElement => (
-  <td {...attributes} className="border-border border px-3 py-2 align-top">
+  <td
+    {...attributes}
+    className="border-border border-r border-b px-3 py-2 align-top last:border-r-0 [&_p]:my-0 [tr:last-child_&]:border-b-0 [tr:last-child_&]:first:rounded-bl-md [tr:last-child_&]:last:rounded-br-md"
+  >
     {children}
   </td>
 );
@@ -27585,10 +28060,25 @@ export const TableCellHeaderElement = ({
   attributes,
   children,
 }: TableElementProps): React.ReactElement => (
-  <th {...attributes} className="border-border bg-muted border px-3 py-2 text-left font-semibold">
+  <th
+    {...attributes}
+    className="border-border bg-muted border-r border-b px-3 py-2 text-left font-semibold first:rounded-tl-md last:rounded-tr-md last:border-r-0 [&_p]:my-0"
+  >
     {children}
   </th>
 );
+</file>
+
+<file path="packages/symbiot-editor/src/components/TaskToggleContext.ts">
+import { createContext } from "react";
+
+/**
+ * Toggle handler for GFM task checkboxes, provided by the authoring
+ * `ReviewEditor` and consumed by `ListElement`. `null` in read-only surfaces
+ * (the historical `DiffEditor`), where checkboxes stay non-interactive. The
+ * argument is the Plate list element the clicked checkbox belongs to.
+ */
+export const TaskToggleContext = createContext<((element: unknown) => void) | null>(null);
 </file>
 
 <file path="packages/symbiot-editor/src/components/VoidElements.test.tsx">
@@ -27864,6 +28354,245 @@ export const applyAnnotation = (
   const prefix = prefixOf(kind);
   editor.tf.addMarks({ [prefix]: true, [`${prefix}_${id}`]: true });
   return { id, anchorText };
+};
+</file>
+
+<file path="packages/symbiot-editor/src/utils/applyTaskToggle.test.ts">
+import { createSlateEditor } from "platejs";
+import { describe, expect, it } from "vitest";
+
+import { applyTaskToggle, removeTaskToggle } from "./applyTaskToggle.ts";
+import { SymbiotEditorKit } from "./kit.ts";
+
+type Node = Record<string, unknown> & { children?: Node[] };
+
+const asNode = (value: unknown): Node => value as Node;
+
+const createEditor = (
+  value: NonNullable<Parameters<typeof createSlateEditor>[0]>["value"]
+): ReturnType<typeof createSlateEditor> => createSlateEditor({ plugins: SymbiotEditorKit, value });
+
+const firstItem = (editor: ReturnType<typeof createSlateEditor>): Node =>
+  asNode(editor.children[0]);
+
+const firstLeaf = (editor: ReturnType<typeof createSlateEditor>): Node =>
+  asNode(firstItem(editor).children?.[0]);
+
+/** Read back the `task_<id>` mark id a text leaf carries, mirroring the source. */
+const taskMarkId = (leaf: Node): string | null => {
+  const key = Object.keys(leaf).find((k) => k.startsWith("task_") && leaf[k] === true);
+  return key === undefined ? null : key.slice("task_".length);
+};
+
+describe("applyTaskToggle", () => {
+  it("checks the item and snapshots its original state on first toggle", () => {
+    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
+    applyTaskToggle(editor, editor.children[0]);
+    expect(firstItem(editor).checked).toBe(true);
+    expect(firstItem(editor).taskOriginal).toBe(false);
+    expect(firstLeaf(editor).task).toBe(true);
+    expect(taskMarkId(firstLeaf(editor))).not.toBeNull();
+  });
+
+  it("removes the marks and feedback when toggled back to the original", () => {
+    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
+    applyTaskToggle(editor, editor.children[0]);
+    applyTaskToggle(editor, editor.children[0]);
+    expect(firstItem(editor).checked).toBe(false);
+    expect(firstItem(editor).taskOriginal).not.toBe(true);
+    expect(firstLeaf(editor).task).toBeUndefined();
+    expect(taskMarkId(firstLeaf(editor))).toBeNull();
+  });
+
+  it("only flips checked when a marked item already sits at its original state", () => {
+    const editor = createEditor([
+      {
+        type: "p",
+        checked: false,
+        taskOriginal: false,
+        children: [{ text: "task", task: true, task_abc: true }],
+      },
+    ]);
+    applyTaskToggle(editor, editor.children[0]);
+    expect(firstItem(editor).checked).toBe(true);
+    expect(firstLeaf(editor).task).toBe(true);
+    expect(taskMarkId(firstLeaf(editor))).toBe("abc");
+  });
+
+  it("ignores an element that is not in the editor tree", () => {
+    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
+    applyTaskToggle(editor, { type: "p", checked: false, children: [{ text: "orphan" }] });
+    expect(firstItem(editor).checked).toBe(false);
+  });
+
+  it("ignores a target that is a text leaf rather than an element", () => {
+    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
+    applyTaskToggle(editor, firstItem(editor).children?.[0]);
+    expect(firstItem(editor).checked).toBe(false);
+  });
+});
+
+describe("removeTaskToggle", () => {
+  it("drops the marks and restores the pre-toggle checked state", () => {
+    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
+    applyTaskToggle(editor, editor.children[0]);
+    const id = taskMarkId(firstLeaf(editor));
+    expect(id).not.toBeNull();
+    removeTaskToggle(editor, id as string);
+    expect(firstItem(editor).checked).toBe(false);
+    expect(firstItem(editor).taskOriginal).not.toBe(true);
+    expect(firstLeaf(editor).task).toBeUndefined();
+  });
+
+  it("ignores a task id that no item carries", () => {
+    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
+    removeTaskToggle(editor, "missing");
+    expect(firstItem(editor).checked).toBe(false);
+  });
+});
+</file>
+
+<file path="packages/symbiot-editor/src/utils/applyTaskToggle.ts">
+import type { PlateEditor } from "platejs/react";
+
+interface TextLeaf {
+  text: string;
+  [mark: string]: unknown;
+}
+
+interface ElementNode {
+  children: unknown[];
+  [prop: string]: unknown;
+}
+
+const isTextLeaf = (node: unknown): node is TextLeaf =>
+  typeof (node as { text?: unknown }).text === "string";
+
+const isElement = (node: unknown): node is ElementNode =>
+  Array.isArray((node as { children?: unknown }).children);
+
+/** Reference-search the value for `target`, returning its Slate path or null. */
+const findElementPath = (
+  nodes: readonly unknown[],
+  target: unknown,
+  base: number[]
+): number[] | null => {
+  for (const [index, node] of nodes.entries()) {
+    const here = [...base, index];
+    if (node === target) return here;
+    if (!isElement(node)) continue;
+    const found = findElementPath(node.children, target, here);
+    if (found !== null) return found;
+  }
+  return null;
+};
+
+/** Collect the path of every text leaf descending from `path`. */
+const collectTextLeafPaths = (node: unknown, path: number[], out: number[][]): void => {
+  if (isTextLeaf(node)) {
+    out.push(path);
+    return;
+  }
+  if (isElement(node)) {
+    for (const [index, child] of node.children.entries()) {
+      collectTextLeafPaths(child, [...path, index], out);
+    }
+  }
+};
+
+const taskIdOfLeaf = (leaf: TextLeaf): string | null => {
+  const key = Object.keys(leaf).find((k) => k.startsWith("task_") && leaf[k] === true);
+  return key === undefined ? null : key.slice("task_".length);
+};
+
+/** First `task_<id>` mark id carried by any text leaf under `node`, or null. */
+const findTaskId = (node: unknown): string | null => {
+  if (isTextLeaf(node)) return taskIdOfLeaf(node);
+  if (!isElement(node)) return null;
+  for (const child of node.children) {
+    const found = findTaskId(child);
+    if (found !== null) return found;
+  }
+  return null;
+};
+
+const setLeafMarks = (
+  editor: PlateEditor,
+  itemPath: number[],
+  node: unknown,
+  marks: object
+): void => {
+  const leaves: number[][] = [];
+  collectTextLeafPaths(node, itemPath, leaves);
+  for (const at of leaves) editor.tf.setNodes(marks, { at });
+};
+
+const unsetLeafMarks = (
+  editor: PlateEditor,
+  itemPath: number[],
+  node: unknown,
+  keys: string[]
+): void => {
+  const leaves: number[][] = [];
+  collectTextLeafPaths(node, itemPath, leaves);
+  for (const at of leaves) editor.tf.unsetNodes(keys, { at });
+};
+
+/**
+ * Toggle a GFM task checkbox as reviewer feedback (the plan is annotate-only,
+ * so the toggle is recorded, not written back to source). Flips the item's
+ * `checked` and tags its text with `task` / `task_<id>` marks the walker reads.
+ * `taskOriginal` snapshots the pre-toggle state so toggling back to the
+ * original removes the marks and the feedback entirely.
+ */
+export const applyTaskToggle = (editor: PlateEditor, element: unknown): void => {
+  const itemPath = findElementPath(editor.children, element, []);
+  if (itemPath === null || !isElement(element)) return;
+  const current = element["checked"] === true;
+  const newChecked = !current;
+  const existingId = findTaskId(element);
+
+  if (existingId === null) {
+    const id = crypto.randomUUID();
+    editor.tf.setNodes({ checked: newChecked, taskOriginal: current }, { at: itemPath });
+    setLeafMarks(editor, itemPath, element, { task: true, [`task_${id}`]: true });
+    return;
+  }
+
+  const original = element["taskOriginal"] === true;
+  if (newChecked === original) {
+    unsetLeafMarks(editor, itemPath, element, ["task", `task_${existingId}`]);
+    editor.tf.setNodes({ checked: newChecked, taskOriginal: null }, { at: itemPath });
+    return;
+  }
+  editor.tf.setNodes({ checked: newChecked }, { at: itemPath });
+};
+
+/** First top-level block carrying a `task_<id>` mark, with its index, or null. */
+const findTaskItem = (
+  children: readonly unknown[],
+  id: string
+): { node: ElementNode; index: number } | null => {
+  for (const [index, node] of children.entries()) {
+    if (isElement(node) && findTaskId(node) === id) return { node, index };
+  }
+  return null;
+};
+
+/**
+ * Remove a task toggle (sidebar "remove"): drop the `task` / `task_<id>` marks
+ * and restore the item's `checked` to its pre-toggle `taskOriginal`, mirroring
+ * the toggle-back-to-original branch of {@link applyTaskToggle}.
+ */
+export const removeTaskToggle = (editor: PlateEditor, id: string): void => {
+  const match = findTaskItem(editor.children, id);
+  if (match === null) return;
+  const itemPath = [match.index];
+  unsetLeafMarks(editor, itemPath, match.node, ["task", `task_${id}`]);
+  editor.tf.setNodes(
+    { checked: match.node["taskOriginal"] === true, taskOriginal: null },
+    { at: itemPath }
+  );
 };
 </file>
 
@@ -28564,8 +29293,8 @@ export interface EditContent {
   images: string[];
 }
 
-/** Body-bearing kinds the edit composer accepts plus the non-editable `deletion`. */
-type EditableKind = "comment" | "deletion" | "global" | "insertion" | "replacement";
+/** Body-bearing kinds the edit composer accepts plus the non-editable `deletion` / `task`. */
+type EditableKind = "comment" | "deletion" | "global" | "insertion" | "replacement" | "task";
 type AnchoredKind = "comment" | "insertion" | "replacement";
 
 /** Build a global comment, attaching `images` only when non-empty (keeps the persisted shape lean). */
@@ -28622,7 +29351,9 @@ export const resolveEditContent = (
   handle: ReviewEditorHandle | null
 ): EditContent => {
   if (kind === "global") return globalEditContent(globalComments, id);
-  if (kind === "deletion" || handle === null) return { body: fallbackBody, images: [] };
+  if (kind === "deletion" || kind === "task" || handle === null) {
+    return { body: fallbackBody, images: [] };
+  }
   return anchoredEditContent(handle, kind, id);
 };
 </file>
@@ -30085,7 +30816,7 @@ export const AnnotationSidebar = ({
   );
   const showClearAll = entries.length > 0 && effectiveTab === "annotations";
   return (
-    <Sidebar side="right" collapsible="offcanvas" data-testid="annotation-sidebar" className="w-80">
+    <Sidebar side="right" collapsible="none" data-testid="annotation-sidebar">
       <SidebarContent>
         <Tabs
           value={effectiveTab}
@@ -30239,7 +30970,7 @@ describe("HistoryPanel", () => {
 import { type SidebarDiffMode } from "./AnnotationSidebarTypes.tsx";
 import { Button } from "./Button.tsx";
 import { SidebarGroup } from "./SidebarSection.tsx";
-import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup.tsx";
+import { Tabs, TabsList, TabsTrigger } from "./Tabs.tsx";
 import { VersionBrowser } from "./VersionBrowser.tsx";
 
 /** Props for the Clean/Raw diff render toggle. */
@@ -30249,32 +30980,26 @@ interface DiffToggleProps {
 }
 
 const DiffModeToggle = ({ diffMode, onChange }: DiffToggleProps): React.ReactElement => (
-  <ToggleGroup
-    type="single"
-    value={diffMode}
-    onValueChange={onChange}
-    variant="outline"
-    size="sm"
-    data-testid="diff-mode-toggle"
-    className="w-full"
-  >
-    <ToggleGroupItem
-      value="clean"
-      data-testid="diff-mode-clean"
-      aria-label="Show only changed blocks"
-      className="flex-1"
-    >
-      Clean
-    </ToggleGroupItem>
-    <ToggleGroupItem
-      value="raw"
-      data-testid="diff-mode-raw"
-      aria-label="Show the full diff"
-      className="flex-1"
-    >
-      Raw
-    </ToggleGroupItem>
-  </ToggleGroup>
+  <Tabs value={diffMode} onValueChange={onChange} data-testid="diff-mode-toggle" className="w-full">
+    <TabsList className="flex w-full">
+      <TabsTrigger
+        value="clean"
+        data-testid="diff-mode-clean"
+        aria-label="Show only changed blocks"
+        className="flex-1"
+      >
+        Clean
+      </TabsTrigger>
+      <TabsTrigger
+        value="raw"
+        data-testid="diff-mode-raw"
+        aria-label="Show the full diff"
+        className="flex-1"
+      >
+        Raw
+      </TabsTrigger>
+    </TabsList>
+  </Tabs>
 );
 
 /** Props for the predecessor-diff overlay toggle button. */
@@ -30286,7 +31011,7 @@ interface CompareButtonProps {
 const CompareButton = ({ active, onToggle }: CompareButtonProps): React.ReactElement => (
   <Button
     data-testid={active ? "compare-back-to-editing" : "compare-with-previous"}
-    variant={active ? "secondary" : "outline"}
+    variant="outline"
     size="sm"
     className="w-full"
     onClick={onToggle}
@@ -30713,6 +31438,7 @@ const expectedLabel: Record<Kind, string> = {
   global: "Global",
   insertion: "Insertion",
   replacement: "Replacement",
+  task: "Task",
 };
 
 const expectedPaletteToken: Record<Kind, string> = {
@@ -30721,6 +31447,7 @@ const expectedPaletteToken: Record<Kind, string> = {
   deletion: "text-anno-delete",
   insertion: "text-anno-insert",
   replacement: "text-anno-replace",
+  task: "text-task-done",
 };
 
 const expectedRemovalNoun: Record<Kind, string> = {
@@ -30729,6 +31456,7 @@ const expectedRemovalNoun: Record<Kind, string> = {
   global: "global comment",
   insertion: "insertion suggestion",
   replacement: "replacement suggestion",
+  task: "task change",
 };
 
 const kinds = Object.keys(expectedLabel) as Kind[];
@@ -30773,10 +31501,10 @@ import { type AnnotationComposerKind } from "./AnnotationComposer.tsx";
  */
 export interface AnnotationSidebarEntry {
   id: string;
-  kind: "comment" | "deletion" | "global" | "insertion" | "replacement";
+  kind: "comment" | "deletion" | "global" | "insertion" | "replacement" | "task";
   /** Either the anchored selection (C/D/I context) or the body (G). */
   primary: string;
-  /** Comment body for C, proposed new text for I; undefined for G/D. */
+  /** Comment body for C, proposed new text for I, toggle direction for T; undefined for G/D. */
   body?: string;
   lines?: { startLine: number; endLine: number };
   /**
@@ -30796,6 +31524,7 @@ const kindLabels: Record<AnnotationSidebarEntry["kind"], string> = {
   global: "Global",
   insertion: "Insertion",
   replacement: "Replacement",
+  task: "Task",
 };
 
 const kindClasses: Record<AnnotationSidebarEntry["kind"], string> = {
@@ -30804,6 +31533,7 @@ const kindClasses: Record<AnnotationSidebarEntry["kind"], string> = {
   deletion: "text-anno-delete",
   insertion: "text-anno-insert",
   replacement: "text-anno-replace",
+  task: "text-task-done",
 };
 
 const removalDescriptions: Record<AnnotationSidebarEntry["kind"], string> = {
@@ -30812,6 +31542,7 @@ const removalDescriptions: Record<AnnotationSidebarEntry["kind"], string> = {
   global: "This removes the global comment from the plan. It can't be undone.",
   insertion: "This removes the insertion suggestion from the plan. It can't be undone.",
   replacement: "This removes the replacement suggestion from the plan. It can't be undone.",
+  task: "This removes the task change from the plan. It can't be undone.",
 };
 
 /** Human-readable label for the row's kind chip. */
@@ -31876,7 +32607,7 @@ export const GlobalCommentFab = ({
             onClick={onOpen}
             disabled={disabled}
             className={cn(
-              "absolute right-24 bottom-6 z-10 size-12 rounded-full shadow-lg",
+              "absolute right-6 bottom-12 z-10 size-12 rounded-full shadow-lg",
               className
             )}
             aria-label="Global comment"
@@ -32875,7 +33606,10 @@ const NoCollapseSidebar = ({
     ref={ref}
     data-slot="sidebar"
     className={cn(
-      "bg-sidebar text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
+      // h-svh, not h-full: the SidebarProvider wrapper is min-h-svh (no definite
+      // height), so a percentage height collapses to content height. Pin to the
+      // viewport like SidebarInset so the always-visible panel fills the column.
+      "bg-sidebar text-sidebar-foreground sticky top-0 flex h-svh w-(--sidebar-width) flex-col",
       className
     )}
     {...rest}
@@ -33029,42 +33763,11 @@ export const Sidebar = (props: SidebarProps): React.ReactElement => {
 </file>
 
 <file path="packages/symbiot-ui/src/components/SidebarChrome.tsx">
-import type { ComponentProps, HTMLAttributes, Ref } from "react";
+import type { HTMLAttributes, Ref } from "react";
 
 import { cn } from "../utils/cn.ts";
 
-import { Button } from "./Button.tsx";
 import { useSidebar } from "./SidebarProvider.tsx";
-
-type SidebarTriggerProps = ComponentProps<typeof Button>;
-
-/** Hamburger button that toggles the sidebar via {@link useSidebar}. */
-export const SidebarTrigger = ({
-  className,
-  onClick,
-  ...rest
-}: SidebarTriggerProps): React.ReactElement => {
-  const { toggleSidebar } = useSidebar();
-  return (
-    <Button
-      data-sidebar="trigger"
-      data-slot="sidebar-trigger"
-      variant="ghost"
-      size="icon"
-      className={cn("size-7", className)}
-      onClick={(event) => {
-        onClick?.(event);
-        toggleSidebar();
-      }}
-      {...rest}
-    >
-      <span aria-hidden className="text-base leading-none">
-        ☰
-      </span>
-      <span className="sr-only">Toggle Sidebar</span>
-    </Button>
-  );
-};
 
 /** Hover-target rail that toggles the sidebar without a visible button. */
 export const SidebarRail = ({
@@ -33923,90 +34626,6 @@ export const ThemeProvider = ({
 };
 </file>
 
-<file path="packages/symbiot-ui/src/components/ToggleGroup.tsx">
-import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
-import { cva, type VariantProps } from "class-variance-authority";
-import { createContext, use, type ComponentPropsWithoutRef, type Ref } from "react";
-
-import { cn } from "../utils/cn.ts";
-
-export const toggleVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default: "bg-transparent",
-        outline:
-          "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
-      },
-      size: {
-        default: "h-9 px-4 min-w-9",
-        sm: "h-8 px-3 min-w-8",
-        lg: "h-10 px-6 min-w-10",
-      },
-    },
-    defaultVariants: { variant: "default", size: "default" },
-  }
-);
-
-interface ToggleGroupContextValue {
-  variant?: VariantProps<typeof toggleVariants>["variant"];
-  size?: VariantProps<typeof toggleVariants>["size"];
-}
-
-const ToggleGroupContext = createContext<ToggleGroupContextValue>({});
-
-type ToggleGroupProps = ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Root> &
-  VariantProps<typeof toggleVariants> & { ref?: Ref<HTMLDivElement> };
-
-export const ToggleGroup = ({
-  className,
-  variant,
-  size,
-  children,
-  ref,
-  ...rest
-}: ToggleGroupProps): React.ReactElement => (
-  <ToggleGroupPrimitive.Root
-    ref={ref}
-    className={cn("inline-flex items-center gap-1", className)}
-    {...rest}
-  >
-    <ToggleGroupContext value={{ variant, size }}>{children}</ToggleGroupContext>
-  </ToggleGroupPrimitive.Root>
-);
-
-interface ToggleGroupItemProps
-  extends
-    ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item>,
-    VariantProps<typeof toggleVariants> {
-  ref?: Ref<HTMLButtonElement>;
-}
-
-export const ToggleGroupItem = ({
-  className,
-  variant,
-  size,
-  ref,
-  ...rest
-}: ToggleGroupItemProps): React.ReactElement => {
-  const ctx = use(ToggleGroupContext);
-  return (
-    <ToggleGroupPrimitive.Item
-      ref={ref}
-      className={cn(
-        toggleVariants({
-          variant: variant ?? ctx.variant,
-          size: size ?? ctx.size,
-        }),
-        className
-      )}
-      {...rest}
-    />
-  );
-};
-</file>
-
 <file path="packages/symbiot-ui/src/components/Tooltip.tsx">
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { ComponentPropsWithoutRef, Ref } from "react";
@@ -34081,7 +34700,6 @@ const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) 
           projectName={props.projectName ?? "demo"}
           busy={props.busy}
           mode={props.mode}
-          showSidebarTrigger={props.showSidebarTrigger}
           hasAnnotations={props.hasAnnotations}
         />
       </SidebarProvider>
@@ -34133,19 +34751,6 @@ describe("TopBar", () => {
     expect(screen.getByTestId<HTMLButtonElement>("top-bar-approve").disabled).toBe(true);
   });
 
-  it.each([
-    { showSidebarTrigger: true, present: true },
-    { showSidebarTrigger: false, present: false },
-  ])(
-    "sidebar trigger visibility ($present) tracks showSidebarTrigger=$showSidebarTrigger",
-    ({ showSidebarTrigger, present }) => {
-      renderTopBar({ showSidebarTrigger });
-      const trigger = screen.queryByTestId("top-bar-sidebar-trigger");
-      if (present) expect(trigger).not.toBeNull();
-      else expect(trigger).toBeNull();
-    }
-  );
-
   it("clicking the Approve action invokes onApprove exactly once", async () => {
     const user = userEvent.setup();
     const onApprove = vi.fn();
@@ -34167,16 +34772,12 @@ describe("TopBar", () => {
 </file>
 
 <file path="packages/symbiot-ui/src/components/TopBar.tsx">
-import { PanelRight } from "lucide-react";
-
 import { AppLogo } from "./AppLogo.tsx";
 import { Button } from "./Button.tsx";
 import { CheckIcon } from "./CheckIcon.tsx";
 import { Kbd, formatHotkey } from "./Kbd.tsx";
 import { SendIcon } from "./SendIcon.tsx";
-import { Separator } from "./Separator.tsx";
 import { SettingsMenu } from "./SettingsMenu.tsx";
-import { SidebarTrigger } from "./SidebarChrome.tsx";
 
 export type TopBarMode = "plan" | "annotate";
 
@@ -34187,8 +34788,6 @@ interface TopBarProps {
   projectName: string;
   busy?: boolean;
   mode?: TopBarMode;
-  /** When true, renders the annotation-sidebar toggle trigger on the right side. */
-  showSidebarTrigger?: boolean;
   /** In `plan` mode, swaps the action button: Approve when false, Request changes when true. */
   hasAnnotations?: boolean;
 }
@@ -34235,31 +34834,18 @@ const Actions = ({
   );
 };
 
-const SidebarTriggerSlot = ({ show }: { show: boolean }): React.ReactElement | null => {
-  if (!show) return null;
-  return (
-    <>
-      <Separator orientation="vertical" className="h-6" />
-      <SidebarTrigger data-testid="top-bar-sidebar-trigger" className="size-8">
-        <PanelRight />
-      </SidebarTrigger>
-    </>
-  );
-};
-
 export const TopBar = ({
   onApprove,
   onDeny,
   projectName,
   busy = false,
   mode = "plan",
-  showSidebarTrigger = false,
   hasAnnotations = false,
 }: TopBarProps): React.ReactElement => (
   <header
     data-testid="top-bar"
     data-mode={mode}
-    className="border-border bg-background flex h-14 items-center gap-2 border-b px-8"
+    className="border-border bg-topbar flex h-14 items-center gap-2 border-b pr-6 pl-10"
   >
     <div data-testid="top-bar-brand" className="flex items-center gap-2">
       <AppLogo size={20} className="text-foreground" />
@@ -34277,7 +34863,6 @@ export const TopBar = ({
         mode={mode}
         hasAnnotations={hasAnnotations}
       />
-      <SidebarTriggerSlot show={showSidebarTrigger} />
     </div>
   </header>
 );
@@ -34604,8 +35189,37 @@ const themeCss = await readTheme();
 const injectableCss = stripUnparseableBlocks(themeCss);
 
 const themes = ["light", "dark"] as const;
-const tokens = ["--anno-delete", "--anno-insert", "--anno-replace", "--anno-comment"] as const;
+const tokens = [
+  "--anno-delete",
+  "--anno-insert",
+  "--anno-replace",
+  "--anno-comment",
+  "--heading",
+  "--inline-code",
+] as const;
 const cases = themes.flatMap((theme) => tokens.map((token) => ({ theme, token })));
+
+/*
+ * Text-on-surface pairs that render on a token surface other than
+ * `--background`: top-bar content on `--topbar`, muted text on `--muted`
+ * (md table th, Kbd, badges), sidebar text on `--sidebar`, and the unified
+ * on-palette hover (`--accent` / `--sidebar-accent`). Gated here so a
+ * surface-token edit that drops its text below AA fails CI like any
+ * `--background` regression.
+ */
+const surfacePairs = [
+  { foreground: "--foreground", surface: "--topbar" },
+  { foreground: "--muted-foreground", surface: "--muted" },
+  { foreground: "--sidebar-foreground", surface: "--sidebar" },
+  { foreground: "--muted-foreground", surface: "--sidebar" },
+  // Binding AA constraint for the unified hover: muted row-meta on a hovered
+  // sidebar row is the tightest pair (~4.91:1 dark). A future hover-value edit
+  // must keep this >= 4.5 — muted-foreground, not the near-white labels, is the
+  // floor.
+  { foreground: "--muted-foreground", surface: "--sidebar-accent" },
+  { foreground: "--accent-foreground", surface: "--accent" },
+] as const;
+const pairCases = themes.flatMap((theme) => surfacePairs.map((pair) => ({ theme, ...pair })));
 
 describe("theme.css dark variant", () => {
   it("declares @custom-variant dark with shadcn's class-based selector", () => {
@@ -34644,6 +35258,21 @@ describe("theme.css annotation tokens", () => {
     const ratio = contrastRatio(luminance(tokenRgb), luminance(backgroundRgb));
     expect(ratio).toBeGreaterThanOrEqual(4.5);
   });
+
+  it.each(pairCases)(
+    "$theme: $foreground meets WCAG AA (>= 4.5:1) vs $surface",
+    ({ theme, foreground, surface }) => {
+      const root = window.document.documentElement;
+      root.classList.toggle("dark", theme === "dark");
+
+      const computed = window.getComputedStyle(root);
+      const foregroundRgb = linearRgbFromOklch(computed.getPropertyValue(foreground).trim());
+      const surfaceRgb = linearRgbFromOklch(computed.getPropertyValue(surface).trim());
+
+      const ratio = contrastRatio(luminance(foregroundRgb), luminance(surfaceRgb));
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    }
+  );
 });
 
 describe("parseOklch", () => {
@@ -34877,6 +35506,9 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
   --color-anno-replace: var(--anno-replace);
   --color-anno-comment: var(--anno-comment);
 
+  --color-topbar: var(--topbar);
+  --color-task-done: var(--task-done);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -34906,7 +35538,7 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
+  --muted: oklch(0.978 0.003 247.9); /* #f6f8fa — md table th surface (GitHub light) */
   --muted-foreground: oklch(
     0.42 0 0
   ); /* AA-safe: ≈5.2:1 vs --muted (shadcn default 0.556 is 4.34:1) */
@@ -34924,6 +35556,16 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
   --anno-replace: oklch(0.52 0.1 75); /* 5.63:1 vs --background */
   --anno-comment: oklch(0.54 0.13 48); /* 5.33:1 vs --background */
 
+  /*
+   * Surface + markdown typography tokens (light = GitHub-light analogues).
+   * Keep values in bare `oklch(L C H)` form — contrast.test.ts's parser
+   * throws on hex/percent/alpha forms.
+   */
+  --topbar: oklch(0.978 0.003 247.9); /* #f6f8fa */
+  --heading: oklch(0.278 0.012 248.2); /* #24292e, 14.67:1 vs --background */
+  --inline-code: oklch(0.48 0.17 277.5); /* #4b4cba, 6.92:1 vs --background */
+  --task-done: oklch(0.58 0.157 148.1); /* #1c923f — checked task accent */
+
   /* shadcn sidebar tokens (light) */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -34936,7 +35578,7 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: oklch(0.176 0.014 258.4); /* #0d1117 — GitHub dark canvas */
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
@@ -34946,9 +35588,11 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
+  --muted: oklch(0.278 0.012 248.2); /* #24292e — md table th surface (GitHub dark) */
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --accent: oklch(
+    0.319 0.017 255.6
+  ); /* #2d333b — on-palette hover; kept equal to --sidebar-accent (GitHub dark) */
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
@@ -34957,17 +35601,25 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
   --ring: oklch(0.556 0 0);
 
   /* Annotation tokens (dark) — AA-verified against --background; see docs/theming.md. */
-  --anno-delete: oklch(0.7 0.18 30); /* 5.30:1 vs --background */
-  --anno-insert: oklch(0.75 0.18 145); /* 7.38:1 vs --background */
-  --anno-replace: oklch(0.78 0.16 75); /* 7.48:1 vs --background */
-  --anno-comment: oklch(0.75 0.14 50); /* 6.59:1 vs --background */
+  --anno-delete: oklch(0.7 0.18 30); /* 6.56:1 vs --background */
+  --anno-insert: oklch(0.75 0.18 145); /* 9.08:1 vs --background */
+  --anno-replace: oklch(0.78 0.16 75); /* 9.24:1 vs --background */
+  --anno-comment: oklch(0.75 0.14 50); /* 8.15:1 vs --background */
+
+  /* Surface + markdown typography tokens (dark — requested GitHub-dark values). */
+  --topbar: oklch(0.216 0.013 258.4); /* #161a20 */
+  --heading: oklch(0.857 0.014 248); /* #c9d1d9, 12.27:1 vs --background */
+  --inline-code: oklch(0.802 0.091 278.6); /* #b1b9f9, 10.06:1 vs --background */
+  --task-done: oklch(0.705 0.157 148.1); /* #4eba65 — checked task accent */
 
   /* shadcn sidebar tokens (dark) */
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.258 0.013 253.1); /* #1F242A — sidebar surface (GitHub dark) */
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(
+    0.319 0.017 255.6
+  ); /* #2d333b — sidebar hover; kept equal to --accent (GitHub dark) */
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
