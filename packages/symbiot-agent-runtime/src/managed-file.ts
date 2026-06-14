@@ -21,7 +21,8 @@ import { dirname } from "node:path";
 /** Whether the on-disk file at `path` is owned by symbiot, foreign, or missing. */
 export type Ownership = "ours" | "foreign" | "absent";
 
-const isMissing = (error: unknown): boolean => {
+/** True when `error` is a filesystem "path does not exist" error (`ENOENT`/`ENOTDIR`). */
+export const isMissing = (error: unknown): boolean => {
   const { code } = error as NodeJS.ErrnoException;
   return code === "ENOENT" || code === "ENOTDIR";
 };

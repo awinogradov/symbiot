@@ -1,10 +1,12 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { runPlanReview } from "@symbiot/agent-runtime";
 import { emitBlockDecision } from "@symbiot/agent-runtime/decision";
+import { isMissing } from "@symbiot/agent-runtime/managed-file";
+import { sha256 } from "@symbiot/agent-runtime/marker-store";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
 import viewerHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" };
@@ -40,11 +42,6 @@ export const markerPath = (): string =>
 
 const eventLogPath = (): string => join(homedir(), ".symbiot", "hook-state", "events.log");
 
-const isMissingPath = (error: unknown): boolean => {
-  const { code } = error as NodeJS.ErrnoException;
-  return code === "ENOENT" || code === "ENOTDIR";
-};
-
 /**
  * Append a single JSON line per hook invocation for post-hoc debugging.
  * The log is observability, never load-bearing — failures must not
@@ -59,13 +56,14 @@ const logEvent = async (entry: Record<string, unknown>): Promise<void> => {
     await mkdir(dirname(target), { recursive: true });
     await appendFile(target, `${JSON.stringify({ at: Date.now(), ...entry })}\n`, "utf8");
   } catch (error) {
-    if (isMissingPath(error)) return;
+    if (isMissing(error)) return;
     const code = (error as NodeJS.ErrnoException).code ?? "unknown";
     process.stderr.write(`symbiot: events.log write failed (${code})\n`);
   }
 };
 
-export const hashPlan = (plan: string): string => createHash("sha256").update(plan).digest("hex");
+/** SHA-256 fingerprint of a plan; aliases the shared {@link sha256} so the marker hash is computed identically across hooks. */
+export const hashPlan = sha256;
 
 const readHookInput = async (): Promise<HookInput> => {
   const chunks: Uint8Array[] = [];
@@ -113,7 +111,7 @@ export const readApproveMarker = async (): Promise<ApproveMarker | null> => {
     const parsed: unknown = JSON.parse(raw);
     return isApproveMarker(parsed) ? parsed : null;
   } catch (error) {
-    if (!isMissingPath(error)) {
+    if (!isMissing(error)) {
       const code = (error as NodeJS.ErrnoException).code ?? "parse";
       process.stderr.write(`symbiot: marker read failed (${code})\n`);
     }
