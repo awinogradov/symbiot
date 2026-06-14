@@ -22,8 +22,7 @@ const findElementPath = (
   target: unknown,
   base: number[]
 ): number[] | null => {
-  for (let index = 0; index < nodes.length; index += 1) {
-    const node = nodes[index];
+  for (const [index, node] of nodes.entries()) {
     const here = [...base, index];
     if (node === target) return here;
     if (!isElement(node)) continue;
@@ -40,7 +39,9 @@ const collectTextLeafPaths = (node: unknown, path: number[], out: number[][]): v
     return;
   }
   if (isElement(node)) {
-    node.children.forEach((child, index) => collectTextLeafPaths(child, [...path, index], out));
+    for (const [index, child] of node.children.entries()) {
+      collectTextLeafPaths(child, [...path, index], out);
+    }
   }
 };
 
@@ -117,8 +118,7 @@ const findTaskItem = (
   children: readonly unknown[],
   id: string
 ): { node: ElementNode; index: number } | null => {
-  for (let index = 0; index < children.length; index += 1) {
-    const node = children[index];
+  for (const [index, node] of children.entries()) {
     if (isElement(node) && findTaskId(node) === id) return { node, index };
   }
   return null;
