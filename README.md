@@ -5,30 +5,30 @@ Review and annotate the plans your AI coding agents produce, then send structure
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│       Claude Code · Codex · Gemini · OpenCode · Copilot CLI      │
-└─────────────────────────────┬────────────────────────────────────┘
-                              │ PreToolUse(ExitPlanMode)
-                              ▼
-┌──────────────────────────────────────────────────────────────────┐
-│ apps/claude-code                                                 │
-│   intercepts plan → persists to ~/.symbiot/agents/<agent-id>/... │
-│   spawns apps/viewer on a free port, opens the browser           │
-└─────────────────────────────┬────────────────────────────────────┘
-                              │ HTTP /api/plan, /api/feedback, ...
-                              ▼
-┌──────────────────────────────────────────────────────────────────┐
-│ apps/viewer                                                      │
-│   Bun server  ──  React 19 + Vite client                         │
-│                                                                  │
-│      packages/symbiot-editor   ← PlateJS, markdown round-trip    │
-│      packages/symbiot-ui       ← shadcn/ui shell + ThemeProvider │
-│      packages/symbiot-annotations ← walk · serialize · codec     │
-│      packages/tailwind-config  ← design tokens                   │
-└──────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│       Claude Code · Codex · Gemini · OpenCode · Copilot CLI        │
+└────────────────────────────────┬───────────────────────────────────┘
+                                 │ PreToolUse(ExitPlanMode)
+                                 ▼
+┌────────────────────────────────────────────────────────────────────┐
+│ apps/claude-code                                                   │
+│   intercepts plan → persists to ~/.symbiot/agents/<agent-id>/…     │
+│   spawns apps/viewer on a free port, opens the browser             │
+└────────────────────────────────┬───────────────────────────────────┘
+                                 │ HTTP /api/plan, /api/feedback, …
+                                 ▼
+┌────────────────────────────────────────────────────────────────────┐
+│ apps/viewer                                                        │
+│   Bun server  ──  React 19 + Vite client                           │
+│                                                                    │
+│   packages/symbiot-editor       ← PlateJS, markdown round-trip     │
+│   packages/symbiot-ui           ← shadcn/ui shell + ThemeProvider  │
+│   packages/symbiot-annotations  ← walk · serialize · codec         │
+│   packages/tailwind-config      ← design tokens                    │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-`apps/portal` is the static share-viewer; it consumes the same `symbiot-editor` + `symbiot-ui` packages but reads serialized state from a URL fragment instead of the local server.
+`apps/portal` is the planned static share-viewer: it will consume the same `symbiot-editor` + `symbiot-ui` packages but read serialized state from a URL fragment instead of the local server. It is not yet released — the package currently exports nothing (see [`apps/portal/README.md`](./apps/portal/README.md)).
 
 ## Tech stack
 
@@ -196,8 +196,9 @@ apps/
   gemini/        Gemini CLI hook (AfterAgent) that opens the viewer and resolves plans
   copilot/       Copilot CLI hook (agentStop) that opens the viewer and resolves plans
   opencode-plugin/  OpenCode in-process plugin (session.idle); opens the viewer, steers the next turn
-  portal/        Static viewer for shared review links
+  portal/        Static viewer for shared review links (planned; not yet released)
 packages/
+  symbiot-agent-runtime/  Shared spawn-and-decide loop (runPlanReview) for agent hooks
   symbiot-annotations/  Annotation tuple model + codec
   symbiot-editor/       PlateJS editor as a reusable React package
   symbiot-ui/           shadcn/ui components + ThemeProvider + chrome
