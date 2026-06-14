@@ -38,11 +38,11 @@ Then("the editor is still visible", async ({ page }) => {
 When("I reload the page", async ({ page }) => {
   await page.reload();
   await page.getByTestId("editor-root").waitFor({ state: "visible" });
-  // Plate stamps `data-slate-node="element"` on every block once mounted,
-  // so the first such node appearing is a deterministic signal that
-  // deserialization has finished and restored marks are rendered.
+  // Every block stamps a per-type `editor-*` testid once mounted, so the first
+  // such node appearing is a deterministic signal that deserialization has
+  // finished — the testid equivalent of waiting on Plate's first block element.
   await page
-    .locator('[data-testid="editor-root"] [data-slate-node="element"]')
+    .locator('[data-testid="editor-root"] [data-testid^="editor-"]')
     .first()
     .waitFor({ state: "visible" });
 });
