@@ -23,7 +23,7 @@ Out of scope and excluded explicitly:
 
 - `packages/symbiot-editor/src/utils/{shiki,codeSyntax,sourceLines,typingGuard,selectionRect}.ts` — adjacent utilities not named by NFR-8 (Shiki highlighter, code-block syntax-highlight `decorate` glue, source-line resolution, type guards, UI selection geometry). The pure offset/colour math the decorate wires in lives in `codeTokens.ts`, which **is** unit-tested.
 - `packages/symbiot-editor/src/components/{DiffEditor,ReviewEditor}.tsx` — Plate/Slate `contenteditable` surfaces. Testing them needs a live Plate editor with `contenteditable` semantics happy-dom does not implement. Exercised by Playwright-BDD specs. Keep this list narrow; **everything else under `components/**` must be unit-testable** — if a new component pattern resists testing, extract pure helpers (`diffClassFor`, `pruneRemovedAnnotation`, etc.) or mock the heavy dependency, do not extend this list.
-- `packages/symbiot-ui/src/components/{Button,Card,Dialog,DropdownMenu,Input,Popover,ScrollArea,Separator,Sheet,Skeleton,Tabs,Textarea,ToggleGroup,Tooltip,Badge,AlertDialog,Sidebar,SidebarMenu,SidebarProvider,SidebarChrome,SidebarSection}.tsx` — restyled shadcn / Radix primitives. Maintained as a list because the directory layout doesn't separate them.
+- `packages/symbiot-ui/src/components/{Button,Card,Dialog,DropdownMenu,Input,Popover,ScrollArea,Separator,Sheet,Skeleton,Tabs,Textarea,Tooltip,Badge,AlertDialog,Sidebar,SidebarMenu,SidebarProvider,SidebarChrome,SidebarSection}.tsx` — restyled shadcn / Radix primitives. Maintained as a list because the directory layout doesn't separate them.
 - `apps/**` — coverage on app code lives behind the e2e flow (`bun run test:e2e:coverage` + `mcr.config.ts`), not this gate.
 
 ## Running locally

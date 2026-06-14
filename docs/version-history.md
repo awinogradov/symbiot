@@ -89,7 +89,8 @@ Key invariants:
 - `VersionBrowser` lists versions newest-first; the active row gets
   `data-active="true"` via `SidebarMenuButton`'s `isActive` prop and shows
   "current" as its secondary label.
-- The Clean / Raw `ToggleGroup` sits above the version list. It is rendered
+- The Clean / Raw toggle — the same `Tabs` segmented control as the sidebar's
+  Annotations / History tab bar — sits above the version list. It is rendered
   only when `showDiffToggle === true`, derived in `ReviewScreen` as
   `isHistorical && previousPlan !== null`. So: not visible on the current
   version; not visible on the smallest version (no predecessor exists).

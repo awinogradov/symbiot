@@ -40,13 +40,32 @@ derived same-hue analogues. Text tokens are AA-gated against `--background`;
 the surfaces are gated as (foreground, surface) pairs — all in
 `contrast.test.ts`.
 
-| Token           | Light OKLCH (hex)                      | Dark OKLCH (hex)                       | Ratio (L / D)                          |
-| --------------- | -------------------------------------- | -------------------------------------- | -------------------------------------- |
-| `--topbar`      | `oklch(0.978 0.003 247.9)` (`#f6f8fa`) | `oklch(0.216 0.013 258.4)` (`#161a20`) | vs `--foreground`: 18.58 / 16.74 ✓     |
-| `--muted`       | `oklch(0.978 0.003 247.9)` (`#f6f8fa`) | `oklch(0.278 0.012 248.2)` (`#24292e`) | vs `--muted-foreground`: 7.94 / 5.66 ✓ |
-| `--heading`     | `oklch(0.278 0.012 248.2)` (`#24292e`) | `oklch(0.857 0.014 248.0)` (`#c9d1d9`) | vs `--background`: 14.67 / 12.27 ✓     |
-| `--inline-code` | `oklch(0.48 0.17 277.5)` (`#4b4cba`)   | `oklch(0.802 0.091 278.6)` (`#b1b9f9`) | vs `--background`: 6.92 / 10.06 ✓      |
-| `--task-done`   | `oklch(0.58 0.157 148.1)` (`#1c923f`)  | `oklch(0.705 0.157 148.1)` (`#4eba65`) | decorative checkbox accent — not gated |
+| Token                           | Light OKLCH (hex)                      | Dark OKLCH (hex)                       | Ratio (L / D)                              |
+| ------------------------------- | -------------------------------------- | -------------------------------------- | ------------------------------------------ |
+| `--topbar`                      | `oklch(0.978 0.003 247.9)` (`#f6f8fa`) | `oklch(0.216 0.013 258.4)` (`#161a20`) | vs `--foreground`: 18.58 / 16.74 ✓         |
+| `--muted`                       | `oklch(0.978 0.003 247.9)` (`#f6f8fa`) | `oklch(0.278 0.012 248.2)` (`#24292e`) | vs `--muted-foreground`: 7.94 / 5.66 ✓     |
+| `--heading`                     | `oklch(0.278 0.012 248.2)` (`#24292e`) | `oklch(0.857 0.014 248.0)` (`#c9d1d9`) | vs `--background`: 14.67 / 12.27 ✓         |
+| `--inline-code`                 | `oklch(0.48 0.17 277.5)` (`#4b4cba`)   | `oklch(0.802 0.091 278.6)` (`#b1b9f9`) | vs `--background`: 6.92 / 10.06 ✓          |
+| `--task-done`                   | `oklch(0.58 0.157 148.1)` (`#1c923f`)  | `oklch(0.705 0.157 148.1)` (`#4eba65`) | decorative checkbox accent — not gated     |
+| `--sidebar`                     | `oklch(0.985 0 0)` (`#fafafa`)         | `oklch(0.258 0.013 253.1)` (`#1F242A`) | vs `--sidebar-foreground`: 18.96 / 14.96 ✓ |
+| `--accent` / `--sidebar-accent` | `oklch(0.97 0 0)` (`#f5f5f5`)          | `oklch(0.319 0.017 255.6)` (`#2d333b`) | vs `--muted-foreground`: 7.76 / 4.91 ✓     |
+
+Surface tokens are gated as `(foreground, surface)` pairs in `contrast.test.ts`,
+not against `--background` — the Ratio column names the foreground token measured
+on each surface. `--sidebar` and the shared `--accent` / `--sidebar-accent` hover
+moved only in **dark** (the GitHub-dark request); their light values keep the
+neutral shadcn analogues, so the four hover surfaces stay mutually consistent in
+both themes.
+
+`--accent` and `--sidebar-accent` deliberately hold the **same** value so one
+edit re-tints every on-palette hover surface at once — the app-wide hover (the
+global-comment FAB, the top-bar feedback/approve button, modal Cancel, and every
+ghost/outline button) and the sidebar hover (annotation rows, sidebar menu
+actions). They are kept as two named tokens rather than collapsed into one so the
+sidebar hover can diverge from the app hover later without a rename. Solid-primary
+CTAs (modal Confirm, composer Save) are intentionally excluded — they keep
+`hover:bg-primary/90` so the primary affordance reads as distinct from
+secondary/ghost surfaces.
 
 `--topbar` is registered in `@theme inline` (consumed as `bg-topbar` by the
 TopBar); `--heading` and `--inline-code` are consumed only via `var()` from

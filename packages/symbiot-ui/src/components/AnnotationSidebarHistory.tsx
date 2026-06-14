@@ -1,7 +1,7 @@
 import { type SidebarDiffMode } from "./AnnotationSidebarTypes.tsx";
 import { Button } from "./Button.tsx";
 import { SidebarGroup } from "./SidebarSection.tsx";
-import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup.tsx";
+import { Tabs, TabsList, TabsTrigger } from "./Tabs.tsx";
 import { VersionBrowser } from "./VersionBrowser.tsx";
 
 /** Props for the Clean/Raw diff render toggle. */
@@ -11,32 +11,26 @@ interface DiffToggleProps {
 }
 
 const DiffModeToggle = ({ diffMode, onChange }: DiffToggleProps): React.ReactElement => (
-  <ToggleGroup
-    type="single"
-    value={diffMode}
-    onValueChange={onChange}
-    variant="outline"
-    size="sm"
-    data-testid="diff-mode-toggle"
-    className="w-full"
-  >
-    <ToggleGroupItem
-      value="clean"
-      data-testid="diff-mode-clean"
-      aria-label="Show only changed blocks"
-      className="flex-1"
-    >
-      Clean
-    </ToggleGroupItem>
-    <ToggleGroupItem
-      value="raw"
-      data-testid="diff-mode-raw"
-      aria-label="Show the full diff"
-      className="flex-1"
-    >
-      Raw
-    </ToggleGroupItem>
-  </ToggleGroup>
+  <Tabs value={diffMode} onValueChange={onChange} data-testid="diff-mode-toggle" className="w-full">
+    <TabsList className="flex w-full">
+      <TabsTrigger
+        value="clean"
+        data-testid="diff-mode-clean"
+        aria-label="Show only changed blocks"
+        className="flex-1"
+      >
+        Clean
+      </TabsTrigger>
+      <TabsTrigger
+        value="raw"
+        data-testid="diff-mode-raw"
+        aria-label="Show the full diff"
+        className="flex-1"
+      >
+        Raw
+      </TabsTrigger>
+    </TabsList>
+  </Tabs>
 );
 
 /** Props for the predecessor-diff overlay toggle button. */
@@ -48,7 +42,7 @@ interface CompareButtonProps {
 const CompareButton = ({ active, onToggle }: CompareButtonProps): React.ReactElement => (
   <Button
     data-testid={active ? "compare-back-to-editing" : "compare-with-previous"}
-    variant={active ? "secondary" : "outline"}
+    variant="outline"
     size="sm"
     className="w-full"
     onClick={onToggle}

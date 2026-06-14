@@ -52,12 +52,22 @@ const cases = themes.flatMap((theme) => tokens.map((token) => ({ theme, token })
 /*
  * Text-on-surface pairs that render on a token surface other than
  * `--background`: top-bar content on `--topbar`, muted text on `--muted`
- * (md table th, Kbd, badges). Gated here so a surface-token edit that drops
- * its text below AA fails CI like any `--background` regression.
+ * (md table th, Kbd, badges), sidebar text on `--sidebar`, and the unified
+ * on-palette hover (`--accent` / `--sidebar-accent`). Gated here so a
+ * surface-token edit that drops its text below AA fails CI like any
+ * `--background` regression.
  */
 const surfacePairs = [
   { foreground: "--foreground", surface: "--topbar" },
   { foreground: "--muted-foreground", surface: "--muted" },
+  { foreground: "--sidebar-foreground", surface: "--sidebar" },
+  { foreground: "--muted-foreground", surface: "--sidebar" },
+  // Binding AA constraint for the unified hover: muted row-meta on a hovered
+  // sidebar row is the tightest pair (~4.91:1 dark). A future hover-value edit
+  // must keep this >= 4.5 — muted-foreground, not the near-white labels, is the
+  // floor.
+  { foreground: "--muted-foreground", surface: "--sidebar-accent" },
+  { foreground: "--accent-foreground", surface: "--accent" },
 ] as const;
 const pairCases = themes.flatMap((theme) => surfacePairs.map((pair) => ({ theme, ...pair })));
 
