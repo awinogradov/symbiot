@@ -4482,7 +4482,8 @@ v0.3.0
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" prepare",
-            "timeout": 120
+            "timeout": 120,
+            "statusMessage": "Symbiot: preparing plan reviewer (first run downloads the viewer)…"
           }
         ]
       }
@@ -4494,7 +4495,8 @@ v0.3.0
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" run-hook",
-            "timeout": 3600
+            "timeout": 3600,
+            "statusMessage": "Symbiot: opening plan reviewer…"
           }
         ]
       }
@@ -4506,7 +4508,8 @@ v0.3.0
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" run-hook",
-            "timeout": 3600
+            "timeout": 3600,
+            "statusMessage": "Symbiot: confirming plan approval…"
           }
         ]
       }
@@ -4584,6 +4587,7 @@ interface HookEntry {
   type: string;
   command: string;
   timeout?: number;
+  statusMessage?: string;
 }
 interface HookGroup {
   matcher?: string;
@@ -4603,6 +4607,25 @@ const runHookEntriesFor = (config: HooksConfig, event: string): HookEntry[] =>
     .filter((group) => group.matcher === "ExitPlanMode")
     .flatMap((group) => group.hooks)
     .filter((entry) => /run-hook/.test(entry.command));
+
+const symbiotEntries = (config: HooksConfig): HookEntry[] =>
+  Object.values(config.hooks)
+    .flat()
+    .flatMap((group) => group.hooks)
+    .filter((entry) => /bin\/symbiot|run-hook/.test(entry.command));
+
+describe("hooks.json status messages", () => {
+  // A cold-cache hook silently downloads the viewer; statusMessage is the only
+  // signal Claude Code can show the user while the hook runs — see issue #220.
+  it("every symbiot hook entry carries a non-empty statusMessage", async () => {
+    const entries = symbiotEntries(await readHooks());
+
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      expect(entry.statusMessage).toBeTruthy();
+    }
+  });
+});
 
 describe("hooks.json timeouts", () => {
   // run-hook blocks on the human reviewer, so its budget must cover an
@@ -4639,6 +4662,7 @@ const settingsPath = join(homeRoot, ".claude", "settings.json");
 interface Hook {
   type: "command";
   command: string;
+  statusMessage?: string;
 }
 interface HookGroup {
   matcher?: string;
@@ -4676,6 +4700,13 @@ describe("installHook", () => {
     expect(symbiotEntriesIn(settings, "PreToolUse")[0]?.command).toBe(
       symbiotEntriesIn(settings, "PermissionRequest")[0]?.command
     );
+  });
+
+  it("registers a statusMessage spinner on both events", async () => {
+    await installHook();
+    const settings = await readSettings();
+    expect(symbiotEntriesIn(settings, "PreToolUse")[0]?.statusMessage).toBeTruthy();
+    expect(symbiotEntriesIn(settings, "PermissionRequest")[0]?.statusMessage).toBeTruthy();
   });
 
   it("is idempotent across repeat installs", async () => {
@@ -4789,6 +4820,7 @@ export const { installHook, uninstallHook } = createConfigHookInstaller({
   registerEvents: ["PreToolUse", "PermissionRequest"],
   cleanEvents: ["Stop"],
   matcher: "ExitPlanMode",
+  entryExtras: { statusMessage: "Symbiot: opening plan reviewer…" },
 });
 </file>
 
@@ -5405,6 +5437,8 @@ This directory doubles as the **plugin root** (`${CLAUDE_PLUGIN_ROOT}`):
 - ④ A warm cache execs instantly; a cold cache absorbs a ~44 s download first.
 - ⑤ `run-hook` **blocks until the reviewer decides** — open-ended human time, so its hook entry carries a **1-hour** `timeout` (`3600`). The default command-hook timeout (600 s) would kill a slow review or a cold download; `prepare` keeps the shorter 120 s budget because it only downloads.
 
+Every entry also carries a `statusMessage` — Claude Code renders it as a spinner label while the hook runs, so a cold-cache download (which is otherwise silent — command hooks have no controlling terminal) shows "Symbiot: preparing plan reviewer (first run downloads the viewer)…" instead of looking frozen.
+
 ## Installation
 
 ```
@@ -5595,6 +5629,7 @@ interface Hook {
   type: "command";
   command: string;
   timeout?: number;
+  statusMessage?: string;
 }
 interface HookGroup {
   matcher?: string;
@@ -5628,6 +5663,7 @@ describe("installHook", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]?.timeout).toBe(3600);
     expect(entries[0]?.command).toMatch(/run-hook$/);
+    expect(entries[0]?.statusMessage).toBeTruthy();
   });
 
   it("is idempotent across repeat installs", async () => {
@@ -5713,7 +5749,7 @@ export const { installHook, uninstallHook } = createConfigHookInstaller({
   cliCommand,
   isSymbiotEntry,
   registerEvents: ["Stop"],
-  entryExtras: { timeout: stopTimeoutSeconds },
+  entryExtras: { timeout: stopTimeoutSeconds, statusMessage: "Symbiot: opening plan reviewer…" },
 });
 </file>
 
@@ -5962,7 +5998,8 @@ Config `install-hook` writes to `~/.codex/hooks.json` (`timeout` is in seconds �
           {
             "type": "command",
             "command": "bun /abs/path/apps/codex/src/cli.ts run-hook",
-            "timeout": 3600
+            "timeout": 3600,
+            "statusMessage": "Symbiot: opening plan reviewer…"
           }
         ]
       }
@@ -6114,6 +6151,7 @@ interface Hook {
   type: string;
   command: string;
   timeoutSec?: number;
+  statusMessage?: string;
   _managedBy?: string;
 }
 interface HookFile {
@@ -6141,6 +6179,7 @@ describe("installHook", () => {
     expect(entry?.timeoutSec).toBe(3600);
     expect(entry?.type).toBe("command");
     expect(entry?.command).toMatch(/run-hook$/);
+    expect(entry?.statusMessage).toBeTruthy();
     expect(entry?._managedBy).toBe("symbiot-copilot");
   });
 
@@ -6226,7 +6265,13 @@ const buildConfig = (command: string): string =>
       version: 1,
       hooks: {
         agentStop: [
-          { type: "command", command, timeoutSec: agentStopTimeoutSeconds, _managedBy: managedBy },
+          {
+            type: "command",
+            command,
+            timeoutSec: agentStopTimeoutSeconds,
+            statusMessage: "Symbiot: opening plan reviewer…",
+            _managedBy: managedBy,
+          },
         ],
       },
     },
@@ -6832,6 +6877,7 @@ human reviews, hence the long value:
         "type": "command",
         "command": "bun /abs/path/apps/copilot/src/cli.ts run-hook",
         "timeoutSec": 3600,
+        "statusMessage": "Symbiot: opening plan reviewer…",
         "_managedBy": "symbiot-copilot"
       }
     ]
@@ -7033,6 +7079,7 @@ interface Hook {
   command: string;
   name?: string;
   timeout?: number;
+  statusMessage?: string;
 }
 interface HookGroup {
   matcher?: string;
@@ -7069,6 +7116,7 @@ describe("installHook", () => {
     expect(entries[0]?.timeout).toBe(3_600_000);
     expect(entries[0]?.name).toBe("symbiot-gemini");
     expect(entries[0]?.command).toMatch(/run-hook$/);
+    expect(entries[0]?.statusMessage).toBeTruthy();
   });
 
   it("is idempotent across repeat installs", async () => {
@@ -7153,7 +7201,11 @@ export const { installHook, uninstallHook } = createConfigHookInstaller({
   cliCommand,
   isSymbiotEntry,
   registerEvents: ["AfterAgent"],
-  entryExtras: { name: "symbiot-gemini", timeout: afterAgentTimeoutMs },
+  entryExtras: {
+    name: "symbiot-gemini",
+    timeout: afterAgentTimeoutMs,
+    statusMessage: "Symbiot: opening plan reviewer…",
+  },
 });
 </file>
 
@@ -7415,7 +7467,8 @@ long value:
             "type": "command",
             "name": "symbiot-gemini",
             "command": "bun /abs/path/apps/gemini/src/cli.ts run-hook",
-            "timeout": 3600000
+            "timeout": 3600000,
+            "statusMessage": "Symbiot: opening plan reviewer…"
           }
         ]
       }
@@ -13864,7 +13917,12 @@ onResolved`), the package owns every other piece that is identical across agents
   `managed-file` (`writeAtomic` / `removeIfOwned`), and `marker-store`
   (`createMarkerStore`). Each agent app is a thin wrapper that supplies only its
   deltas — bin name, `agentId`, the event/message field, install target/timeout,
-  and the embedded `viewerHtmlGz`. Genuinely agent-specific logic stays local:
+  and the embedded `viewerHtmlGz`. The per-entry `statusMessage` spinner is also
+  threaded through `HookEntryExtras` (alongside `name`/`timeout`); Claude Code
+  renders it while a hook runs — the only signal available during the otherwise
+  silent cold-cache viewer download (command hooks have no controlling terminal) —
+  and the other CLIs share the same config shape, so the field is additive and
+  forward-compatible. Genuinely agent-specific logic stays local:
   Claude Code's bespoke approve payloads (`emitApproveDecision` /
   `permissionRequestAllowPayload`), its approve marker, and the
   `claude-code#50660` workaround in `apps/claude-code/src/runHook.ts`; Copilot's
@@ -21099,7 +21157,10 @@ let dir: string;
 let path: string;
 
 const readJson = async (): Promise<{
-  hooks?: Record<string, { matcher?: string; hooks: { command: string }[] }[]>;
+  hooks?: Record<
+    string,
+    { matcher?: string; hooks: { command: string; statusMessage?: string }[] }[]
+  >;
 }> => JSON.parse(await readFile(path, "utf8"));
 
 const codexInstaller = () =>
@@ -21127,6 +21188,35 @@ describe("createConfigHookInstaller (single-event, codex-style)", () => {
     expect(result).toEqual({ path, command });
     const config = await readJson();
     expect(config.hooks?.Stop).toEqual([{ hooks: [{ type: "command", command, timeout: 3600 }] }]);
+  });
+
+  it("threads statusMessage onto the entry when supplied, omits it otherwise", async () => {
+    const withStatus = createConfigHookInstaller({
+      path,
+      cliCommand: () => command,
+      isSymbiotEntry,
+      registerEvents: ["Stop"],
+      entryExtras: { timeout: 3600, statusMessage: "Symbiot: opening plan reviewer…" },
+    });
+    await withStatus.installHook();
+    const config = await readJson();
+    expect(config.hooks?.Stop).toEqual([
+      {
+        hooks: [
+          {
+            type: "command",
+            command,
+            timeout: 3600,
+            statusMessage: "Symbiot: opening plan reviewer…",
+          },
+        ],
+      },
+    ]);
+
+    await rm(path, { force: true });
+    await codexInstaller().installHook();
+    const plain = await readJson();
+    expect(plain.hooks?.Stop?.[0]?.hooks[0]).not.toHaveProperty("statusMessage");
   });
 
   it("is idempotent — re-install does not duplicate the entry", async () => {
@@ -21235,6 +21325,13 @@ export interface HookEntryExtras {
   name?: string;
   /** Optional timeout — Codex/Claude use seconds, Gemini milliseconds. Omitted entirely when absent. */
   timeout?: number;
+  /**
+   * Optional spinner message shown to the user while the hook runs. Claude Code
+   * renders this `statusMessage` field today; Codex/Gemini/Copilot share the same
+   * config shape, so it is additive and forward-compatible (ignored until they
+   * render it). Omitted entirely when absent.
+   */
+  statusMessage?: string;
 }
 
 /** Options for {@link createConfigHookInstaller}. */
@@ -21260,6 +21357,7 @@ interface HookEntry {
   command: string;
   name?: string;
   timeout?: number;
+  statusMessage?: string;
 }
 
 interface HookGroup {
@@ -21293,12 +21391,13 @@ export const createConfigHookInstaller = ({
       .filter((g) => g.hooks.length > 0);
 
   const buildGroup = (command: string): HookGroup => {
-    const { name, timeout } = entryExtras;
+    const { name, timeout, statusMessage } = entryExtras;
     const entry: HookEntry = {
       type: "command",
       ...(name !== undefined ? { name } : {}),
       command,
       ...(timeout !== undefined ? { timeout } : {}),
+      ...(statusMessage !== undefined ? { statusMessage } : {}),
     };
     return { ...(matcher !== undefined ? { matcher } : {}), hooks: [entry] };
   };
