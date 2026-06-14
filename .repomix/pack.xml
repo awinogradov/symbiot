@@ -4936,13 +4936,15 @@ describe("isFreshFor", () => {
 </file>
 
 <file path="apps/claude-code/src/runHook.ts">
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { runPlanReview } from "@symbiot/agent-runtime";
 import { emitBlockDecision } from "@symbiot/agent-runtime/decision";
+import { isMissing } from "@symbiot/agent-runtime/managed-file";
+import { sha256 } from "@symbiot/agent-runtime/marker-store";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
 import viewerHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" };
@@ -4978,11 +4980,6 @@ export const markerPath = (): string =>
 
 const eventLogPath = (): string => join(homedir(), ".symbiot", "hook-state", "events.log");
 
-const isMissingPath = (error: unknown): boolean => {
-  const { code } = error as NodeJS.ErrnoException;
-  return code === "ENOENT" || code === "ENOTDIR";
-};
-
 /**
  * Append a single JSON line per hook invocation for post-hoc debugging.
  * The log is observability, never load-bearing — failures must not
@@ -4997,13 +4994,14 @@ const logEvent = async (entry: Record<string, unknown>): Promise<void> => {
     await mkdir(dirname(target), { recursive: true });
     await appendFile(target, `${JSON.stringify({ at: Date.now(), ...entry })}\n`, "utf8");
   } catch (error) {
-    if (isMissingPath(error)) return;
+    if (isMissing(error)) return;
     const code = (error as NodeJS.ErrnoException).code ?? "unknown";
     process.stderr.write(`symbiot: events.log write failed (${code})\n`);
   }
 };
 
-export const hashPlan = (plan: string): string => createHash("sha256").update(plan).digest("hex");
+/** SHA-256 fingerprint of a plan; aliases the shared {@link sha256} so the marker hash is computed identically across hooks. */
+export const hashPlan = sha256;
 
 const readHookInput = async (): Promise<HookInput> => {
   const chunks: Uint8Array[] = [];
@@ -5051,7 +5049,7 @@ export const readApproveMarker = async (): Promise<ApproveMarker | null> => {
     const parsed: unknown = JSON.parse(raw);
     return isApproveMarker(parsed) ? parsed : null;
   } catch (error) {
-    if (!isMissingPath(error)) {
+    if (!isMissing(error)) {
       const code = (error as NodeJS.ErrnoException).code ?? "parse";
       process.stderr.write(`symbiot: marker read failed (${code})\n`);
     }
@@ -6440,7 +6438,13 @@ import { join } from "node:path";
 
 import { runPlanReview } from "@symbiot/agent-runtime";
 import { emitDecision } from "@symbiot/agent-runtime/decision";
-import { flagValue, parsePort, readHookInput } from "@symbiot/agent-runtime/hook-input";
+import {
+  flagValue,
+  isNonEmptyString,
+  isRecord,
+  parsePort,
+  readHookInput,
+} from "@symbiot/agent-runtime/hook-input";
 import { createMarkerStore } from "@symbiot/agent-runtime/marker-store";
 // Bun's compile mode embeds this file into the binary; the import resolves to
 // a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
@@ -6461,12 +6465,6 @@ export interface CopilotAgentStopInput {
   stopReason?: string;
 }
 
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.length > 0;
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
 /**
  * Validate a parsed stdin payload as a genuine `agentStop` turn-end event, or
  * return `null` to pass through. Pure — gates on `stopReason === "end_turn"` and a
@@ -6474,7 +6472,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
  * missing `sessionId` degrades to `""` (the re-entrancy guard is then a no-op).
  */
 export const parseAgentStop = (input: unknown): Required<CopilotAgentStopInput> | null => {
-  if (!isObject(input)) return null;
+  if (!isRecord(input)) return null;
   const { sessionId, transcriptPath, stopReason } = input as CopilotAgentStopInput;
   if (stopReason !== "end_turn") return null;
   if (!isNonEmptyString(transcriptPath)) return null;
@@ -21737,10 +21735,12 @@ export const parsePort = (raw: string | null): number | null => {
   return n >= 1 && n <= 65535 ? n : null;
 };
 
-const isNonEmptyString = (value: unknown): value is string =>
+/** Narrow `value` to a non-empty string — the "present and not blank" guard for hook payload fields. */
+export const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+/** Narrow `value` to a non-null object so its fields can be read off an `unknown` hook payload. */
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 /** Options for {@link createStopPlanExtractor}. */
@@ -21861,7 +21861,8 @@ import { dirname } from "node:path";
 /** Whether the on-disk file at `path` is owned by symbiot, foreign, or missing. */
 export type Ownership = "ours" | "foreign" | "absent";
 
-const isMissing = (error: unknown): boolean => {
+/** True when `error` is a filesystem "path does not exist" error (`ENOENT`/`ENOTDIR`). */
+export const isMissing = (error: unknown): boolean => {
   const { code } = error as NodeJS.ErrnoException;
   return code === "ENOENT" || code === "ENOTDIR";
 };
@@ -22023,7 +22024,8 @@ import { join } from "node:path";
 
 import { writeAtomic } from "./managed-file.ts";
 
-const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
+/** Hex SHA-256 of `value` — the shared hash for marker payloads, filenames, and plan fingerprints. */
+export const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
 
 /** A marker store bound to a directory + TTL. */
 export interface MarkerStore {
