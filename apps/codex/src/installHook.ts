@@ -37,5 +37,5 @@ export const { installHook, uninstallHook } = createConfigHookInstaller({
   cliCommand,
   isSymbiotEntry,
   registerEvents: ["Stop"],
-  entryExtras: { timeout: stopTimeoutSeconds },
+  entryExtras: { timeout: stopTimeoutSeconds, statusMessage: "Symbiot: opening plan reviewer…" },
 });

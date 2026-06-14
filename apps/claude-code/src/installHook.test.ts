@@ -14,6 +14,7 @@ const settingsPath = join(homeRoot, ".claude", "settings.json");
 interface Hook {
   type: "command";
   command: string;
+  statusMessage?: string;
 }
 interface HookGroup {
   matcher?: string;
@@ -51,6 +52,13 @@ describe("installHook", () => {
     expect(symbiotEntriesIn(settings, "PreToolUse")[0]?.command).toBe(
       symbiotEntriesIn(settings, "PermissionRequest")[0]?.command
     );
+  });
+
+  it("registers a statusMessage spinner on both events", async () => {
+    await installHook();
+    const settings = await readSettings();
+    expect(symbiotEntriesIn(settings, "PreToolUse")[0]?.statusMessage).toBeTruthy();
+    expect(symbiotEntriesIn(settings, "PermissionRequest")[0]?.statusMessage).toBeTruthy();
   });
 
   it("is idempotent across repeat installs", async () => {

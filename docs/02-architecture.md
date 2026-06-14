@@ -214,7 +214,12 @@ onResolved`), the package owns every other piece that is identical across agents
   `managed-file` (`writeAtomic` / `removeIfOwned`), and `marker-store`
   (`createMarkerStore`). Each agent app is a thin wrapper that supplies only its
   deltas — bin name, `agentId`, the event/message field, install target/timeout,
-  and the embedded `viewerHtmlGz`. Genuinely agent-specific logic stays local:
+  and the embedded `viewerHtmlGz`. The per-entry `statusMessage` spinner is also
+  threaded through `HookEntryExtras` (alongside `name`/`timeout`); Claude Code
+  renders it while a hook runs — the only signal available during the otherwise
+  silent cold-cache viewer download (command hooks have no controlling terminal) —
+  and the other CLIs share the same config shape, so the field is additive and
+  forward-compatible. Genuinely agent-specific logic stays local:
   Claude Code's bespoke approve payloads (`emitApproveDecision` /
   `permissionRequestAllowPayload`), its approve marker, and the
   `claude-code#50660` workaround in `apps/claude-code/src/runHook.ts`; Copilot's

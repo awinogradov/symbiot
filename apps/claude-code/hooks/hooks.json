@@ -6,7 +6,8 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" prepare",
-            "timeout": 120
+            "timeout": 120,
+            "statusMessage": "Symbiot: preparing plan reviewer (first run downloads the viewer)…"
           }
         ]
       }
@@ -18,7 +19,8 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" run-hook",
-            "timeout": 3600
+            "timeout": 3600,
+            "statusMessage": "Symbiot: opening plan reviewer…"
           }
         ]
       }
@@ -30,7 +32,8 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/symbiot\" run-hook",
-            "timeout": 3600
+            "timeout": 3600,
+            "statusMessage": "Symbiot: confirming plan approval…"
           }
         ]
       }

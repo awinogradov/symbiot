@@ -7,6 +7,7 @@ interface HookEntry {
   type: string;
   command: string;
   timeout?: number;
+  statusMessage?: string;
 }
 interface HookGroup {
   matcher?: string;
@@ -26,6 +27,25 @@ const runHookEntriesFor = (config: HooksConfig, event: string): HookEntry[] =>
     .filter((group) => group.matcher === "ExitPlanMode")
     .flatMap((group) => group.hooks)
     .filter((entry) => /run-hook/.test(entry.command));
+
+const symbiotEntries = (config: HooksConfig): HookEntry[] =>
+  Object.values(config.hooks)
+    .flat()
+    .flatMap((group) => group.hooks)
+    .filter((entry) => /bin\/symbiot|run-hook/.test(entry.command));
+
+describe("hooks.json status messages", () => {
+  // A cold-cache hook silently downloads the viewer; statusMessage is the only
+  // signal Claude Code can show the user while the hook runs — see issue #220.
+  it("every symbiot hook entry carries a non-empty statusMessage", async () => {
+    const entries = symbiotEntries(await readHooks());
+
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      expect(entry.statusMessage).toBeTruthy();
+    }
+  });
+});
 
 describe("hooks.json timeouts", () => {
   // run-hook blocks on the human reviewer, so its budget must cover an

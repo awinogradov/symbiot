@@ -14,7 +14,10 @@ let dir: string;
 let path: string;
 
 const readJson = async (): Promise<{
-  hooks?: Record<string, { matcher?: string; hooks: { command: string }[] }[]>;
+  hooks?: Record<
+    string,
+    { matcher?: string; hooks: { command: string; statusMessage?: string }[] }[]
+  >;
 }> => JSON.parse(await readFile(path, "utf8"));
 
 const codexInstaller = () =>
@@ -42,6 +45,35 @@ describe("createConfigHookInstaller (single-event, codex-style)", () => {
     expect(result).toEqual({ path, command });
     const config = await readJson();
     expect(config.hooks?.Stop).toEqual([{ hooks: [{ type: "command", command, timeout: 3600 }] }]);
+  });
+
+  it("threads statusMessage onto the entry when supplied, omits it otherwise", async () => {
+    const withStatus = createConfigHookInstaller({
+      path,
+      cliCommand: () => command,
+      isSymbiotEntry,
+      registerEvents: ["Stop"],
+      entryExtras: { timeout: 3600, statusMessage: "Symbiot: opening plan reviewer…" },
+    });
+    await withStatus.installHook();
+    const config = await readJson();
+    expect(config.hooks?.Stop).toEqual([
+      {
+        hooks: [
+          {
+            type: "command",
+            command,
+            timeout: 3600,
+            statusMessage: "Symbiot: opening plan reviewer…",
+          },
+        ],
+      },
+    ]);
+
+    await rm(path, { force: true });
+    await codexInstaller().installHook();
+    const plain = await readJson();
+    expect(plain.hooks?.Stop?.[0]?.hooks[0]).not.toHaveProperty("statusMessage");
   });
 
   it("is idempotent — re-install does not duplicate the entry", async () => {

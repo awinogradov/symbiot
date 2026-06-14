@@ -132,7 +132,8 @@ long value:
             "type": "command",
             "name": "symbiot-gemini",
             "command": "bun /abs/path/apps/gemini/src/cli.ts run-hook",
-            "timeout": 3600000
+            "timeout": 3600000,
+            "statusMessage": "Symbiot: opening plan reviewer…"
           }
         ]
       }

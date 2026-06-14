@@ -16,6 +16,7 @@ interface Hook {
   command: string;
   name?: string;
   timeout?: number;
+  statusMessage?: string;
 }
 interface HookGroup {
   matcher?: string;
@@ -52,6 +53,7 @@ describe("installHook", () => {
     expect(entries[0]?.timeout).toBe(3_600_000);
     expect(entries[0]?.name).toBe("symbiot-gemini");
     expect(entries[0]?.command).toMatch(/run-hook$/);
+    expect(entries[0]?.statusMessage).toBeTruthy();
   });
 
   it("is idempotent across repeat installs", async () => {

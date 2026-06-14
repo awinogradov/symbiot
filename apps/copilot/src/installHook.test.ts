@@ -16,6 +16,7 @@ interface Hook {
   type: string;
   command: string;
   timeoutSec?: number;
+  statusMessage?: string;
   _managedBy?: string;
 }
 interface HookFile {
@@ -43,6 +44,7 @@ describe("installHook", () => {
     expect(entry?.timeoutSec).toBe(3600);
     expect(entry?.type).toBe("command");
     expect(entry?.command).toMatch(/run-hook$/);
+    expect(entry?.statusMessage).toBeTruthy();
     expect(entry?._managedBy).toBe("symbiot-copilot");
   });
 
