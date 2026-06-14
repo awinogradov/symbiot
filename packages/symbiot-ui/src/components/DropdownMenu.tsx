@@ -29,7 +29,7 @@ export const DropdownMenuContent = ({
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "border-border bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 z-50 min-w-[8rem] overflow-hidden rounded-md border p-1 shadow-md",
+        "border-border bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 z-50 min-w-32 overflow-hidden rounded-md border p-1 shadow-md",
         className
       )}
       {...rest}
@@ -148,7 +148,7 @@ export const DropdownMenuSubContent = ({
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "border-border bg-popover text-popover-foreground z-50 min-w-[8rem] overflow-hidden rounded-md border p-1 shadow-md",
+      "border-border bg-popover text-popover-foreground z-50 min-w-32 overflow-hidden rounded-md border p-1 shadow-md",
       className
     )}
     {...rest}
