@@ -131,7 +131,9 @@
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.278 0.012 248.2); /* #24292e — md table th surface (GitHub dark) */
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --accent: oklch(
+    0.319 0.017 255.6
+  ); /* #2d333b — on-palette hover; kept equal to --sidebar-accent (GitHub dark) */
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
@@ -152,11 +154,13 @@
   --task-done: oklch(0.705 0.157 148.1); /* #4eba65 — checked task accent */
 
   /* shadcn sidebar tokens (dark) */
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.258 0.013 253.1); /* #1F242A — sidebar surface (GitHub dark) */
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(
+    0.319 0.017 255.6
+  ); /* #2d333b — sidebar hover; kept equal to --accent (GitHub dark) */
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
