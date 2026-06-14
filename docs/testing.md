@@ -56,8 +56,8 @@ Run via `bun run coverage` — never `bun test`, which invokes Bun's own runner 
 
 End-to-end step files in `features/steps/` MUST select elements via
 `data-testid="<kebab-case>"`. Never class names, text content, role names,
-tag names, or framework-internal attributes (`data-slate-*`, `data-radix-*`,
-`data-slot=*`).
+tag names, framework-internal attributes (`data-slate-*`, `data-radix-*`,
+`data-slot=*`), or style-coupled selectors (`[style*=…]`).
 
 ### Naming
 
@@ -83,9 +83,9 @@ attribute when state is part of the selection — e.g.
 row" or `[data-testid$="-remove"][data-sidebar="menu-action"]` for "the
 remove action on the Nth sidebar card". The testid MUST remain the primary
 selector; the state attribute MUST be one the component itself sets as its
-public API. Never combine with class names, text content, or
+public API. Never combine with class names, text content,
 framework-internal attributes (`data-slate-*`, `data-radix-*`,
-`data-slot=*`).
+`data-slot=*`), or style-coupled selectors (`[style*=…]`).
 
 Each annotation leaf stamps a per-kind `data-testid` —
 `annotation-comment`, `annotation-deletion`, `annotation-insertion`, or
@@ -114,9 +114,13 @@ co-localized too: a renamed component breaks its own tests, not a sibling.
 This convention is auto-enforced for `features/steps/**/*.ts`: the
 `symbiot/features-testid-only` ESLint block in `eslint.config.ts` bans every
 non-`getByTestId` Playwright getter and any `.locator("…")` that does not target
-`[data-testid…]`, and the `Enforce data-testid-only selectors in features` CI
-step in `.github/workflows/pr.yml` fails the build on the same patterns —
-mirroring the wait-ban guards in [E2E waiting rules](#e2e-waiting-rules) below.
+`[data-testid…]`. The `Enforce data-testid-only selectors in features` CI step in
+`.github/workflows/pr.yml` runs those same getter and leading-token checks and
+additionally rejects framework-internal (`data-slate-*`, `data-radix-*`) or
+style-coupled (`style*=`) attributes embedded in a **descendant** position —
+e.g. `[data-testid="editor-root"] [data-slate-node=…]` — a case the ESLint
+rule's leading-token lookahead misses. Both mirror the wait-ban guards in
+[E2E waiting rules](#e2e-waiting-rules) below.
 
 ## PR comments
 
