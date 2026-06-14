@@ -13879,6 +13879,28 @@ Why a separate test from the axe scan: the JSDOM check is a _values_ check
 that is the right tool when the prose itself fails contrast, not when the
 token cascade does. Both run; neither replaces the other.
 
+## Reduced motion
+
+The app honors the OS "reduce motion" preference (WCAG 2.1 §2.3.3 Animation from
+Interactions). The policy follows the common reduced-motion guidance — keep the
+opacity/colour transitions that aid comprehension, drop the motion that moves or
+scales elements:
+
+- The shadcn surfaces (Dialog, DropdownMenu, Sheet, Tooltip, Popover) animate via
+  the `tw-animate-css` `enter`/`exit` keyframes, which compose movement from the
+  `--tw-{enter,exit}-translate-*` / `-scale` / `-rotate` / `-blur` vars and fade
+  from `--tw-{enter,exit}-opacity`. Under `prefers-reduced-motion: reduce` the
+  transform/blur vars are reset to their neutral values, so the surfaces still
+  cross-fade in and out but no longer fly, zoom, or spin.
+- The decorative SVG icon hovers (the check draw-in and the send plane/trail) are
+  pure movement, so they are switched off entirely.
+
+The rule lives at the foot of
+[`../packages/tailwind-config/theme.css`](../packages/tailwind-config/theme.css)
+so every consumer of the shared theme inherits it. Verify by enabling "reduce
+motion" at the OS level (or Chrome DevTools → Rendering → Emulate CSS
+`prefers-reduced-motion`) and confirming overlays fade without transform motion.
+
 ## Cross-references
 
 - Token contrast: [`./theming.md`](./theming.md), [`../packages/tailwind-config/contrast.test.ts`](../packages/tailwind-config/contrast.test.ts).
@@ -18461,6 +18483,7 @@ Feature: Plan-review hotkey gating
     And I click the Comment toolbar button
     And I type "Should this be a wolf?" into the comment composer
     And I press Enter in the comment composer
+    And the comment composer is not visible in the viewport
     And I press "Mod+Enter" anywhere outside the editor
     Then the recorded decision is "deny"
 </file>
@@ -35417,6 +35440,9 @@ function contrastRatio(l1: number, l2: number): number {
   "peerDependencies": {
     "tailwindcss": "^4.0.0"
   },
+  "dependencies": {
+    "tw-animate-css": "1.4.0"
+  },
   "devDependencies": {
     "@symbiot/eslint-config": "workspace:*",
     "@symbiot/typescript-config": "workspace:*",
@@ -35488,6 +35514,15 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
  */
 
 @import "tailwindcss";
+
+/*
+ * shadcn enter/exit animation utilities (`animate-in`, `zoom-in-*`, `slide-in-*`,
+ * `fade-*`). The shadcn primitives in `@symbiot/symbiot-ui` reference these on
+ * their Radix content/overlay; without this import the classes are inert and the
+ * surfaces pop in with no transition. Reduced-motion handling lives at the foot
+ * of this file. See `docs/a11y.md` § Motion.
+ */
+@import "tw-animate-css";
 
 /*
  * Tailwind v4 defaults the `dark:` variant to `prefers-color-scheme: dark`;
@@ -35698,6 +35733,40 @@ MIT — see the root [`LICENSE.md`](../../LICENSE.md).
 .symbiot-icon:hover .symbiot-send-trail {
   stroke-dashoffset: 0;
   opacity: 1;
+}
+
+/*
+ * Accessibility — honor the OS "reduce motion" setting (WCAG 2.1 §2.3.3).
+ * Per the reduced-motion guidance, keep opacity/colour transitions that aid
+ * comprehension and drop motion that moves or scales elements. The shared
+ * `tw-animate-css` enter/exit keyframes compose movement from the transform
+ * vars below and fade from `--tw-*-opacity`; neutralising the transform/blur
+ * vars leaves the fades intact, so overlays still cross-fade in and out — they
+ * just don't fly, zoom, or spin. The decorative icon hovers are pure movement,
+ * so they're switched off entirely.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    --tw-enter-translate-x: 0 !important;
+    --tw-enter-translate-y: 0 !important;
+    --tw-exit-translate-x: 0 !important;
+    --tw-exit-translate-y: 0 !important;
+    --tw-enter-scale: 1 !important;
+    --tw-exit-scale: 1 !important;
+    --tw-enter-rotate: 0 !important;
+    --tw-exit-rotate: 0 !important;
+    --tw-enter-blur: 0 !important;
+    --tw-exit-blur: 0 !important;
+  }
+
+  .symbiot-check-path,
+  .symbiot-send-plane,
+  .symbiot-send-trail {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 </file>
 
@@ -38929,7 +38998,7 @@ SOFTWARE.
 
 # Third-party licenses
 
-47 unique production dependencies across 10 workspaces. Regenerate with `bun run licenses:audit`.
+49 unique production dependencies across 11 workspaces. Regenerate with `bun run licenses:audit`.
 
 | Package | License | Repository |
 | --- | --- | --- |
@@ -38977,6 +39046,8 @@ SOFTWARE.
 | remark-parse@11.0.0 | MIT | https://github.com/remarkjs/remark.git#main |
 | shiki@1.29.2 | MIT | https://github.com/shikijs/shiki |
 | tailwind-merge@3.3.1 | MIT | https://github.com/dcastil/tailwind-merge |
+| tailwindcss@4.3.0 | MIT | https://github.com/tailwindlabs/tailwindcss |
+| tw-animate-css@1.4.0 | MIT | https://github.com/Wombosvideo/tw-animate-css |
 | typescript-eslint@8.59.4 | MIT | https://github.com/typescript-eslint/typescript-eslint |
 | unified@11.0.5 | MIT | https://github.com/unifiedjs/unified |
 | zod@4.4.3 | MIT | https://github.com/colinhacks/zod |
