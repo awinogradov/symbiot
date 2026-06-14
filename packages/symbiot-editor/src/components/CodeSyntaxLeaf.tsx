@@ -36,13 +36,21 @@ const tokenStyle = (
  * the `.shiki` code block, so it composes under any annotation leaf (`<mark>`,
  * `<s>`, `<ins>`) — those use non-`span` tags, so the `.shiki span` dark-mode
  * rule never touches them and syntax colour + annotation highlight coexist.
+ *
+ * Carries `data-testid="code-syntax-token"` so BDD specs can assert highlighting
+ * ran without coupling to the internal `--shiki-dark` style (the suite forbids
+ * style/framework-internal selectors — see `docs/testing.md#playwright-bdd-selectors`).
  */
 export const CodeSyntaxLeaf = ({
   attributes,
   children,
   leaf,
 }: CodeSyntaxLeafProps): React.ReactElement => (
-  <span {...attributes} style={tokenStyle(leaf.codeLight, leaf.codeDark)}>
+  <span
+    {...attributes}
+    data-testid="code-syntax-token"
+    style={tokenStyle(leaf.codeLight, leaf.codeDark)}
+  >
     {children}
   </span>
 );

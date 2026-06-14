@@ -9,9 +9,9 @@ When("I scroll the code block into view", async ({ page }) => {
 });
 
 Then("the code block has syntax-highlighted tokens", async ({ page }) => {
-  // Syntax colours arrive as `code_syntax` decorations carrying the dual-theme
-  // `--shiki-dark` custom property — proof the decorate ran on the live leaves.
-  const tokens = page.locator('[data-testid="code-block"] span[style*="--shiki-dark"]');
+  // Each `code_syntax` decoration renders a `code-syntax-token` leaf — its
+  // presence proves the decorate ran on the live leaves.
+  const tokens = page.getByTestId("code-block").getByTestId("code-syntax-token");
   await expect(tokens.first()).toBeVisible();
 });
 

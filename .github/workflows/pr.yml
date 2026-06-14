@@ -72,10 +72,16 @@ jobs:
           set -euo pipefail
           getter_hits=$(grep -rPn 'getBy(Role|Text|Label|Placeholder|AltText|Title)\(' features/steps/ --include='*.ts' || true)
           locator_hits=$(grep -rPn '\.locator\(\s*["'\''`](?!\[data-testid)' features/steps/ --include='*.ts' || true)
-          if [[ -n "$getter_hits" || -n "$locator_hits" ]]; then
+          # The lookahead above only guards the *leading* token; a selector may
+          # still start with [data-testid…] yet embed a framework-internal attr
+          # in a descendant (e.g. `[data-testid=…] [data-slate-node=…]` or
+          # `[data-testid=…] span[style*=…]`). Ban those attribute selectors too.
+          embedded_hits=$(grep -rPn '\[(data-slate-|data-radix-)|style[\^\$\*~]?=' features/steps/ --include='*.ts' || true)
+          if [[ -n "$getter_hits" || -n "$locator_hits" || -n "$embedded_hits" ]]; then
             echo "::error::Non-data-testid selectors found in features/steps (issues #141/#132). Use getByTestId or .locator('[data-testid=...]'). See docs/testing.md#playwright-bdd-selectors."
             [[ -n "$getter_hits" ]] && echo "$getter_hits"
             [[ -n "$locator_hits" ]] && echo "$locator_hits"
+            [[ -n "$embedded_hits" ]] && echo "$embedded_hits"
             exit 1
           fi
 
