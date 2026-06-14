@@ -29,6 +29,8 @@ const routesModule = await import("./routes.ts");
 const { handleApi } = routesModule;
 type RouteContext = Parameters<typeof handleApi>[2];
 
+const { loadDraft, saveDraft, saveUpload, uploadPath, loadUpload } = await import("./storage.ts");
+
 const project = "proj";
 const slug = "plan";
 const planDir = join(homeRoot, ".symbiot", "agents", "claude-code", "history", project, slug);
@@ -165,5 +167,176 @@ describe("POST /api/plan/vscode-diff", () => {
     const res = await postVscodeDiff({ from: 1, to: 2 });
     expect(res?.status).toBe(503);
     expect(await res?.json()).toEqual({ reason: "code-cli-missing" });
+  });
+});
+
+/** Build a context with a per-suite slug so each block's on-disk state is isolated. */
+const ctxFor = (slugName: string, extra: Partial<RouteContext> = {}): RouteContext => ({
+  ...ctx(),
+  meta: { project, slug: slugName, version: 2, displayName: "Boot Plan" },
+  ...extra,
+});
+
+const send = (
+  method: string,
+  path: string,
+  routeCtx: RouteContext,
+  init: RequestInit = {}
+): Promise<Response | null> => {
+  const url = new URL(`http://test${path}`);
+  return handleApi(new Request(url.toString(), { method, ...init }), url, routeCtx);
+};
+
+describe("POST /api/approve", () => {
+  it("resolves with an approve decision, marks resolved, and returns 204", async () => {
+    const resolve = vi.fn();
+    const markResolved = vi.fn();
+    const res = await send("POST", "/api/approve", ctxFor("approve", { resolve, markResolved }));
+    expect(res?.status).toBe(204);
+    expect(markResolved).toHaveBeenCalledOnce();
+    expect(resolve).toHaveBeenCalledWith({ kind: "approve" });
+  });
+
+  it("records the decision to decisionFile when one is configured", async () => {
+    const decisionFile = join(homeRoot, "approve-decision.json");
+    const res = await send("POST", "/api/approve", ctxFor("approve-file", { decisionFile }));
+    expect(res?.status).toBe(204);
+    const recorded = JSON.parse(await readFile(decisionFile, "utf8")) as {
+      kind: string;
+      at: number;
+    };
+    expect(recorded.kind).toBe("approve");
+    expect(typeof recorded.at).toBe("number");
+  });
+});
+
+describe("POST /api/deny", () => {
+  it("resolves with a deny decision carrying the feedback body and returns 204", async () => {
+    const resolve = vi.fn();
+    const res = await send("POST", "/api/deny", ctxFor("deny", { resolve }), {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feedback: "needs work" }),
+    });
+    expect(res?.status).toBe(204);
+    expect(resolve).toHaveBeenCalledWith({ kind: "deny", feedback: "needs work" });
+  });
+
+  it("defaults to empty feedback when the body is missing or malformed", async () => {
+    const resolve = vi.fn();
+    const res = await send("POST", "/api/deny", ctxFor("deny-empty", { resolve }));
+    expect(res?.status).toBe(204);
+    expect(resolve).toHaveBeenCalledWith({ kind: "deny", feedback: "" });
+  });
+});
+
+describe("GET /api/draft", () => {
+  it("returns 204 when no draft is persisted", async () => {
+    const res = await send("GET", "/api/draft", ctxFor("draft-absent"));
+    expect(res?.status).toBe(204);
+  });
+
+  it("returns 200 with the persisted draft body", async () => {
+    const routeCtx = ctxFor("draft-present");
+    await saveDraft(routeCtx.agentId, routeCtx.meta, '{"annotations":[]}');
+    const res = await send("GET", "/api/draft", routeCtx);
+    expect(res?.status).toBe(200);
+    expect(await res?.text()).toBe('{"annotations":[]}');
+  });
+});
+
+describe("POST /api/draft", () => {
+  it("persists the draft and returns 204 when the plan is unresolved", async () => {
+    const routeCtx = ctxFor("draft-save");
+    const res = await send("POST", "/api/draft", routeCtx, { body: '{"draft":1}' });
+    expect(res?.status).toBe(204);
+    expect(await loadDraft(routeCtx.agentId, routeCtx.meta)).toBe('{"draft":1}');
+  });
+
+  it("drops late writes without persisting once the plan is resolved", async () => {
+    const routeCtx = ctxFor("draft-resolved", { isResolved: () => true });
+    const res = await send("POST", "/api/draft", routeCtx, { body: '{"draft":2}' });
+    expect(res?.status).toBe(204);
+    expect(await loadDraft(routeCtx.agentId, routeCtx.meta)).toBeNull();
+  });
+});
+
+describe("DELETE /api/draft", () => {
+  it("clears the persisted draft and returns 204", async () => {
+    const routeCtx = ctxFor("draft-delete");
+    await saveDraft(routeCtx.agentId, routeCtx.meta, '{"draft":3}');
+    const res = await send("DELETE", "/api/draft", routeCtx);
+    expect(res?.status).toBe(204);
+    expect(await loadDraft(routeCtx.agentId, routeCtx.meta)).toBeNull();
+  });
+});
+
+describe("POST /api/upload", () => {
+  const upload = (routeCtx: RouteContext, file: File | null): Promise<Response | null> => {
+    const form = new FormData();
+    if (file !== null) form.set("file", file);
+    return send("POST", "/api/upload", routeCtx, { body: form });
+  };
+
+  it("returns 400 when the 'file' part is missing", async () => {
+    const res = await upload(ctxFor("upload-missing"), null);
+    expect(res?.status).toBe(400);
+  });
+
+  it("returns 400 for a non-whitelisted extension", async () => {
+    const file = new File([new Uint8Array([1])], "evil.svg", { type: "image/svg+xml" });
+    const res = await upload(ctxFor("upload-bad-ext"), file);
+    expect(res?.status).toBe(400);
+  });
+
+  it("persists the bytes and returns a minted id for a valid image", async () => {
+    const routeCtx = ctxFor("upload-ok");
+    const file = new File([new Uint8Array([1, 2, 3])], "pic.png", { type: "image/png" });
+    const res = await upload(routeCtx, file);
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as { id: string; extension: string };
+    expect(body.extension).toBe(".png");
+    const saved = await loadUpload(uploadPath(routeCtx.agentId, routeCtx.meta, `${body.id}.png`));
+    expect(saved).not.toBeNull();
+  });
+});
+
+describe("GET /api/image", () => {
+  const validId = "11111111-2222-4333-8444-555555555555";
+
+  it("returns 400 for an invalid id", async () => {
+    const res = await send("GET", "/api/image?id=not-a-uuid&ext=.png", ctxFor("image-bad"));
+    expect(res?.status).toBe(400);
+  });
+
+  it("returns 404 when the image is absent", async () => {
+    const res = await send("GET", `/api/image?id=${validId}&ext=.png`, ctxFor("image-missing"));
+    expect(res?.status).toBe(404);
+  });
+
+  it("returns 200 with the bytes and a typed Content-Type when present", async () => {
+    const routeCtx = ctxFor("image-present");
+    await saveUpload(
+      uploadPath(routeCtx.agentId, routeCtx.meta, `${validId}.png`),
+      new Uint8Array([7, 8, 9]).buffer
+    );
+    const res = await send("GET", `/api/image?id=${validId}&ext=.png`, routeCtx);
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toBe("image/png");
+    expect(new Uint8Array(await (res as Response).arrayBuffer())).toEqual(
+      new Uint8Array([7, 8, 9])
+    );
+  });
+});
+
+describe("GET /api/plan/versions", () => {
+  it("lists persisted version numbers and the current version", async () => {
+    const routeCtx = ctxFor("versions");
+    const dir = join(homeRoot, ".symbiot", "agents", "claude-code", "history", project, "versions");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "001.md"), "v1");
+    await writeFile(join(dir, "002.md"), "v2");
+    const res = await send("GET", "/api/plan/versions", routeCtx);
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toEqual({ versions: [1, 2], current: 2 });
   });
 });
