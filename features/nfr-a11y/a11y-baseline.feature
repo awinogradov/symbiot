@@ -5,7 +5,7 @@ Feature: WCAG AA accessibility baseline — axe-core scan
   inline composer, settings menu, global composer) and runs axe-core with the
   WCAG 2.0/2.1 A and AA tag sets, asserting zero Critical or Serious findings.
   Minor / Moderate violations are recorded in the attached JSON but are
-  intentionally non-blocking — see docs/a11y.md for the policy.
+  intentionally non-blocking — see docs/06-a11y.md for the policy.
 
   Scenario: the viewer shell has no Critical or Serious WCAG AA violations
     Given I open the viewer

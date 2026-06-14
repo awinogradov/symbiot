@@ -46,4 +46,4 @@ update a fixture intentionally:
 ## CI gate
 
 These fixtures are enforced in CI by the unit-coverage gate — see
-[Golden-fixture gate](../../docs/testing.md#golden-fixture-gate) in `docs/testing.md`.
+[Golden-fixture gate](../../docs/08-testing.md#golden-fixture-gate) in `docs/08-testing.md`.

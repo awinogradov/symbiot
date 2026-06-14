@@ -23,7 +23,7 @@
  *     | bun src/cli.ts run-hook --no-open
  *
  * @see ../README.md — the `## Schemas` section pins the stdin/decision shapes.
- * @see ../../../docs/agents/copilot-contract.md — the audited upstream contract.
+ * @see ../../../docs/appendix-a-copilot-contract.md — the audited upstream contract.
  */
 import { open, type FileHandle } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -110,7 +110,7 @@ const parseJsonl = (line: string): TranscriptEntry | null => {
 /**
  * Extract the last assistant message from a Copilot transcript, or `null`.
  *
- * Copilot's transcript format is undocumented upstream (see `copilot-contract.md`);
+ * Copilot's transcript format is undocumented upstream (see `appendix-a-copilot-contract.md`);
  * we parse it as Claude/VSCode-compatible JSONL — one JSON object per line, the
  * assistant turn carrying either a `content` string or an array of
  * `{ type: "text", text }` blocks, at the top level or under `message`. Pure and

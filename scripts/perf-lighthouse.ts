@@ -9,7 +9,7 @@
  * Prints headline Performance, Accessibility, LCP, TBT, CLS, TTI to stdout.
  *
  * Profile rationale: the viewer is only ever served over localhost — every
- * agent integration spawns it on `127.0.0.1` (see `docs/architecture.md`).
+ * agent integration spawns it on `127.0.0.1` (see `docs/02-architecture.md`).
  * Lighthouse's default mobile preset simulates Slow 4G + 4× CPU, a cellular
  * network that never occurs for this product and makes the budget (LCP/TTI
  * ≤ 1 s) physically unreachable for any non-trivial app. The desktop profile

@@ -31,7 +31,7 @@ All agent integrations spawn the same `apps/viewer` binary through the shared
 wrapper over that package's shared helpers (CLI shell, hook-input parsing,
 decision emission, installers); it supplies only its deltas — how it parses
 stdin, which event it gates on, and where it installs. See
-[`agents/adding-an-integration.md`](./agents/adding-an-integration.md).
+[`10-add-agent-integration.md`](./10-add-agent-integration.md).
 
 ## Package layering
 
@@ -107,7 +107,7 @@ obsolete, delete the bullet rather than hedging it.
   agent binaries serve it over `127.0.0.1`, where download is instant, so chunk
   splitting buys nothing there — its win comes from the byte cuts (Shiki JS
   engine, no Framer Motion) and the deferred Plate construction, not from
-  splitting. See [`perf.md`](./perf.md).
+  splitting. See [`07-perf.md`](./07-perf.md).
 - **For Claude Code the hook event is `PreToolUse` with matcher `ExitPlanMode`** —
   NOT `Stop`. In Claude Code, `Stop` fires on every assistant turn;
   `PreToolUse(ExitPlanMode)` fires exactly when the agent presents a plan, which
@@ -222,7 +222,7 @@ onResolved`), the package owns every other piece that is identical across agents
   (`startServer` / `RunningServer`) is the boundary; each agent passes its
   `agentId` through `serverOptions`, so per-agent storage namespacing stays a
   viewer concern (see Storage + state). New agents follow
-  [`agents/adding-an-integration.md`](./agents/adding-an-integration.md).
+  [`10-add-agent-integration.md`](./10-add-agent-integration.md).
 - **Two events under one matcher.** The installer registers
   `PreToolUse(ExitPlanMode)` AND `PermissionRequest(ExitPlanMode)` against the
   same `symbiot run-hook` command. `PreToolUse` drives the viewer (single
@@ -335,7 +335,7 @@ mode: "auto", destination: "session"}]}}` schema Claude Code honors for
   this reuses `runPlanReview` and adds no `/api/*` route, so the server contract is
   unchanged. The full source-verified upstream contract — including why the
   Extensions SDK surface is unfit (it has no `agentStop`) — lives in
-  [`agents/copilot-contract.md`](./agents/copilot-contract.md).
+  [`appendix-a-copilot-contract.md`](./appendix-a-copilot-contract.md).
 
 - **OpenCode loads plugins in-process and cannot block the turn.** Unlike the CLI-hook
   agents, OpenCode (`apps/opencode-plugin`) runs as an in-process plugin, and its only
@@ -384,7 +384,7 @@ mode: "auto", destination: "session"}]}}` schema Claude Code honors for
   one subdirectory per area (`plan-review/`, `markdown/`, `annotate/`,
   `server/`). Step helpers are **pure functions** — no module-level mutable
   scenario state. Selector rule (testids only, naming, placement) lives in
-  [`testing.md` § Playwright-BDD selectors](./testing.md#playwright-bdd-selectors).
+  [`08-testing.md` § Playwright-BDD selectors](./08-testing.md#playwright-bdd-selectors).
   Scenarios wait on selectors, assertions, or `waitForFunction` — never on
   `waitForTimeout`/`setTimeout`. Wall-clock waits flake under CI load and
   hide real regressions.
@@ -393,7 +393,7 @@ mode: "auto", destination: "session"}]}}` schema Claude Code honors for
 
 ## Where to look next
 
-- Product overview: [`./product.md`](./product.md).
+- Product overview: [`./01-product.md`](./01-product.md).
 - Per-package READMEs describe their surface; this doc is the cross-cutting
   layer above them.
 - When new work surfaces an architectural decision worth preserving, append

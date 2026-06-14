@@ -10,7 +10,7 @@ Wraps shadcn primitives with the symbiot design tokens from
 ## Surfaces
 
 - `ThemeProvider`, `TopBar`, `SettingsMenu`, `AppLogo`, `SidebarInset`, `SidebarProvider`.
-- `AnnotationSidebar` — right-hand pane. Two tabs (Annotations + History) appear when ≥2 plan versions exist; otherwise it falls back to the single-purpose annotation list. The History tab hosts a `VersionBrowser` (newest-first list of persisted versions) and a Clean / Raw `ToggleGroup` that controls the editor's diff render mode. The toggle is rendered only when a historical version is active _and_ a predecessor exists. See [`docs/version-history.md`](../../docs/version-history.md).
+- `AnnotationSidebar` — right-hand pane. Two tabs (Annotations + History) appear when ≥2 plan versions exist; otherwise it falls back to the single-purpose annotation list. The History tab hosts a `VersionBrowser` (newest-first list of persisted versions) and a Clean / Raw `ToggleGroup` that controls the editor's diff render mode. The toggle is rendered only when a historical version is active _and_ a predecessor exists. See [`docs/04-version-history.md`](../../docs/04-version-history.md).
 - `AnnotationComposer`, `GlobalCommentFab`, `ComposerForm`, `ImageAttachButton`, `ImagePreviewList` — annotation authoring popovers.
 - Re-exported shadcn primitives (`Sidebar`, `Tabs`, `ToggleGroup`, `AlertDialog`, `Badge`, `Tooltip`, `DropdownMenu`, ...) backed by Radix.
 
@@ -62,9 +62,9 @@ bun run test
 
 ## Documentation
 
-- [`docs/theming.md`](../../docs/theming.md) — annotation color tokens and the AA contrast lock.
-- [`docs/a11y.md`](../../docs/a11y.md) — keyboard, focus, and screen-reader baseline.
-- [`docs/architecture.md`](../../docs/architecture.md) — package layering.
+- [`docs/05-theming.md`](../../docs/05-theming.md) — annotation color tokens and the AA contrast lock.
+- [`docs/06-a11y.md`](../../docs/06-a11y.md) — keyboard, focus, and screen-reader baseline.
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — package layering.
 
 ## License
 

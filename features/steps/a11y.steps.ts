@@ -14,7 +14,7 @@
  *     Then the page has no Critical or Serious WCAG AA violations
  *
  * @see ../nfr-a11y/a11y-baseline.feature
- * @see ../../docs/a11y.md
+ * @see ../../docs/06-a11y.md
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect } from "@playwright/test";

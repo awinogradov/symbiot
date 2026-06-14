@@ -16,7 +16,7 @@
  * on `agentStop` directly, so there is no `PermissionRequest` companion.
  *
  * @see ../README.md — the `## Schemas` section pins the on-disk shape.
- * @see ../../../docs/agents/copilot-contract.md — the audited upstream contract.
+ * @see ../../../docs/appendix-a-copilot-contract.md — the audited upstream contract.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";

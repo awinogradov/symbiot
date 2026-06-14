@@ -33,8 +33,8 @@ requires extending its `themes` tuple.
 
 ## Documentation
 
-- [`docs/theming.md`](../../docs/theming.md) — token contract and the WCAG methodology used.
-- [`docs/a11y.md`](../../docs/a11y.md) — accessibility baseline.
+- [`docs/05-theming.md`](../../docs/05-theming.md) — token contract and the WCAG methodology used.
+- [`docs/06-a11y.md`](../../docs/06-a11y.md) — accessibility baseline.
 
 ## License
 

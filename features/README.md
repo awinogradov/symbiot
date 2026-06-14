@@ -4,7 +4,7 @@ End-to-end coverage for `apps/viewer`. The suite runs `fullyParallel` — each
 worker boots its **own** HOME-isolated plan / annotate / no-heading viewers on
 OS-assigned ports (the worker-scoped `viewers` fixture in `support/viewers.ts`),
 so scenarios share no state and never collide. See
-[`docs/testing.md`](../docs/testing.md#parallel-bdd-execution) for the isolation
+[`docs/08-testing.md`](../docs/08-testing.md#parallel-bdd-execution) for the isolation
 model.
 
 ## Layout
@@ -27,7 +27,7 @@ features/
     └── <behavior>.feature
 ```
 
-Feature folders are keyed to the **story IDs in [`docs/product.md`](../docs/product.md)**
+Feature folders are keyed to the **story IDs in [`docs/01-product.md`](../docs/01-product.md)**
 (personas `P1`–`P3`, use cases `UC1`–`UC4`, non-functional requirements `NFR-1`..`NFR-9`),
 not to UI surfaces. Each `.feature` lives in exactly one story folder — its primary
 journey — so per-persona coverage gaps are visible at the directory level.
@@ -54,7 +54,7 @@ behaviour and are shared across stories.
 
 Every `.feature` carries a **feature-level tag line directly above `Feature:`**, so the
 tag applies to all scenarios in the file. Each tag is a stable ID defined in
-[`docs/product.md`](../docs/product.md) — the tag answers _which persona, journey, or
+[`docs/01-product.md`](../docs/01-product.md) — the tag answers _which persona, journey, or
 quality bar this scenario exercises_. Filter a run by any tag with
 `STORY=<expr> bun run test:e2e:story` (see [Running one story or persona](#running-one-story-or-persona)).
 
@@ -92,7 +92,7 @@ no product-spec ID use a folder-matching tag (`diagnostics/` → `@diagnostics`)
 
 ## Conventions (enforced by review)
 
-- **Selectors are `data-testid` only** — full rule, naming, and placement live in [docs/testing.md § Playwright-BDD selectors](../docs/testing.md#playwright-bdd-selectors). Every interactive component adds its own testids.
+- **Selectors are `data-testid` only** — full rule, naming, and placement live in [docs/08-testing.md § Playwright-BDD selectors](../docs/08-testing.md#playwright-bdd-selectors). Every interactive component adds its own testids.
 - **Step helpers are pure functions.** No class state, no shared mutable singletons. Pass everything through arguments or the `world.ts` constants.
 - **ES module imports require `.ts` extensions** (per `tsconfig.json`). The harness runs under Bun.
 - **One concept per scenario.** Don't pile assertions; if you need a second behaviour, write a second scenario.

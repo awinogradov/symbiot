@@ -70,7 +70,7 @@ pre-warmed until your next session, and the first plan review afterward
 may incur a (now survivable) cold download.
 
 Supported platforms: **macOS arm64**, **macOS x64**, **Linux x64**,
-**Windows x64**. See [`docs/release.md`](docs/release.md) for the
+**Windows x64**. See [`docs/09-release.md`](docs/09-release.md) for the
 release flow and the offline-install path.
 
 ### Codex / Copilot / Gemini (binary)
@@ -93,7 +93,7 @@ Add the package to your OpenCode config's `plugin` list — OpenCode installs an
 { "plugin": ["@symbiot/opencode-plugin"] }
 ```
 
-See [`docs/release.md` § Distribution channels](docs/release.md#distribution-channels) for the full per-host matrix.
+See [`docs/09-release.md` § Distribution channels](docs/09-release.md#distribution-channels) for the full per-host matrix.
 
 ## Prerequisites
 
@@ -182,7 +182,7 @@ bunx playwright install firefox webkit
 CROSS_BROWSER=1 bun run test:e2e
 ```
 
-See [`docs/testing.md`](./docs/testing.md) for the cross-browser matrix.
+See [`docs/08-testing.md`](./docs/08-testing.md) for the cross-browser matrix.
 
 Conventions and selector rules for scenarios live in [`features`](./features/README.md).
 
@@ -217,25 +217,25 @@ Conventions and selector rules for scenarios live in [`features`](./features/REA
 
 Read this index before touching the code — it's what CLAUDE.md points contributors at. Cross-cutting design notes live in [`docs/`](./docs/README.md); per-area READMEs sit next to their sources.
 
-| Doc                                                                              | What it covers                                                                                                                    |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [`CLAUDE.md`](./CLAUDE.md)                                                       | Core principles, naming, lint/style rules, post-task checks.                                                                      |
-| [`CONTRIBUTING.md`](./CONTRIBUTING.md)                                           | Branch, commit, and PR conventions.                                                                                               |
-| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)                                     | Community standards.                                                                                                              |
-| [`LICENSES.md`](./LICENSES.md)                                                   | Third-party license manifest (distinct from `LICENSE.md`).                                                                        |
-| [`docs/`](./docs/README.md)                                                      | Cross-cutting architecture, product, and contract docs — start here when a change spans more than one package.                    |
-| [`docs/product.md`](./docs/product.md)                                           | Product goals, non-goals, personas, principles, NFRs, success metrics.                                                            |
-| [`docs/architecture.md`](./docs/architecture.md)                                 | App composition, package layering, HTTP surface, monorepo invariants, and the architectural specials.                             |
-| [`docs/server-contract.md`](./docs/server-contract.md)                           | HTTP surface between the hook and the viewer.                                                                                     |
-| [`docs/version-history.md`](./docs/version-history.md)                           | On-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.                                             |
-| [`docs/theming.md`](./docs/theming.md)                                           | Annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).                                               |
-| [`docs/a11y.md`](./docs/a11y.md)                                                 | WCAG AA baseline: axe-core scenarios, keyboard nav, focus-ring policy, ARIA-label inventory, screen-reader smoke, reduced motion. |
-| [`docs/perf.md`](./docs/perf.md)                                                 | Performance budget, bundle visualizer + Lighthouse reproduction.                                                                  |
-| [`docs/release.md`](./docs/release.md)                                           | Release pipeline + shim/binary contract; cut and roll back releases, plus the cross-browser smoke checklist.                      |
-| [`docs/agents/adding-an-integration.md`](./docs/agents/adding-an-integration.md) | How to add a new agent integration: the shared `@symbiot/agent-runtime` building blocks and a step-by-step.                       |
-| [`features/`](./features/README.md)                                              | Playwright-BDD layout, selector conventions, how to add a scenario.                                                               |
-| [`fixtures/markdown`](./fixtures/markdown/README.md)                             | Sample markdown fixtures + the inline-diff smoke flow.                                                                            |
-| [`fixtures/golden`](./fixtures/golden/README.md)                                 | Byte-equality regression fixtures for the annotation serializer.                                                                  |
+| Doc                                                                      | What it covers                                                                                                                    |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| [`CLAUDE.md`](./CLAUDE.md)                                               | Core principles, naming, lint/style rules, post-task checks.                                                                      |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md)                                   | Branch, commit, and PR conventions.                                                                                               |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)                             | Community standards.                                                                                                              |
+| [`LICENSES.md`](./LICENSES.md)                                           | Third-party license manifest (distinct from `LICENSE.md`).                                                                        |
+| [`docs/`](./docs/README.md)                                              | Cross-cutting architecture, product, and contract docs — start here when a change spans more than one package.                    |
+| [`docs/01-product.md`](./docs/01-product.md)                             | Product goals, non-goals, personas, principles, NFRs, success metrics.                                                            |
+| [`docs/02-architecture.md`](./docs/02-architecture.md)                   | App composition, package layering, HTTP surface, monorepo invariants, and the architectural specials.                             |
+| [`docs/03-server-contract.md`](./docs/03-server-contract.md)             | HTTP surface between the hook and the viewer.                                                                                     |
+| [`docs/04-version-history.md`](./docs/04-version-history.md)             | On-disk version layout, `/api/plan/version[s]` endpoints, History tab, diff overlays.                                             |
+| [`docs/05-theming.md`](./docs/05-theming.md)                             | Annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).                                               |
+| [`docs/06-a11y.md`](./docs/06-a11y.md)                                   | WCAG AA baseline: axe-core scenarios, keyboard nav, focus-ring policy, ARIA-label inventory, screen-reader smoke, reduced motion. |
+| [`docs/07-perf.md`](./docs/07-perf.md)                                   | Performance budget, bundle visualizer + Lighthouse reproduction.                                                                  |
+| [`docs/09-release.md`](./docs/09-release.md)                             | Release pipeline + shim/binary contract; cut and roll back releases, plus the cross-browser smoke checklist.                      |
+| [`docs/10-add-agent-integration.md`](./docs/10-add-agent-integration.md) | How to add a new agent integration: the shared `@symbiot/agent-runtime` building blocks and a step-by-step.                       |
+| [`features/`](./features/README.md)                                      | Playwright-BDD layout, selector conventions, how to add a scenario.                                                               |
+| [`fixtures/markdown`](./fixtures/markdown/README.md)                     | Sample markdown fixtures + the inline-diff smoke flow.                                                                            |
+| [`fixtures/golden`](./fixtures/golden/README.md)                         | Byte-equality regression fixtures for the annotation serializer.                                                                  |
 
 ### Apps
 

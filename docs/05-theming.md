@@ -150,7 +150,7 @@ annotation hues); a new text-on-surface combination extends the
 ## Cross-references
 
 - Automated contrast lock: [`../packages/tailwind-config/contrast.test.ts`](../packages/tailwind-config/contrast.test.ts) — JSDOM test that checks every `--anno-*` token against `--background` in both themes.
-- Product principle: annotation hues meet AA in both themes ([`./product.md`](./product.md), NFR-5).
+- Product principle: annotation hues meet AA in both themes ([`./01-product.md`](./01-product.md), NFR-5).
 - Token definitions: [`../packages/tailwind-config/theme.css`](../packages/tailwind-config/theme.css).
 
 ## Dark-mode variant (class-based)

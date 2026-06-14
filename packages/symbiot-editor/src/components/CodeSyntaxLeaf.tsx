@@ -39,7 +39,7 @@ const tokenStyle = (
  *
  * Carries `data-testid="code-syntax-token"` so BDD specs can assert highlighting
  * ran without coupling to the internal `--shiki-dark` style (the suite forbids
- * style/framework-internal selectors — see `docs/testing.md#playwright-bdd-selectors`).
+ * style/framework-internal selectors — see `docs/08-testing.md#playwright-bdd-selectors`).
  */
 export const CodeSyntaxLeaf = ({
   attributes,

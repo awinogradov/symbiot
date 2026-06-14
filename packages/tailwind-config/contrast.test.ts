@@ -6,7 +6,7 @@
  * `document.documentElement`, so a hue tweak that drops below AA fails CI
  * before review.
  *
- * Methodology mirrors `docs/theming.md`: OKLCH → Oklab → linear sRGB (Björn
+ * Methodology mirrors `docs/05-theming.md`: OKLCH → Oklab → linear sRGB (Björn
  * Ottosson reference matrix) → WCAG 2.1 relative luminance → contrast ratio.
  * The math is inlined rather than imported from `wcag-contrast` because that
  * library accepts only sRGB inputs — the OKLCH parser and Ottosson matrix

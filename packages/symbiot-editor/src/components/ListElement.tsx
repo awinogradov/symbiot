@@ -83,7 +83,7 @@ const TodoList = ({
  * items are visually merged by CSS) — and additionally stamps a
  * `data-testid="editor-list"` plus `data-list-type` attribute so BDD specs can
  * select lists without falling back to the `ul`/`ol` tag names banned by
- * `docs/testing.md#playwright-bdd-selectors`. Mirrors the predicate Plate's own
+ * `docs/08-testing.md#playwright-bdd-selectors`. Mirrors the predicate Plate's own
  * `isOrderedList` helper uses (testing membership in `ULIST_STYLE_TYPES`). Wired
  * via `ListPlugin.configure({ render: { belowNodes } })` in `utils/kit.ts`
  * because Plate's list "items" are actually paragraph elements decorated with

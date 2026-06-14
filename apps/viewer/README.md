@@ -25,7 +25,7 @@ The registry of every `/api/*` route lives in
 [`src/shared/apiRoutes.ts`](./src/shared/apiRoutes.ts). The Bun dispatch
 table and the client `apiClient` import the same source, so paths and
 methods never drift. The full route table and the request/response shapes
-are in [`docs/server-contract.md`](../../docs/server-contract.md).
+are in [`docs/03-server-contract.md`](../../docs/03-server-contract.md).
 
 ## Installation
 
@@ -73,7 +73,7 @@ Filesystem-only state under `~/.symbiot/` — no database. Plan revisions are
 written atomically as `00N.md` under
 `~/.symbiot/agents/<agent-id>/history/<project-slug>/<plan-slug>/`; drafts, annotations, and
 image uploads live in sibling directories. Layout details in
-[`docs/version-history.md`](../../docs/version-history.md#on-disk-layout).
+[`docs/04-version-history.md`](../../docs/04-version-history.md#on-disk-layout).
 
 ### Debugging
 
@@ -96,10 +96,10 @@ SHA falls back to `dev` when built outside a git checkout.
 
 ## Documentation
 
-- [`docs/server-contract.md`](../../docs/server-contract.md) — full HTTP surface.
-- [`docs/architecture.md`](../../docs/architecture.md) — viewer's place in the monorepo.
-- [`docs/version-history.md`](../../docs/version-history.md) — version layout, diff overlays, drift detection.
-- [`docs/perf.md`](../../docs/perf.md) — bundle and Lighthouse budgets.
+- [`docs/03-server-contract.md`](../../docs/03-server-contract.md) — full HTTP surface.
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — viewer's place in the monorepo.
+- [`docs/04-version-history.md`](../../docs/04-version-history.md) — version layout, diff overlays, drift detection.
+- [`docs/07-perf.md`](../../docs/07-perf.md) — bundle and Lighthouse budgets.
 
 ## License
 

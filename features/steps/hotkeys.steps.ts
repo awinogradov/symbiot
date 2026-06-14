@@ -9,7 +9,7 @@ When("I press {string} anywhere outside the editor", async ({ page }, combo: str
   // state means useReadyHandle has fired and the editor handle is registered;
   // without it, c/i/r/d would route through a null handle. Paragraphs are
   // present in every fixture and ParagraphElement stamps `editor-paragraph`
-  // (selectors must use `data-testid` per docs/testing.md § Playwright-BDD
+  // (selectors must use `data-testid` per docs/08-testing.md § Playwright-BDD
   // selectors).
   await page.getByTestId("editor-paragraph").first().waitFor({ state: "visible" });
   // Do NOT click outside the editor first — that collapses the DOM text

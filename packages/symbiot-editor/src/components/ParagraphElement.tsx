@@ -12,7 +12,7 @@ interface ParagraphElementProps {
  * `ParagraphPlugin.configure({ render: { as: "p" } })` wiring so every paragraph
  * exposes a stable `data-testid="editor-paragraph"` selector for BDD specs —
  * the rule banning framework-internal attributes like `data-slate-*` is
- * documented in `docs/testing.md#playwright-bdd-selectors`.
+ * documented in `docs/08-testing.md#playwright-bdd-selectors`.
  *
  * The Plate `attributes` (carrying `data-slate-node="element"`, refs, and other
  * Slate-internal props) are spread first so the hardcoded `data-testid` wins

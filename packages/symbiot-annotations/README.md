@@ -149,8 +149,8 @@ editing existing ones.
 
 ## Documentation
 
-- [`docs/server-contract.md`](../../docs/server-contract.md) — where feedback markdown is consumed.
-- [`docs/version-history.md`](../../docs/version-history.md) — drift detection across versions.
+- [`docs/03-server-contract.md`](../../docs/03-server-contract.md) — where feedback markdown is consumed.
+- [`docs/04-version-history.md`](../../docs/04-version-history.md) — drift detection across versions.
 
 ## License
 

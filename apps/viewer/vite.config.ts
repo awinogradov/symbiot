@@ -22,7 +22,7 @@ const bundleAnalyze = process.env.SYMBIOT_BUNDLE_ANALYZE === "1";
 //                       gzipped and embedded into each agent binary as a
 //                       self-contained blob served by `serveEmbeddedHtml` over
 //                       localhost (where download is instant, so splitting buys
-//                       nothing). See docs/architecture.md.
+//                       nothing). See docs/02-architecture.md.
 const singleFile = process.env.SYMBIOT_SINGLEFILE === "1";
 
 // Editor-only runtime: Plate, Slate, the markdown stack, and their shared

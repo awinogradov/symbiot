@@ -36,13 +36,13 @@ const featuresTestidOnlySelectors = [
     selector:
       "CallExpression[callee.property.name=/^getBy(Role|Text|Label|Placeholder|AltText|Title)$/]",
     message:
-      "BDD steps must select via data-testid (issue #132). Use page.getByTestId(...) instead. See docs/testing.md#playwright-bdd-selectors.",
+      "BDD steps must select via data-testid (issue #132). Use page.getByTestId(...) instead. See docs/08-testing.md#playwright-bdd-selectors.",
   },
   {
     selector:
       "CallExpression[callee.property.name='locator'] > Literal[value!=/^\\[data-testid([\\^$*]?=)/]",
     message:
-      "BDD steps must select via data-testid (issue #132). .locator(...) must target '[data-testid=...]'. See docs/testing.md#playwright-bdd-selectors.",
+      "BDD steps must select via data-testid (issue #132). .locator(...) must target '[data-testid=...]'. See docs/08-testing.md#playwright-bdd-selectors.",
   },
 ];
 

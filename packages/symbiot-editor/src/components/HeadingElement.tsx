@@ -13,7 +13,7 @@ interface HeadingElementProps {
  * renders the matching HTML heading tag and stamps a level-specific testid
  * (`editor-heading-1`..`editor-heading-6`) so BDD specs can select headings
  * without falling back to the `h${level}` tag pattern banned by
- * `docs/testing.md#playwright-bdd-selectors`. Plate's `H1Plugin`..`H6Plugin`
+ * `docs/08-testing.md#playwright-bdd-selectors`. Plate's `H1Plugin`..`H6Plugin`
  * each register this component via `.withComponent(HeadingElement)` in
  * `utils/kit.ts`.
  */

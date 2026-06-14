@@ -1,6 +1,6 @@
 # GitHub Copilot CLI hook contract (audit)
 
-The Step 0 contract audit for [`apps/copilot`](../../apps/copilot/README.md) (issue #67).
+The Step 0 contract audit for [`apps/copilot`](../apps/copilot/README.md) (issue #67).
 It locks the GitHub **Copilot CLI** hook stdin → stdout contract that
 `symbiot-copilot run-hook` depends on, and records the evidence so a future
 maintainer can re-verify each claim against pinned upstream source.
