@@ -41,7 +41,13 @@ const buildConfig = (command: string): string =>
       version: 1,
       hooks: {
         agentStop: [
-          { type: "command", command, timeoutSec: agentStopTimeoutSeconds, _managedBy: managedBy },
+          {
+            type: "command",
+            command,
+            timeoutSec: agentStopTimeoutSeconds,
+            statusMessage: "Symbiot: opening plan reviewer…",
+            _managedBy: managedBy,
+          },
         ],
       },
     },

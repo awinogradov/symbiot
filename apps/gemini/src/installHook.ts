@@ -34,5 +34,9 @@ export const { installHook, uninstallHook } = createConfigHookInstaller({
   cliCommand,
   isSymbiotEntry,
   registerEvents: ["AfterAgent"],
-  entryExtras: { name: "symbiot-gemini", timeout: afterAgentTimeoutMs },
+  entryExtras: {
+    name: "symbiot-gemini",
+    timeout: afterAgentTimeoutMs,
+    statusMessage: "Symbiot: opening plan reviewer…",
+  },
 });

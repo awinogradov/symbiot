@@ -121,7 +121,8 @@ Config `install-hook` writes to `~/.codex/hooks.json` (`timeout` is in seconds â
           {
             "type": "command",
             "command": "bun /abs/path/apps/codex/src/cli.ts run-hook",
-            "timeout": 3600
+            "timeout": 3600,
+            "statusMessage": "Symbiot: opening plan reviewerâ€¦"
           }
         ]
       }

@@ -36,6 +36,13 @@ export interface HookEntryExtras {
   name?: string;
   /** Optional timeout — Codex/Claude use seconds, Gemini milliseconds. Omitted entirely when absent. */
   timeout?: number;
+  /**
+   * Optional spinner message shown to the user while the hook runs. Claude Code
+   * renders this `statusMessage` field today; Codex/Gemini/Copilot share the same
+   * config shape, so it is additive and forward-compatible (ignored until they
+   * render it). Omitted entirely when absent.
+   */
+  statusMessage?: string;
 }
 
 /** Options for {@link createConfigHookInstaller}. */
@@ -61,6 +68,7 @@ interface HookEntry {
   command: string;
   name?: string;
   timeout?: number;
+  statusMessage?: string;
 }
 
 interface HookGroup {
@@ -94,12 +102,13 @@ export const createConfigHookInstaller = ({
       .filter((g) => g.hooks.length > 0);
 
   const buildGroup = (command: string): HookGroup => {
-    const { name, timeout } = entryExtras;
+    const { name, timeout, statusMessage } = entryExtras;
     const entry: HookEntry = {
       type: "command",
       ...(name !== undefined ? { name } : {}),
       command,
       ...(timeout !== undefined ? { timeout } : {}),
+      ...(statusMessage !== undefined ? { statusMessage } : {}),
     };
     return { ...(matcher !== undefined ? { matcher } : {}), hooks: [entry] };
   };

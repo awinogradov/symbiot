@@ -68,6 +68,8 @@ This directory doubles as the **plugin root** (`${CLAUDE_PLUGIN_ROOT}`):
 - ④ A warm cache execs instantly; a cold cache absorbs a ~44 s download first.
 - ⑤ `run-hook` **blocks until the reviewer decides** — open-ended human time, so its hook entry carries a **1-hour** `timeout` (`3600`). The default command-hook timeout (600 s) would kill a slow review or a cold download; `prepare` keeps the shorter 120 s budget because it only downloads.
 
+Every entry also carries a `statusMessage` — Claude Code renders it as a spinner label while the hook runs, so a cold-cache download (which is otherwise silent — command hooks have no controlling terminal) shows "Symbiot: preparing plan reviewer (first run downloads the viewer)…" instead of looking frozen.
+
 ## Installation
 
 ```

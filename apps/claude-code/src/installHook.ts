@@ -42,4 +42,5 @@ export const { installHook, uninstallHook } = createConfigHookInstaller({
   registerEvents: ["PreToolUse", "PermissionRequest"],
   cleanEvents: ["Stop"],
   matcher: "ExitPlanMode",
+  entryExtras: { statusMessage: "Symbiot: opening plan reviewer…" },
 });

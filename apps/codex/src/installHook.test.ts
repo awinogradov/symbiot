@@ -15,6 +15,7 @@ interface Hook {
   type: "command";
   command: string;
   timeout?: number;
+  statusMessage?: string;
 }
 interface HookGroup {
   matcher?: string;
@@ -48,6 +49,7 @@ describe("installHook", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]?.timeout).toBe(3600);
     expect(entries[0]?.command).toMatch(/run-hook$/);
+    expect(entries[0]?.statusMessage).toBeTruthy();
   });
 
   it("is idempotent across repeat installs", async () => {

@@ -151,6 +151,7 @@ human reviews, hence the long value:
         "type": "command",
         "command": "bun /abs/path/apps/copilot/src/cli.ts run-hook",
         "timeoutSec": 3600,
+        "statusMessage": "Symbiot: opening plan reviewer…",
         "_managedBy": "symbiot-copilot"
       }
     ]
