@@ -231,6 +231,7 @@ Read this index before touching the code — it's what CLAUDE.md points contribu
 | [`docs/05-theming.md`](./docs/05-theming.md)                             | Annotation color tokens (OKLCH values, hex equivalents, WCAG contrast methodology).                                               |
 | [`docs/06-a11y.md`](./docs/06-a11y.md)                                   | WCAG AA baseline: axe-core scenarios, keyboard nav, focus-ring policy, ARIA-label inventory, screen-reader smoke, reduced motion. |
 | [`docs/07-perf.md`](./docs/07-perf.md)                                   | Performance budget, bundle visualizer + Lighthouse reproduction.                                                                  |
+| [`docs/08-testing.md`](./docs/08-testing.md)                             | Unit-test coverage targets and scope, the golden-fixture CI gate, and the Playwright-BDD data-testid selector rule.               |
 | [`docs/09-release.md`](./docs/09-release.md)                             | Release pipeline + shim/binary contract; cut and roll back releases, plus the cross-browser smoke checklist.                      |
 | [`docs/10-add-agent-integration.md`](./docs/10-add-agent-integration.md) | How to add a new agent integration: the shared `@symbiot/agent-runtime` building blocks and a step-by-step.                       |
 | [`features/`](./features/README.md)                                      | Playwright-BDD layout, selector conventions, how to add a scenario.                                                               |
