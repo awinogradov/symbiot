@@ -68,7 +68,7 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
  * through to the default `<div>` — breaking semantic HTML and any `.prose p`
  * selector that depends on it. Wrap it with `ParagraphElement` so paragraphs
  * render as `<p>` AND expose `data-testid="editor-paragraph"` for the
- * Playwright-BDD selector rule (`docs/testing.md#playwright-bdd-selectors`).
+ * Playwright-BDD selector rule (`docs/08-testing.md#playwright-bdd-selectors`).
  *
  * `H1Plugin`..`H6Plugin`, `ListPlugin`, and `CodePlugin` (inline) are
  * registered AFTER `BasicBlocksPlugin` / `BasicMarksPlugin` so the explicit

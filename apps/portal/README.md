@@ -20,8 +20,8 @@ bun run test
 
 ## Documentation
 
-- [`docs/product.md`](../../docs/product.md) — sharing goal (G6).
-- [`docs/architecture.md`](../../docs/architecture.md) — portal's place in the monorepo.
+- [`docs/01-product.md`](../../docs/01-product.md) — sharing goal (G6).
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — portal's place in the monorepo.
 
 ## License
 

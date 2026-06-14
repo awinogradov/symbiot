@@ -5,7 +5,7 @@
 - Viewer must be interactive within **1 s** on plans up to **50 KB** of markdown (Lighthouse "Time to Interactive" / "Largest Contentful Paint" audits).
 - Lighthouse **Performance ≥ 90**, **Accessibility ≥ 95**.
 
-**Profile: desktop, localhost-representative.** The viewer is only ever served over `127.0.0.1` — every agent integration spawns it locally (see [`architecture.md`](./architecture.md)). Lighthouse's default mobile preset (simulated Slow 4G + 4× CPU) models a cellular network this product never runs on and makes the ≤ 1 s budget physically unreachable for any non-trivial app. The harness therefore measures the **desktop** form factor with `throttlingMethod: "provided"` (observed timings, no artificial throttle) — matching the real deployment. A chrome-devtools trace on localhost independently measured LCP ≈ 334 ms, confirming this is honest, not lenient. Total payload is guarded separately by the embed-bundle size metric, which is profile-independent.
+**Profile: desktop, localhost-representative.** The viewer is only ever served over `127.0.0.1` — every agent integration spawns it locally (see [`02-architecture.md`](./02-architecture.md)). Lighthouse's default mobile preset (simulated Slow 4G + 4× CPU) models a cellular network this product never runs on and makes the ≤ 1 s budget physically unreachable for any non-trivial app. The harness therefore measures the **desktop** form factor with `throttlingMethod: "provided"` (observed timings, no artificial throttle) — matching the real deployment. A chrome-devtools trace on localhost independently measured LCP ≈ 334 ms, confirming this is honest, not lenient. Total payload is guarded separately by the embed-bundle size metric, which is profile-independent.
 
 ## Reproduction
 
@@ -16,7 +16,7 @@ bun run --filter @symbiot/viewer bundle-analyze
 open apps/viewer/bundle-stats/index.html
 ```
 
-Runs `vite build` for the viewer with the `rollup-plugin-visualizer` plugin enabled (gated by `SYMBIOT_BUNDLE_ANALYZE=1`). The viewer builds **two artifacts** (see [`architecture.md`](./architecture.md) → _Architectural specials_ → _Monorepo + tooling_, the bullet "The viewer build emits two artifacts, and single-file is embed-only"): the default `vite build` emits the multi-chunk `dist/client/` (a light shell plus deferred `editor` / `shiki` chunks) served by `serveStatic`, and `SYMBIOT_SINGLEFILE=1 vite build` emits the inlined `dist/embed/index.html` embedded into agent binaries. `bundle-analyze` profiles the default multi-chunk build, so the treemap shows the per-chunk split (entry vs. lazy `editor` vs. Shiki languages).
+Runs `vite build` for the viewer with the `rollup-plugin-visualizer` plugin enabled (gated by `SYMBIOT_BUNDLE_ANALYZE=1`). The viewer builds **two artifacts** (see [`02-architecture.md`](./02-architecture.md) → _Architectural specials_ → _Monorepo + tooling_, the bullet "The viewer build emits two artifacts, and single-file is embed-only"): the default `vite build` emits the multi-chunk `dist/client/` (a light shell plus deferred `editor` / `shiki` chunks) served by `serveStatic`, and `SYMBIOT_SINGLEFILE=1 vite build` emits the inlined `dist/embed/index.html` embedded into agent binaries. `bundle-analyze` profiles the default multi-chunk build, so the treemap shows the per-chunk split (entry vs. lazy `editor` vs. Shiki languages).
 
 ### Lighthouse (desktop, localhost-representative profile)
 
@@ -94,5 +94,5 @@ The footer (HTML `<sub>` block) renders the baseline and head short SHAs, the wo
 
 ## See also
 
-- [`product.md`](./product.md) — NFR-1 bundle/perf budget.
-- [`architecture.md`](./architecture.md) — viewer bundling and the single-file HTML constraint.
+- [`01-product.md`](./01-product.md) — NFR-1 bundle/perf budget.
+- [`02-architecture.md`](./02-architecture.md) — viewer bundling and the single-file HTML constraint.

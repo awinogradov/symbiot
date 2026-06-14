@@ -6,7 +6,7 @@
  *      shadcn primitives.
  *   2. Annotation tokens (`--anno-delete`, `--anno-insert`, `--anno-replace`,
  *      `--anno-comment`) drive the four mark/highlight kinds, each WCAG AA
- *      against `--background` in both themes. See `docs/theming.md` for the
+ *      against `--background` in both themes. See `docs/05-theming.md` for the
  *      chosen OKLCH values, hex equivalents, contrast ratios, and methodology.
  */
 
@@ -17,7 +17,7 @@
  * `fade-*`). The shadcn primitives in `@symbiot/symbiot-ui` reference these on
  * their Radix content/overlay; without this import the classes are inert and the
  * surfaces pop in with no transition. Reduced-motion handling lives at the foot
- * of this file. See `docs/a11y.md` § Motion.
+ * of this file. See `docs/06-a11y.md` § Motion.
  */
 @import "tw-animate-css";
 
@@ -100,7 +100,7 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
 
-  /* Annotation tokens — AA-verified against --background; see docs/theming.md. */
+  /* Annotation tokens — AA-verified against --background; see docs/05-theming.md. */
   --anno-delete: oklch(0.5 0.2 25); /* 6.65:1 vs --background */
   --anno-insert: oklch(0.5 0.14 148); /* 5.61:1 vs --background */
   --anno-replace: oklch(0.52 0.1 75); /* 5.63:1 vs --background */
@@ -150,7 +150,7 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
 
-  /* Annotation tokens (dark) — AA-verified against --background; see docs/theming.md. */
+  /* Annotation tokens (dark) — AA-verified against --background; see docs/05-theming.md. */
   --anno-delete: oklch(0.7 0.18 30); /* 6.56:1 vs --background */
   --anno-insert: oklch(0.75 0.18 145); /* 9.08:1 vs --background */
   --anno-replace: oklch(0.78 0.16 75); /* 9.24:1 vs --background */

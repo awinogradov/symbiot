@@ -147,7 +147,7 @@ collision.
   block in a tinted `<div>` (or `<span>` for inline elements).
 - `aboveNodes` returns `children` for non-diff elements — returning
   `undefined` causes Plate to drop the element entirely. Captured as an
-  architectural special in [`architecture.md`](./architecture.md).
+  architectural special in [`02-architecture.md`](./02-architecture.md).
 
 ### Empty state
 
@@ -264,6 +264,6 @@ scenarios seed a draft directly under `~/.symbiot/agents/claude-code/drafts/...`
 
 ## Cross-references
 
-- Architectural specials: [`./architecture.md`](./architecture.md)
+- Architectural specials: [`./02-architecture.md`](./02-architecture.md)
 - Smoke fixtures + flow: [`../fixtures/markdown/README.md`](../fixtures/markdown/README.md)
-- Server contract overview: [`./server-contract.md`](./server-contract.md)
+- Server contract overview: [`./03-server-contract.md`](./03-server-contract.md)

@@ -4,7 +4,7 @@ How to add a new agent (e.g. a future CLI or IDE assistant) to symbiot. Every
 integration drives the same review loop — spawn the viewer, block on a human
 decision, map that decision back to the host — so a new agent is mostly a thin
 wrapper that supplies what genuinely differs. Read
-[`../architecture.md` § Hook semantics](../architecture.md#hook-semantics) first;
+[`02-architecture.md` § Hook semantics](./02-architecture.md#hook-semantics) first;
 it explains why each existing agent gates on the event it does.
 
 ## The shape of an integration
@@ -96,14 +96,14 @@ Use `apps/codex` as the minimal template — it is the smallest complete example
    `HOME` (see `apps/codex/src/installHook.test.ts`) and any custom stdin parsing
    or transcript handling. Coverage for `packages/symbiot-*` is gated at 90% by
    the root `vitest.config.ts`; `apps/**` is unit-excluded (see
-   [`../testing.md`](../testing.md)).
+   [`08-testing.md`](./08-testing.md)).
 
 7. **Docs.** Add `apps/<agent>/README.md` with an `## Architecture` ASCII diagram
    and a `## Schemas` section pinning the stdin/decision shapes (match the
    existing app READMEs). Then register the integration in:
-   - [`../README.md`](../README.md) (this docs index — the per-area README list),
+   - [`README.md`](./README.md) (this docs index — the per-area README list),
    - the root `README.md` Project Structure + Documentation sections,
-   - a new **Hook semantics** bullet in [`../architecture.md`](../architecture.md)
+   - a new **Hook semantics** bullet in [`02-architecture.md`](./02-architecture.md)
      describing the event you gate on and why.
 
 ## The decision contract
@@ -124,6 +124,6 @@ keep that emission local and reuse `emitBlockDecision` for the deny path only.
 
 ## See also
 
-- [`../architecture.md`](../architecture.md) — package layering and the per-agent hook-semantics rationale.
-- [`../../packages/symbiot-agent-runtime/README.md`](../../packages/symbiot-agent-runtime/README.md) — the shared helpers in detail.
-- [`copilot-contract.md`](./copilot-contract.md) — a worked example of auditing an undocumented host hook contract before integrating.
+- [`02-architecture.md`](./02-architecture.md) — package layering and the per-agent hook-semantics rationale.
+- [`../packages/symbiot-agent-runtime/README.md`](../packages/symbiot-agent-runtime/README.md) — the shared helpers in detail.
+- [`appendix-a-copilot-contract.md`](./appendix-a-copilot-contract.md) — a worked example of auditing an undocumented host hook contract before integrating.

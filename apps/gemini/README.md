@@ -196,8 +196,8 @@ bun --filter @symbiot/viewer build
 
 ## Documentation
 
-- [`docs/architecture.md`](../../docs/architecture.md) — hook semantics across agents (Gemini `AfterAgent` vs Codex `Stop` vs Claude `PreToolUse`).
-- [`docs/server-contract.md`](../../docs/server-contract.md) — the viewer HTTP surface the hook drives (unchanged by this integration).
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — hook semantics across agents (Gemini `AfterAgent` vs Codex `Stop` vs Claude `PreToolUse`).
+- [`docs/03-server-contract.md`](../../docs/03-server-contract.md) — the viewer HTTP surface the hook drives (unchanged by this integration).
 - [`packages/symbiot-agent-runtime/README.md`](../../packages/symbiot-agent-runtime/README.md) — the shared `runPlanReview` spawn-and-decide loop.
 
 ## License

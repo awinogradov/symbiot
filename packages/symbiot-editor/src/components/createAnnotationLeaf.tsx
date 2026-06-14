@@ -14,7 +14,7 @@ interface AnnotationLeafProps {
  *
  * `testId` stamps a `data-testid` on the rendered element so Playwright-BDD
  * specs can locate the highlight by kind (the suite forbids class/role
- * selectors — see `docs/testing.md#playwright-bdd-selectors`).
+ * selectors — see `docs/08-testing.md#playwright-bdd-selectors`).
  *
  * @example
  *   export const CommentLeaf = createAnnotationLeaf(

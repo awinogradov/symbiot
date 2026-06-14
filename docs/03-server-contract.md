@@ -68,7 +68,7 @@ See [`apps/viewer/src/server/uploadSecurity.ts`](../apps/viewer/src/server/uploa
 
 ## Version history
 
-The version subset of the contract — `/api/plan/version[s]`, the History tab, drift detection, and the diff overlay — is documented end-to-end in [`version-history.md`](./version-history.md). That doc is the source of truth for the on-disk `~/.symbiot/agents/{agentId}/history/{project}/{slug}/00N.md` layout.
+The version subset of the contract — `/api/plan/version[s]`, the History tab, drift detection, and the diff overlay — is documented end-to-end in [`04-version-history.md`](./04-version-history.md). That doc is the source of truth for the on-disk `~/.symbiot/agents/{agentId}/history/{project}/{slug}/00N.md` layout.
 
 ## Contract stability
 

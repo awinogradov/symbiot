@@ -2,7 +2,7 @@
 
 ## Targets
 
-NFR-8 (see [`product.md`](./product.md)) requires unit tests for markdown round-trip, annotation serialize/deserialize, share codec, and diff computation. Issue #123 extended the gate to the React composition surface as well — the editor's component layer and the symbiot-ui composition components. The coverage gate fails the build when any of lines / statements / branches / functions drops below **90%**.
+NFR-8 (see [`01-product.md`](./01-product.md)) requires unit tests for markdown round-trip, annotation serialize/deserialize, share codec, and diff computation. Issue #123 extended the gate to the React composition surface as well — the editor's component layer and the symbiot-ui composition components. The coverage gate fails the build when any of lines / statements / branches / functions drops below **90%**.
 
 Current numbers are not duplicated here — they live in three automated places:
 
@@ -73,7 +73,7 @@ folder is owned by the product story, and the two taxonomies are kept independen
 Dynamic identifiers follow `<base>-<id>` for entity-keyed elements
 (`sidebar-entry-<id>`) and `<base>-<id>-<action>` for per-entity actions
 (`image-preview-remove-<ref>`, `sidebar-entry-<id>-remove`). The ARIA-label
-inventory in [`a11y.md`](./a11y.md) doubles as a partial testid catalog.
+inventory in [`06-a11y.md`](./06-a11y.md) doubles as a partial testid catalog.
 
 ### Combining with component state
 
@@ -203,14 +203,14 @@ Scenarios under `features/` never sleep on the wall clock. See the [`features/RE
 
 ## E2E suite layout
 
-Feature files are grouped by the [`docs/product.md`](./product.md) story they cover
+Feature files are grouped by the [`docs/01-product.md`](./01-product.md) story they cover
 (`uc1-*`, `uc2-*`, `uc3-*`, `nfr-*`, `diagnostics/`) and tagged `@P<n>`/`@UC<n>`/`@NFR-<n>`.
 Run a single story with `STORY=@UC1 bun run test:e2e:story`. See
 [`features/README.md`](../features/README.md) for the full layout and tagging rules.
 
 ## Cross-browser matrix
 
-NFR-6 (see [`product.md`](./product.md)) commits symbiot to the latest Chrome,
+NFR-6 (see [`01-product.md`](./01-product.md)) commits symbiot to the latest Chrome,
 Edge, Firefox, and Safari. To verify that across real engines, `playwright.config.ts`
 defines a project matrix:
 
@@ -252,4 +252,4 @@ coverage stays sourced from the Chromium project alone.
 Microsoft Edge on Linux is the same Blink engine as Chromium, so an `msedge` CI
 project would re-run the suite on an already-covered engine. Edge — and real
 Safari — are instead verified manually per release; see the cross-browser smoke
-checklist in [`release.md`](./release.md).
+checklist in [`09-release.md`](./09-release.md).

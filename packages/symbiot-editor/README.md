@@ -41,7 +41,7 @@ Kept distinct from `@symbiot/ui` on purpose:
 ### Architectural specials
 
 Things that look fine on a refactor but break if you change them — full list
-in [`../../docs/architecture.md`](../../docs/architecture.md):
+in [`../../docs/02-architecture.md`](../../docs/02-architecture.md):
 
 - `aboveNodes` render hooks return `children` for non-diff elements, not `undefined` — Plate drops the entire element otherwise.
 - The host re-keys `DiffEditor` on `mode` change so `usePlateEditor` builds a fresh editor with the right initial value. Mixing `usePlateEditor`'s `deps` array with conditional value computation produces stale renders.
@@ -77,8 +77,8 @@ bun run test
 
 ## Documentation
 
-- [`docs/architecture.md`](../../docs/architecture.md) — package layering and the editor's place in the monorepo.
-- [`docs/version-history.md`](../../docs/version-history.md) — diff editor and the inline-diff overlay pipeline.
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — package layering and the editor's place in the monorepo.
+- [`docs/04-version-history.md`](../../docs/04-version-history.md) — diff editor and the inline-diff overlay pipeline.
 
 ## License
 

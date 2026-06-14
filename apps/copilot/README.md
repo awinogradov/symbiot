@@ -15,7 +15,7 @@ loop.
 
 > The upstream hook contract was undocumented when issue #67 was filed. It is now
 > source-verified and pinned in
-> [`docs/agents/copilot-contract.md`](../../docs/agents/copilot-contract.md) —
+> [`docs/appendix-a-copilot-contract.md`](../../docs/appendix-a-copilot-contract.md) —
 > read that first; this README is the integration's usage surface.
 
 ## Architecture
@@ -127,7 +127,7 @@ interface CopilotAgentStopInput {
 > VSCode/Claude-compatible snake_case payload (`hook_event_name: "Stop"`,
 > `transcript_path`, `stop_reason`). symbiot registers under `agentStop` and reads
 > the camelCase form. The audit-only `preToolUse` surface and the full event list
-> live in [`copilot-contract.md`](../../docs/agents/copilot-contract.md).
+> live in [`appendix-a-copilot-contract.md`](../../docs/appendix-a-copilot-contract.md).
 
 Decision emitted to stdout:
 
@@ -172,7 +172,7 @@ spurious block.
   and **fails open** — an unrecognized shape yields no review rather than a wrong
   block. Validate `extractLastAssistantMessage` against a real `agentStop` run
   before relying on it in anger; see
-  [`copilot-contract.md`](../../docs/agents/copilot-contract.md) claim #13.
+  [`appendix-a-copilot-contract.md`](../../docs/appendix-a-copilot-contract.md) claim #13.
 - **Review must finish within `timeoutSec` (we write `3600`).** Copilot logs and
   skips a hook that times out or crashes — it never blocks the agent — so a review
   left open past one hour lets the turn proceed **un-reviewed** (timeout ⇒ proceed,
@@ -212,9 +212,9 @@ bun --filter @symbiot/viewer build
 
 ## Documentation
 
-- [`docs/agents/copilot-contract.md`](../../docs/agents/copilot-contract.md) — the source-verified Copilot hook contract + viability verdict (read first).
-- [`docs/architecture.md`](../../docs/architecture.md) — hook semantics across agents (Copilot `agentStop` vs Gemini `AfterAgent` vs Codex `Stop` vs Claude `PreToolUse`).
-- [`docs/server-contract.md`](../../docs/server-contract.md) — the viewer HTTP surface the hook drives (unchanged by this integration).
+- [`docs/appendix-a-copilot-contract.md`](../../docs/appendix-a-copilot-contract.md) — the source-verified Copilot hook contract + viability verdict (read first).
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — hook semantics across agents (Copilot `agentStop` vs Gemini `AfterAgent` vs Codex `Stop` vs Claude `PreToolUse`).
+- [`docs/03-server-contract.md`](../../docs/03-server-contract.md) — the viewer HTTP surface the hook drives (unchanged by this integration).
 - [`packages/symbiot-agent-runtime/README.md`](../../packages/symbiot-agent-runtime/README.md) — the shared `runPlanReview` spawn-and-decide loop.
 
 ## License

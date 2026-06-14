@@ -256,7 +256,7 @@ const signedCls = (delta: MetricDelta): string => {
 
 const shortSha = (sha: string): string => (sha.length >= 7 ? sha.slice(0, 7) : sha);
 
-// Targets sourced from docs/perf.md. Each defines a `satisfies` predicate
+// Targets sourced from docs/07-perf.md. Each defines a `satisfies` predicate
 // over the head value plus a human-readable threshold label rendered in the
 // Target column.
 interface MetricTarget {

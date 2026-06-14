@@ -150,8 +150,8 @@ bun --filter @symbiot/viewer build
 
 ## Documentation
 
-- [`docs/architecture.md`](../../docs/architecture.md) — hook semantics across agents (OpenCode `session.idle` fire-and-forget vs the blocking CLI hooks).
-- [`docs/server-contract.md`](../../docs/server-contract.md) — the viewer HTTP surface the plugin drives (unchanged by this integration).
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — hook semantics across agents (OpenCode `session.idle` fire-and-forget vs the blocking CLI hooks).
+- [`docs/03-server-contract.md`](../../docs/03-server-contract.md) — the viewer HTTP surface the plugin drives (unchanged by this integration).
 - [`packages/symbiot-agent-runtime/README.md`](../../packages/symbiot-agent-runtime/README.md) — the shared `runPlanReview` loop (used by the `annotate` CLI).
 
 ## License

@@ -65,7 +65,7 @@ agent apps, each on its own subpath import (no barrel — import the actual path
 
 An agent app supplies only its deltas (bin name, `agentId`, event/message field,
 install target/timeout, embedded `viewerHtmlGz`). See
-[`docs/agents/adding-an-integration.md`](../../docs/agents/adding-an-integration.md)
+[`docs/10-add-agent-integration.md`](../../docs/10-add-agent-integration.md)
 for the step-by-step.
 
 ## Local development
@@ -78,8 +78,8 @@ bun run test
 
 ## Documentation
 
-- [`docs/architecture.md`](../../docs/architecture.md) — package layering and where this loop sits across agents.
-- [`docs/server-contract.md`](../../docs/server-contract.md) — the viewer HTTP surface the loop drives.
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — package layering and where this loop sits across agents.
+- [`docs/03-server-contract.md`](../../docs/03-server-contract.md) — the viewer HTTP surface the loop drives.
 
 ## License
 

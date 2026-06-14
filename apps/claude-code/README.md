@@ -91,7 +91,7 @@ than being killed silently.
 > `prepare` + `run-hook` downloads coordinate through a portable `mkdir`
 > lock — the second waits on the first instead of racing it.
 
-See [`docs/release.md`](../../docs/release.md) for the release flow and
+See [`docs/09-release.md`](../../docs/09-release.md) for the release flow and
 the offline-install path.
 
 ## Usage
@@ -145,9 +145,9 @@ bun --filter @symbiot/viewer build
 
 ## Documentation
 
-- [`docs/release.md`](../../docs/release.md) — release pipeline, shim/binary contract.
-- [`docs/server-contract.md`](../../docs/server-contract.md) — HTTP surface the hook talks to.
-- [`docs/architecture.md`](../../docs/architecture.md) — composition across apps and packages.
+- [`docs/09-release.md`](../../docs/09-release.md) — release pipeline, shim/binary contract.
+- [`docs/03-server-contract.md`](../../docs/03-server-contract.md) — HTTP surface the hook talks to.
+- [`docs/02-architecture.md`](../../docs/02-architecture.md) — composition across apps and packages.
 
 ## License
 

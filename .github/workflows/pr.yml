@@ -78,7 +78,7 @@ jobs:
           # `[data-testid=…] span[style*=…]`). Ban those attribute selectors too.
           embedded_hits=$(grep -rPn '\[(data-slate-|data-radix-)|style[\^\$\*~]?=' features/steps/ --include='*.ts' || true)
           if [[ -n "$getter_hits" || -n "$locator_hits" || -n "$embedded_hits" ]]; then
-            echo "::error::Non-data-testid selectors found in features/steps (issues #141/#132). Use getByTestId or .locator('[data-testid=...]'). See docs/testing.md#playwright-bdd-selectors."
+            echo "::error::Non-data-testid selectors found in features/steps (issues #141/#132). Use getByTestId or .locator('[data-testid=...]'). See docs/08-testing.md#playwright-bdd-selectors."
             [[ -n "$getter_hits" ]] && echo "$getter_hits"
             [[ -n "$locator_hits" ]] && echo "$locator_hits"
             [[ -n "$embedded_hits" ]] && echo "$embedded_hits"

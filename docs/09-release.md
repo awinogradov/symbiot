@@ -258,7 +258,7 @@ ${CLAUDE_PLUGIN_ROOT}                       ${CLAUDE_PLUGIN_DATA}
 ## Cross-browser smoke checklist
 
 NFR-6 commits symbiot to the latest **Chrome, Edge, Firefox, Safari**. The
-Playwright matrix ([`testing.md`](./testing.md#cross-browser-matrix)) automates
+Playwright matrix ([`08-testing.md`](./08-testing.md#cross-browser-matrix)) automates
 this on every PR — Chromium runs the full suite, Firefox and WebKit run the
 `@smoke` subset — but **Edge is not in CI** (its Blink engine is already covered
 by Chromium) and CI's WebKit is not real Safari. Run this manual pass on the
