@@ -48,15 +48,6 @@ export const CardDescription = ({ className, ref, ...rest }: BaseProps): React.R
   />
 );
 
-export const CardAction = ({ className, ref, ...rest }: BaseProps): React.ReactElement => (
-  <div
-    ref={ref}
-    data-slot="card-action"
-    className={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
-    {...rest}
-  />
-);
-
 export const CardContent = ({ className, ref, ...rest }: BaseProps): React.ReactElement => (
   <div ref={ref} data-slot="card-content" className={cn("px-6", className)} {...rest} />
 );
