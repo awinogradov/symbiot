@@ -24,5 +24,6 @@ Feature: Plan-review hotkey gating
     And I click the Comment toolbar button
     And I type "Should this be a wolf?" into the comment composer
     And I press Enter in the comment composer
+    And the comment composer is not visible in the viewport
     And I press "Mod+Enter" anywhere outside the editor
     Then the recorded decision is "deny"
