@@ -26771,21 +26771,16 @@ export const ReplacementMarkPlugin = createPlatePlugin({
 
 <file path="packages/symbiot-editor/src/components/ReviewEditor.tsx">
 import { MarkdownPlugin } from "@platejs/markdown";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Plate, PlateContent, usePlateEditor } from "platejs/react";
-import {
-  AnnotationComposer,
-  type AnnotationComposerPayload,
-} from "@symbiot/ui/components/AnnotationComposer";
+import { AnnotationComposer } from "@symbiot/ui/components/AnnotationComposer";
 
 import { SymbiotEditorKit } from "../utils/kit.ts";
 import { stampBlockLines } from "../utils/sourceLines.ts";
 import { useTypingGuard } from "../utils/typingGuard.ts";
 
 import {
-  type PendingAuthoring,
-  dispatchComposerCancel,
-  dispatchComposerSave,
+  useComposerController,
   useReadyHandle,
   useRemoveAnnotation,
   useTaskToggle,
@@ -26881,7 +26876,6 @@ export const ReviewEditor = ({
     initialReplacementImages,
     initialReplacementOriginalTexts,
   });
-  const [pending, setPending] = useState<PendingAuthoring | null>(null);
 
   const editor = usePlateEditor({
     plugins: SymbiotEditorKit,
@@ -26891,6 +26885,13 @@ export const ReviewEditor = ({
       return stampBlockLines(markdown, deserialized) as never;
     },
   });
+
+  const { pending, setPending, onComposerSave, onComposerCancel } = useComposerController(
+    editor,
+    maps,
+    setters,
+    onChange
+  );
 
   useTypingGuard(containerRef);
 
@@ -26915,20 +26916,6 @@ export const ReviewEditor = ({
     });
 
   useReadyHandle(editor, maps, onRemoveAnnotation, onUpdateAnnotation, triggerAnnotation, onReady);
-
-  const onComposerSave = useCallback(
-    (payload: AnnotationComposerPayload): void => {
-      if (pending === null) return;
-      dispatchComposerSave(pending, payload, setters);
-      setPending(null);
-    },
-    [pending, setters]
-  );
-
-  const onComposerCancel = useCallback((): void => {
-    dispatchComposerCancel(pending, editor, maps, onChange);
-    setPending(null);
-  }, [pending, editor, maps, onChange]);
 
   const onToggleTask = useTaskToggle(editor, maps, onChange);
 
@@ -26964,7 +26951,10 @@ export const ReviewEditor = ({
 <file path="packages/symbiot-editor/src/components/ReviewEditorAuthoring.test.tsx">
 // @vitest-environment happy-dom
 import { act, renderHook } from "@testing-library/react";
+import { createSlateEditor } from "platejs";
 import { describe, expect, it, vi } from "vitest";
+
+import { SymbiotEditorKit } from "../utils/kit.ts";
 
 import { emptyMaps, stubEditor, stubSetters } from "./_reviewEditorTestHelpers.ts";
 import { type AnnotationMaps } from "./ReviewEditorState.tsx";
@@ -26974,6 +26964,7 @@ import {
   saveInsertionBody,
   saveReplacementBody,
   updateAnnotationMaps,
+  useComposerController,
   useReadyHandle,
   useToolbarHandlers,
   type PendingAuthoring,
@@ -27176,6 +27167,105 @@ describe("useToolbarHandlers", () => {
   });
 });
 
+describe("useComposerController", () => {
+  // A real Slate editor (not the stub) so removeAnnotationMark's `editor.tf.unsetNodes`
+  // actually runs; two eager comment marks in separate paragraphs (no adjacent-leaf
+  // merge) so a per-id rollback is observable at a stable path.
+  const seededEditor = (): ReturnType<typeof createSlateEditor> =>
+    createSlateEditor({
+      plugins: SymbiotEditorKit,
+      value: [
+        { type: "p", children: [{ text: "alpha", comment: true, comment_a: true }] },
+        { type: "p", children: [{ text: "bravo", comment: true, comment_b: true }] },
+      ],
+    });
+
+  const pending = (id: string): PendingAuthoring => ({
+    kind: "comment",
+    applied: { id, anchorText: id },
+  });
+
+  const marks = (editor: ReturnType<typeof createSlateEditor>, path: number[]): Set<string> => {
+    let node: unknown = { children: editor.children };
+    for (const index of path) node = (node as { children: unknown[] }).children[index];
+    return new Set(Object.keys(node as Record<string, unknown>));
+  };
+
+  it("rolls back the eager mark when the composer closes without a save", () => {
+    const editor = seededEditor();
+    const maps = emptyMaps();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, maps, setters));
+    act(() => {
+      result.current.setPending(pending("a"));
+    });
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+
+    act(() => {
+      result.current.onComposerCancel();
+    });
+    // The lifecycle effect rolled the eager comment mark off the leaf on close.
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(false);
+    expect(marks(editor, [0, 0]).has("comment")).toBe(false);
+  });
+
+  it("keeps the eager mark and writes the body when the composer is saved", () => {
+    const editor = seededEditor();
+    const maps = emptyMaps();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, maps, setters));
+    act(() => {
+      result.current.setPending(pending("a"));
+    });
+    act(() => {
+      result.current.onComposerSave({ body: "note", images: [] });
+    });
+    // A save must NOT trigger the cancel rollback — the highlight stays.
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+    expect(setters.setBodies).toHaveBeenCalledTimes(1);
+    // The body is persisted under the open annotation's id — run the state updater
+    // to confirm the payload is routed to "a" (not a mis-routed or empty write).
+    const updater = vi.mocked(setters.setBodies).mock.calls[0]?.[0];
+    if (typeof updater !== "function") throw new Error("expected a setBodies updater function");
+    expect(updater(new Map())).toEqual(new Map([["a", "note"]]));
+  });
+
+  it("is a no-op when save fires with no composer open", () => {
+    const editor = seededEditor();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    act(() => {
+      result.current.onComposerSave({ body: "stray", images: [] });
+    });
+    // No pending → nothing persisted and both eager marks stay untouched.
+    expect(setters.setBodies).not.toHaveBeenCalled();
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+  });
+
+  it("rolls back the right id after a prior save (savedRef resets per cycle)", () => {
+    const editor = seededEditor();
+    const maps = emptyMaps();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, maps, setters));
+    // Cycle 1: open + save "a" — savedRef suppresses rollback for this cycle only.
+    act(() => {
+      result.current.setPending(pending("a"));
+    });
+    act(() => {
+      result.current.onComposerSave({ body: "kept", images: [] });
+    });
+    // Cycle 2: open + cancel "b" — rollback must fire again, for "b" only.
+    act(() => {
+      result.current.setPending(pending("b"));
+    });
+    act(() => {
+      result.current.onComposerCancel();
+    });
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true); // saved highlight survives
+    expect(marks(editor, [1, 0]).has("comment_b")).toBe(false); // cancelled highlight rolled back
+  });
+});
+
 describe("useReadyHandle", () => {
   it("calls onReady once with a handle whose getters return clones of every supplied map", () => {
     const maps = emptyMaps();
@@ -27313,7 +27403,14 @@ describe("updateAnnotationMaps", () => {
 </file>
 
 <file path="packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx">
-import { useCallback, useEffect, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { PlateEditor } from "platejs/react";
 import { type AnnotationComposerPayload } from "@symbiot/ui/components/AnnotationComposer";
 
@@ -27642,6 +27739,69 @@ export const dispatchComposerCancel = (
   if (pending === null) return;
   removeAnnotationMark(editor, pending.kind, pending.applied.id);
   onChange?.(snapshotOf(editor, maps));
+};
+
+/** Pending composer state plus its save / cancel handlers. */
+export interface ComposerController {
+  /** Authoring flow awaiting the composer's Save, or `null` when the composer is closed. */
+  pending: PendingAuthoring | null;
+  /** Opens the composer for a freshly-applied annotation; wired to {@link useToolbarHandlers}. */
+  setPending: Dispatch<SetStateAction<PendingAuthoring | null>>;
+  /** Persist the composer payload and close. */
+  onComposerSave: (payload: AnnotationComposerPayload) => void;
+  /** Close without saving; the eager mark rollback runs via the lifecycle effect. */
+  onComposerCancel: () => void;
+}
+
+/**
+ * Own the inline composer's `pending` state and its save / cancel handlers.
+ *
+ * The eager "Pattern A" mark is rolled back by the composer's open→closed
+ * lifecycle (the effect below), NOT inside the cancel event. The overlay-dismiss
+ * route delivers its close through Radix `onOpenChange`, whose callback can fire
+ * against a stale `pending` and skip an inline rollback — the only cancel route
+ * that flaked in CI (button / Escape call `onCancel` directly while the editor is
+ * still focused). Keying rollback on the `pending` non-null→null transition makes
+ * it fire exactly once, after the close commits and Radix focus restoration
+ * settles, for the just-closed id — regardless of which route closed the composer.
+ * `savedRef` distinguishes a save (keep the mark) from a cancel (roll it back).
+ * Extracted (like {@link useRemoveAnnotation}) so `ReviewEditor` stays under the
+ * per-function line cap.
+ */
+export const useComposerController = (
+  editor: PlateEditor,
+  maps: AnnotationMaps,
+  setters: PruneSetters,
+  onChange?: (snapshot: EditorSnapshot) => void
+): ComposerController => {
+  const [pending, setPending] = useState<PendingAuthoring | null>(null);
+  const savedRef = useRef(false);
+  const prevPendingRef = useRef<PendingAuthoring | null>(null);
+
+  const onComposerSave = useCallback(
+    (payload: AnnotationComposerPayload): void => {
+      if (pending === null) return;
+      dispatchComposerSave(pending, payload, setters);
+      savedRef.current = true;
+      setPending(null);
+    },
+    [pending, setters]
+  );
+
+  const onComposerCancel = useCallback((): void => setPending(null), []);
+
+  useEffect(() => {
+    const prev = prevPendingRef.current;
+    prevPendingRef.current = pending;
+    if (prev === null || pending !== null) return;
+    if (savedRef.current) {
+      savedRef.current = false;
+      return;
+    }
+    dispatchComposerCancel(prev, editor, maps, onChange);
+  }, [pending, editor, maps, onChange]);
+
+  return { pending, setPending, onComposerSave, onComposerCancel };
 };
 </file>
 
