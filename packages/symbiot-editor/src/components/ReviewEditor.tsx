@@ -1,19 +1,14 @@
 import { MarkdownPlugin } from "@platejs/markdown";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Plate, PlateContent, usePlateEditor } from "platejs/react";
-import {
-  AnnotationComposer,
-  type AnnotationComposerPayload,
-} from "@symbiot/ui/components/AnnotationComposer";
+import { AnnotationComposer } from "@symbiot/ui/components/AnnotationComposer";
 
 import { SymbiotEditorKit } from "../utils/kit.ts";
 import { stampBlockLines } from "../utils/sourceLines.ts";
 import { useTypingGuard } from "../utils/typingGuard.ts";
 
 import {
-  type PendingAuthoring,
-  dispatchComposerCancel,
-  dispatchComposerSave,
+  useComposerController,
   useReadyHandle,
   useRemoveAnnotation,
   useTaskToggle,
@@ -109,7 +104,6 @@ export const ReviewEditor = ({
     initialReplacementImages,
     initialReplacementOriginalTexts,
   });
-  const [pending, setPending] = useState<PendingAuthoring | null>(null);
 
   const editor = usePlateEditor({
     plugins: SymbiotEditorKit,
@@ -119,6 +113,13 @@ export const ReviewEditor = ({
       return stampBlockLines(markdown, deserialized) as never;
     },
   });
+
+  const { pending, setPending, onComposerSave, onComposerCancel } = useComposerController(
+    editor,
+    maps,
+    setters,
+    onChange
+  );
 
   useTypingGuard(containerRef);
 
@@ -143,20 +144,6 @@ export const ReviewEditor = ({
     });
 
   useReadyHandle(editor, maps, onRemoveAnnotation, onUpdateAnnotation, triggerAnnotation, onReady);
-
-  const onComposerSave = useCallback(
-    (payload: AnnotationComposerPayload): void => {
-      if (pending === null) return;
-      dispatchComposerSave(pending, payload, setters);
-      setPending(null);
-    },
-    [pending, setters]
-  );
-
-  const onComposerCancel = useCallback((): void => {
-    dispatchComposerCancel(pending, editor, maps, onChange);
-    setPending(null);
-  }, [pending, editor, maps, onChange]);
 
   const onToggleTask = useTaskToggle(editor, maps, onChange);
 

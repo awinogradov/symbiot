@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
 import { act, renderHook } from "@testing-library/react";
+import { createSlateEditor } from "platejs";
 import { describe, expect, it, vi } from "vitest";
+
+import { SymbiotEditorKit } from "../utils/kit.ts";
 
 import { emptyMaps, stubEditor, stubSetters } from "./_reviewEditorTestHelpers.ts";
 import { type AnnotationMaps } from "./ReviewEditorState.tsx";
@@ -10,6 +13,7 @@ import {
   saveInsertionBody,
   saveReplacementBody,
   updateAnnotationMaps,
+  useComposerController,
   useReadyHandle,
   useToolbarHandlers,
   type PendingAuthoring,
@@ -209,6 +213,100 @@ describe("useToolbarHandlers", () => {
     // Comment / insertion / replacement go through setPending; deletion goes to setters.
     expect(setPending).toHaveBeenCalledTimes(3);
     expect(setters.setSuggestionOriginalTexts).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useComposerController", () => {
+  // A real Slate editor (not the stub) so removeAnnotationMark's `editor.tf.unsetNodes`
+  // actually runs; two eager comment marks in separate paragraphs (no adjacent-leaf
+  // merge) so a per-id rollback is observable at a stable path.
+  const seededEditor = (): ReturnType<typeof createSlateEditor> =>
+    createSlateEditor({
+      plugins: SymbiotEditorKit,
+      value: [
+        { type: "p", children: [{ text: "alpha", comment: true, comment_a: true }] },
+        { type: "p", children: [{ text: "bravo", comment: true, comment_b: true }] },
+      ],
+    });
+
+  const pending = (id: string): PendingAuthoring => ({
+    kind: "comment",
+    applied: { id, anchorText: id },
+  });
+
+  const marks = (editor: ReturnType<typeof createSlateEditor>, path: number[]): Set<string> => {
+    let node: unknown = { children: editor.children };
+    for (const index of path) node = (node as { children: unknown[] }).children[index];
+    return new Set(Object.keys(node as Record<string, unknown>));
+  };
+
+  it("rolls back the eager mark when the composer closes without a save", () => {
+    const editor = seededEditor();
+    const maps = emptyMaps();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, maps, setters));
+    act(() => {
+      result.current.setPending(pending("a"));
+    });
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+
+    act(() => {
+      result.current.onComposerCancel();
+    });
+    // The lifecycle effect rolled the eager comment mark off the leaf on close.
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(false);
+    expect(marks(editor, [0, 0]).has("comment")).toBe(false);
+  });
+
+  it("keeps the eager mark and writes the body when the composer is saved", () => {
+    const editor = seededEditor();
+    const maps = emptyMaps();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, maps, setters));
+    act(() => {
+      result.current.setPending(pending("a"));
+    });
+    act(() => {
+      result.current.onComposerSave({ body: "note", images: [] });
+    });
+    // A save must NOT trigger the cancel rollback — the highlight stays.
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+    expect(setters.setBodies).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a no-op when save fires with no composer open", () => {
+    const editor = seededEditor();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    act(() => {
+      result.current.onComposerSave({ body: "stray", images: [] });
+    });
+    // No pending → nothing persisted and both eager marks stay untouched.
+    expect(setters.setBodies).not.toHaveBeenCalled();
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+  });
+
+  it("rolls back the right id after a prior save (savedRef resets per cycle)", () => {
+    const editor = seededEditor();
+    const maps = emptyMaps();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, maps, setters));
+    // Cycle 1: open + save "a" — savedRef suppresses rollback for this cycle only.
+    act(() => {
+      result.current.setPending(pending("a"));
+    });
+    act(() => {
+      result.current.onComposerSave({ body: "kept", images: [] });
+    });
+    // Cycle 2: open + cancel "b" — rollback must fire again, for "b" only.
+    act(() => {
+      result.current.setPending(pending("b"));
+    });
+    act(() => {
+      result.current.onComposerCancel();
+    });
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true); // saved highlight survives
+    expect(marks(editor, [1, 0]).has("comment_b")).toBe(false); // cancelled highlight rolled back
   });
 });
 
