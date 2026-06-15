@@ -4196,7 +4196,7 @@ fi
 {
   "name": "symbiot",
   "description": "Interactive plan review for Claude Code — intercept ExitPlanMode, annotate, and return structured feedback.",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "author": { "name": "awinogradov" },
   "repository": "https://github.com/awinogradov/symbiot",
   "keywords": ["planning", "review", "ExitPlanMode", "hooks", "annotation"]
@@ -4204,10 +4204,10 @@ fi
 </file>
 
 <file path="apps/claude-code/bin/SHA256SUMS">
-048b9397e998f67a3669167b2fcfe30ca85eac68f0b9e2914e8fe60702b21ff8  symbiot-darwin-arm64
-70ad8adf9d6d4b3d4eb35a0a817aa1a1a499a86a0dc028d6a7a0ba1c71ce5680  symbiot-darwin-x64
-e817b4363203a613ace474bd87fa7d7b542556882c2f6ce86649150d050c8674  symbiot-linux-x64
-ba673658f9eb94e4051535e615ea2dd9bc11b643d2f385a9a5939cdcefd0de6b  symbiot-windows-x64.exe
+35e6e8c6d1775095089b0da0e344cdba00bbb2c3c2204ce614161f312cd2c655  symbiot-darwin-arm64
+4e93a5110a1d58a76ab75d38318c18458396b1ce42757b478a32d1ae6c9835a1  symbiot-darwin-x64
+918e5503cb83ad439bf988057995c5a883efb193a353cd683eb0f36bd953004b  symbiot-linux-x64
+d44bfc276ca0ab37f9ae867eebf189a0a205cec4babd6874fc7a82391e31501b  symbiot-windows-x64.exe
 </file>
 
 <file path="apps/claude-code/bin/symbiot">
@@ -4473,7 +4473,7 @@ exit /b 0
 </file>
 
 <file path="apps/claude-code/bin/VERSION">
-v0.3.0
+v0.4.1
 </file>
 
 <file path="apps/claude-code/hooks/hooks.json">
@@ -5335,7 +5335,7 @@ describe("bin/symbiot download lock", () => {
 <file path="apps/claude-code/package.json">
 {
   "name": "@symbiot/claude-code",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "main": "src/cli.ts",
@@ -5843,7 +5843,7 @@ export const runHook = async (argv: string[]): Promise<number> => {
 <file path="apps/codex/package.json">
 {
   "name": "@symbiot/codex",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "main": "src/cli.ts",
@@ -6692,7 +6692,7 @@ export const runHook = async (argv: string[]): Promise<number> => {
 <file path="apps/copilot/package.json">
 {
   "name": "@symbiot/copilot",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "main": "src/cli.ts",
@@ -6999,7 +6999,7 @@ export default defineConfig({
 <file path="apps/gemini/extension/gemini-extension.json">
 {
   "name": "symbiot-gemini",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "description": "Interactive plan review for Gemini CLI / Antigravity — intercept the turn-final response, annotate it in a browser, and return structured feedback. Dormant until the Antigravity CLI cutover (2026-06-18); activate via hooks/hooks.json."
 }
 </file>
@@ -7301,7 +7301,7 @@ export const runHook = async (argv: string[]): Promise<number> => {
 <file path="apps/gemini/package.json">
 {
   "name": "@symbiot/gemini",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "main": "src/cli.ts",
@@ -8412,7 +8412,7 @@ export const claimPendingFeedback = async (sessionId: string): Promise<string | 
 <file path="apps/opencode-plugin/package.json">
 {
   "name": "@symbiot/opencode-plugin",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "description": "OpenCode plugin for symbiot — interactive plan review in a browser viewer.",
   "license": "MIT",
   "repository": {
@@ -13314,7 +13314,7 @@ export const resolveBuildInfo = (readers: BuildInfoReaders = defaultReaders): Bu
 <file path="apps/viewer/package.json">
 {
   "name": "@symbiot/viewer",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "main": "src/server/startServer.ts",
