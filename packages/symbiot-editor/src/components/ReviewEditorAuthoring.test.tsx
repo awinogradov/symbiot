@@ -272,6 +272,11 @@ describe("useComposerController", () => {
     // A save must NOT trigger the cancel rollback — the highlight stays.
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
     expect(setters.setBodies).toHaveBeenCalledTimes(1);
+    // The body is persisted under the open annotation's id — run the state updater
+    // to confirm the payload is routed to "a" (not a mis-routed or empty write).
+    const updater = vi.mocked(setters.setBodies).mock.calls[0]?.[0];
+    if (typeof updater !== "function") throw new Error("expected a setBodies updater function");
+    expect(updater(new Map())).toEqual(new Map([["a", "note"]]));
   });
 
   it("is a no-op when save fires with no composer open", () => {
