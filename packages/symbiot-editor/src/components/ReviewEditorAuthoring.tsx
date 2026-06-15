@@ -1,4 +1,11 @@
-import { useCallback, useEffect, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { PlateEditor } from "platejs/react";
 import { type AnnotationComposerPayload } from "@symbiot/ui/components/AnnotationComposer";
 
@@ -327,4 +334,67 @@ export const dispatchComposerCancel = (
   if (pending === null) return;
   removeAnnotationMark(editor, pending.kind, pending.applied.id);
   onChange?.(snapshotOf(editor, maps));
+};
+
+/** Pending composer state plus its save / cancel handlers. */
+export interface ComposerController {
+  /** Authoring flow awaiting the composer's Save, or `null` when the composer is closed. */
+  pending: PendingAuthoring | null;
+  /** Opens the composer for a freshly-applied annotation; wired to {@link useToolbarHandlers}. */
+  setPending: Dispatch<SetStateAction<PendingAuthoring | null>>;
+  /** Persist the composer payload and close. */
+  onComposerSave: (payload: AnnotationComposerPayload) => void;
+  /** Close without saving; the eager mark rollback runs via the lifecycle effect. */
+  onComposerCancel: () => void;
+}
+
+/**
+ * Own the inline composer's `pending` state and its save / cancel handlers.
+ *
+ * The eager "Pattern A" mark is rolled back by the composer's open→closed
+ * lifecycle (the effect below), NOT inside the cancel event. The overlay-dismiss
+ * route delivers its close through Radix `onOpenChange`, whose callback can fire
+ * against a stale `pending` and skip an inline rollback — the only cancel route
+ * that flaked in CI (button / Escape call `onCancel` directly while the editor is
+ * still focused). Keying rollback on the `pending` non-null→null transition makes
+ * it fire exactly once, after the close commits and Radix focus restoration
+ * settles, for the just-closed id — regardless of which route closed the composer.
+ * `savedRef` distinguishes a save (keep the mark) from a cancel (roll it back).
+ * Extracted (like {@link useRemoveAnnotation}) so `ReviewEditor` stays under the
+ * per-function line cap.
+ */
+export const useComposerController = (
+  editor: PlateEditor,
+  maps: AnnotationMaps,
+  setters: PruneSetters,
+  onChange?: (snapshot: EditorSnapshot) => void
+): ComposerController => {
+  const [pending, setPending] = useState<PendingAuthoring | null>(null);
+  const savedRef = useRef(false);
+  const prevPendingRef = useRef<PendingAuthoring | null>(null);
+
+  const onComposerSave = useCallback(
+    (payload: AnnotationComposerPayload): void => {
+      if (pending === null) return;
+      dispatchComposerSave(pending, payload, setters);
+      savedRef.current = true;
+      setPending(null);
+    },
+    [pending, setters]
+  );
+
+  const onComposerCancel = useCallback((): void => setPending(null), []);
+
+  useEffect(() => {
+    const prev = prevPendingRef.current;
+    prevPendingRef.current = pending;
+    if (prev === null || pending !== null) return;
+    if (savedRef.current) {
+      savedRef.current = false;
+      return;
+    }
+    dispatchComposerCancel(prev, editor, maps, onChange);
+  }, [pending, editor, maps, onChange]);
+
+  return { pending, setPending, onComposerSave, onComposerCancel };
 };
