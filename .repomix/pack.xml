@@ -3986,8 +3986,10 @@ jobs:
         run: |
           # The tag drives the published version; the in-repo bump PR lands after release.
           npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
-          # bun pm pack normalizes the workspace:* protocol and honors "files"; runtime deps
-          # are bundled into dist/plugin.js, so the tarball has no unresolvable dependencies.
+          # Runtime code is bundled into dist/plugin.js, so the published package needs no
+          # deps. Drop devDependencies (they carry workspace:* refs npm publish cannot resolve)
+          # before packing so the tarball manifest validates under both pack and publish.
+          npm pkg delete devDependencies
           bun pm pack
           if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
             echo "NPM_TOKEN not set — running publish in --dry-run mode."
