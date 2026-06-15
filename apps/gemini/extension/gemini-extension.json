@@ -1,5 +1,5 @@
 {
   "name": "symbiot-gemini",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Interactive plan review for Gemini CLI / Antigravity — intercept the turn-final response, annotate it in a browser, and return structured feedback. Dormant until the Antigravity CLI cutover (2026-06-18); activate via hooks/hooks.json."
 }

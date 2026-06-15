@@ -1,6 +1,6 @@
 {
   "name": "@symbiot/opencode-plugin",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "OpenCode plugin for symbiot — interactive plan review in a browser viewer.",
   "license": "MIT",
   "repository": {
