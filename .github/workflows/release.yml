@@ -112,12 +112,12 @@ jobs:
           # all integrations stay in lockstep with the tag. A JSON parse-and-rewrite reformats em-dashes,
           # inline objects, and arrays, which fails `bun run format:check`, so use a targeted sed on the
           # first "version" key only (in each package.json that is the package version, before deps).
-          manifests="apps/claude-code/.claude-plugin/plugin.json apps/gemini/extension/gemini-extension.json apps/claude-code/package.json apps/codex/package.json apps/copilot/package.json apps/gemini/package.json apps/opencode-plugin/package.json apps/viewer/package.json"
-          for m in $manifests; do
+          manifests=(apps/claude-code/.claude-plugin/plugin.json apps/gemini/extension/gemini-extension.json apps/claude-code/package.json apps/codex/package.json apps/copilot/package.json apps/gemini/package.json apps/opencode-plugin/package.json apps/viewer/package.json)
+          for m in "${manifests[@]}"; do
             sed -i '1,/"version":/ s/"version": "[^"]*"/"version": "'"$VER"'"/' "$m"
             grep -q "\"version\": \"$VER\"" "$m" || { echo "version bump did not land in $m"; exit 1; }
           done
-          git add apps/claude-code/bin/SHA256SUMS apps/claude-code/bin/VERSION $manifests
+          git add apps/claude-code/bin/SHA256SUMS apps/claude-code/bin/VERSION "${manifests[@]}"
           git commit -m "chore(release): ${GITHUB_REF_NAME}"
           git push -u origin "$BR"
           gh pr create \
