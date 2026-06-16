@@ -313,6 +313,34 @@ describe("useComposerController", () => {
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(true); // saved highlight survives
     expect(marks(editor, [1, 0]).has("comment_b")).toBe(false); // cancelled highlight rolled back
   });
+
+  it("suppresses the rollback when a save closed the composer (savedRef guard)", () => {
+    const editor = seededEditor();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    act(() => {
+      result.current.setPending(pending("a"));
+    });
+    act(() => {
+      result.current.onComposerSave({ body: "kept", images: [] });
+    });
+    // A stray cancel right after a save (e.g. a controlled close surfacing through Radix
+    // `onOpenChange`) must take the `savedRef` branch and NOT roll back the just-saved mark.
+    act(() => {
+      result.current.onComposerCancel();
+    });
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+  });
+
+  it("is a no-op when cancel fires with no composer open", () => {
+    const editor = seededEditor();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    act(() => {
+      result.current.onComposerCancel();
+    });
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+  });
 });
 
 describe("useReadyHandle", () => {
