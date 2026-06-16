@@ -26892,12 +26892,8 @@ export const ReviewEditor = ({
     },
   });
 
-  const { pending, setPending, onComposerSave, onComposerCancel } = useComposerController(
-    editor,
-    maps,
-    setters,
-    onChange
-  );
+  const { pending, setPending, contentKey, onComposerSave, onComposerCancel } =
+    useComposerController(editor, maps, setters, onChange);
 
   useTypingGuard(containerRef);
 
@@ -26933,7 +26929,7 @@ export const ReviewEditor = ({
     >
       <TaskToggleContext value={onToggleTask}>
         <Plate editor={editor}>
-          <PlateContent readOnly className="outline-none" />
+          <PlateContent key={contentKey} readOnly className="outline-none" />
           <ToolbarButtons
             onComment={onCommentClick}
             onInsert={onInsertClick}
@@ -27269,6 +27265,34 @@ describe("useComposerController", () => {
     });
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(true); // saved highlight survives
     expect(marks(editor, [1, 0]).has("comment_b")).toBe(false); // cancelled highlight rolled back
+  });
+
+  it("suppresses the rollback when a save closed the composer (savedRef guard)", () => {
+    const editor = seededEditor();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    act(() => {
+      result.current.setPending(pending("a"));
+    });
+    act(() => {
+      result.current.onComposerSave({ body: "kept", images: [] });
+    });
+    // A stray cancel right after a save (e.g. a controlled close surfacing through Radix
+    // `onOpenChange`) must take the `savedRef` branch and NOT roll back the just-saved mark.
+    act(() => {
+      result.current.onComposerCancel();
+    });
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+  });
+
+  it("is a no-op when cancel fires with no composer open", () => {
+    const editor = seededEditor();
+    const setters = stubSetters();
+    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    act(() => {
+      result.current.onComposerCancel();
+    });
+    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
   });
 });
 
@@ -27753,24 +27777,31 @@ export interface ComposerController {
   pending: PendingAuthoring | null;
   /** Opens the composer for a freshly-applied annotation; wired to {@link useToolbarHandlers}. */
   setPending: Dispatch<SetStateAction<PendingAuthoring | null>>;
+  /** Re-render nonce for `PlateContent`; bumped on cancel so a rolled-back highlight can't linger. */
+  contentKey: number;
   /** Persist the composer payload and close. */
   onComposerSave: (payload: AnnotationComposerPayload) => void;
-  /** Close without saving; the eager mark rollback runs via the lifecycle effect. */
+  /** Close without saving; rolls the eager mark back synchronously in the dismiss event. */
   onComposerCancel: () => void;
 }
 
 /**
  * Own the inline composer's `pending` state and its save / cancel handlers.
  *
- * The eager "Pattern A" mark is rolled back by the composer's open→closed
- * lifecycle (the effect below), NOT inside the cancel event. The overlay-dismiss
- * route delivers its close through Radix `onOpenChange`, whose callback can fire
- * against a stale `pending` and skip an inline rollback — the only cancel route
- * that flaked in CI (button / Escape call `onCancel` directly while the editor is
- * still focused). Keying rollback on the `pending` non-null→null transition makes
- * it fire exactly once, after the close commits and Radix focus restoration
- * settles, for the just-closed id — regardless of which route closed the composer.
- * `savedRef` distinguishes a save (keep the mark) from a cancel (roll it back).
+ * The eager "Pattern A" mark is rolled back **synchronously inside the cancel
+ * event**, before the close commits and Radix's modal focus-restoration runs.
+ * A deferred rollback (post-commit effect) races that focus restoration on the
+ * overlay-dismiss route under CI load and intermittently leaves the highlight
+ * behind (symbiot#231); running it in the handler closes the race.
+ *
+ * Save and cancel are already separate handlers: a save closes the dialog
+ * programmatically (`open` → false), which does NOT fire Radix `onOpenChange`,
+ * so it never reaches {@link onComposerCancel}; only genuine dismisses (button /
+ * Escape / overlay click) do. `savedRef` still guards the rollback so that even
+ * if a controlled close were to surface through `onOpenChange`, a just-saved mark
+ * is kept; it is cleared whenever a fresh composer opens so a prior save never
+ * suppresses the next cancel. `pendingRef` mirrors `pending` so the handler rolls
+ * back the CURRENT id even when Radix invokes the callback from a stale render.
  * Extracted (like {@link useRemoveAnnotation}) so `ReviewEditor` stays under the
  * per-function line cap.
  */
@@ -27781,33 +27812,42 @@ export const useComposerController = (
   onChange?: (snapshot: EditorSnapshot) => void
 ): ComposerController => {
   const [pending, setPending] = useState<PendingAuthoring | null>(null);
+  const [contentKey, setContentKey] = useState(0);
+  const pendingRef = useRef<PendingAuthoring | null>(null);
   const savedRef = useRef(false);
-  const prevPendingRef = useRef<PendingAuthoring | null>(null);
+
+  useEffect(() => {
+    pendingRef.current = pending;
+    if (pending !== null) savedRef.current = false;
+  }, [pending]);
 
   const onComposerSave = useCallback(
     (payload: AnnotationComposerPayload): void => {
-      if (pending === null) return;
-      dispatchComposerSave(pending, payload, setters);
+      const { current } = pendingRef;
+      if (current === null) return;
+      dispatchComposerSave(current, payload, setters);
       savedRef.current = true;
       setPending(null);
     },
-    [pending, setters]
+    [setters]
   );
 
-  const onComposerCancel = useCallback((): void => setPending(null), []);
-
-  useEffect(() => {
-    const prev = prevPendingRef.current;
-    prevPendingRef.current = pending;
-    if (prev === null || pending !== null) return;
+  const onComposerCancel = useCallback((): void => {
     if (savedRef.current) {
       savedRef.current = false;
       return;
     }
-    dispatchComposerCancel(prev, editor, maps, onChange);
-  }, [pending, editor, maps, onChange]);
+    const { current } = pendingRef;
+    setPending(null);
+    if (current === null) return;
+    dispatchComposerCancel(current, editor, maps, onChange);
+    // The unset cleans editor.children, but Plate's <Editable> can skip the re-render on
+    // the overlay-dismiss route (editor blurred), leaving a stale highlight in the DOM;
+    // bump the content key to force a clean re-render from the updated value (symbiot#231).
+    setContentKey((key) => key + 1);
+  }, [editor, maps, onChange]);
 
-  return { pending, setPending, onComposerSave, onComposerCancel };
+  return { pending, setPending, contentKey, onComposerSave, onComposerCancel };
 };
 </file>
 
