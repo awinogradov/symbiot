@@ -114,12 +114,8 @@ export const ReviewEditor = ({
     },
   });
 
-  const { pending, setPending, onComposerSave, onComposerCancel } = useComposerController(
-    editor,
-    maps,
-    setters,
-    onChange
-  );
+  const { pending, setPending, contentKey, onComposerSave, onComposerCancel } =
+    useComposerController(editor, maps, setters, onChange);
 
   useTypingGuard(containerRef);
 
@@ -155,7 +151,7 @@ export const ReviewEditor = ({
     >
       <TaskToggleContext value={onToggleTask}>
         <Plate editor={editor}>
-          <PlateContent readOnly className="outline-none" />
+          <PlateContent key={contentKey} readOnly className="outline-none" />
           <ToolbarButtons
             onComment={onCommentClick}
             onInsert={onInsertClick}
