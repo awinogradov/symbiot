@@ -6,6 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { flushSync } from "react-dom";
 import type { PlateEditor } from "platejs/react";
 import { type AnnotationComposerPayload } from "@symbiot/ui/components/AnnotationComposer";
 
@@ -403,13 +404,23 @@ export const useComposerController = (
       return;
     }
     const { current } = pendingRef;
-    setPending(null);
-    if (current === null) return;
-    dispatchComposerCancel(current, editor, maps, onChange);
-    // The unset cleans editor.children, but Plate's <Editable> can skip the re-render on
-    // the overlay-dismiss route (editor blurred), leaving a stale highlight in the DOM;
-    // bump the content key to force a clean re-render from the updated value (symbiot#231).
-    setContentKey((key) => key + 1);
+    if (current === null) {
+      setPending(null);
+      return;
+    }
+    // Close the composer, roll the eager mark back, and remount PlateContent (key bump) in a
+    // single SYNCHRONOUS commit, so the cleaned editor DOM lands before Radix's modal
+    // focus-restoration runs. The unset already cleans editor.children; the residual flake is a
+    // concurrent-commit race — without flushSync the batched key bump interleaves with Radix
+    // focus restoration on the blurred overlay-dismiss route, and ~25% of CI runs leave the
+    // rolled-back highlight orphaned in the read-only DOM. flushSync orders the remount strictly
+    // before focus restoration, closing the race (symbiot#231).
+    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- required synchronous commit before Radix focus restoration (symbiot#231)
+    flushSync(() => {
+      setPending(null);
+      dispatchComposerCancel(current, editor, maps, onChange);
+      setContentKey((key) => key + 1);
+    });
   }, [editor, maps, onChange]);
 
   return { pending, setPending, contentKey, onComposerSave, onComposerCancel };
