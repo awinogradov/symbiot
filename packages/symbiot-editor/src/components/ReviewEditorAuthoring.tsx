@@ -16,7 +16,7 @@ import {
   type AppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
 import { applyTaskToggle, removeTaskToggle } from "../utils/applyTaskToggle.ts";
-import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
+import { hasAnnotationMark, removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
 import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
 import { type AnnotationMaps, type PruneSetters } from "./ReviewEditorState.tsx";
@@ -352,6 +352,25 @@ export interface ComposerController {
 }
 
 /**
+ * Temporary diagnostic (symbiot#231): right after the synchronous cancel commit, record whether
+ * the model was cleaned vs. what the DOM still shows, plus the focused element, on `window.__diag`.
+ * The failing BDD step reads it back. Revert with the step-side instrumentation once confirmed.
+ */
+const recordCancelDiag = (editor: PlateEditor, pending: PendingAuthoring): void => {
+  if (typeof document === "undefined") return;
+  const w = window as unknown as { __diag?: unknown[] };
+  const log = (w.__diag ??= []);
+  const active = document.activeElement;
+  log.push({
+    ev: "cancel",
+    id: pending.applied.id,
+    modelClean: !hasAnnotationMark(editor, pending.kind, pending.applied.id),
+    domCount: document.querySelectorAll(`[data-testid="annotation-${pending.kind}"]`).length,
+    activeTag: active ? active.tagName : null,
+  });
+};
+
+/**
  * Own the inline composer's `pending` state and its save / cancel handlers.
  *
  * The eager "Pattern A" mark is rolled back **synchronously inside the cancel
@@ -421,6 +440,7 @@ export const useComposerController = (
       dispatchComposerCancel(current, editor, maps, onChange);
       setContentKey((key) => key + 1);
     });
+    recordCancelDiag(editor, current);
   }, [editor, maps, onChange]);
 
   return { pending, setPending, contentKey, onComposerSave, onComposerCancel };

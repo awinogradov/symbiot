@@ -58,3 +58,15 @@ export const removeAnnotationMark = (
     }
   }
 };
+
+/** Whether any text leaf in the editor value still carries the `<prefix>_<id>` mark. */
+export const hasAnnotationMark = (
+  editor: PlateEditor,
+  kind: AnnotationKind,
+  id: string
+): boolean => {
+  const idKey = `${prefixOf(kind)}_${id}`;
+  const matches: { leaf: TextLeaf; path: number[] }[] = [];
+  collectMatchingPaths(editor.children, idKey, [], matches);
+  return matches.length > 0;
+};
