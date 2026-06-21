@@ -1,0 +1,100 @@
+name: Flake Probe
+
+# Manually re-run the real BDD suite many times to hunt CI-only Heisenbugs.
+# Faithfulness matters: some flakes (e.g. the overlay-cancel highlight, symbiot#231)
+# reproduce ONLY under the full 3-browser suite under coverage, repeated, on Linux —
+# isolating a single scenario hides them. So this job mirrors the PR workflow's BDD
+# step exactly (CI=true → firefox/webkit @smoke; COVERAGE=1) and repeats it via
+# Playwright's --repeat-each. Dispatch it against a fix branch (baseline must red,
+# patched must be 0 failures across repeat_each, run twice) — never to mask a flake
+# with retries (playwright.config.ts deliberately keeps retries: 0).
+on:
+  workflow_dispatch:
+    inputs:
+      repeat_each:
+        description: "Times to repeat each selected test (>= 20 to gate a fix)"
+        required: false
+        default: "20"
+      grep:
+        description: "Optional Playwright -g title filter; EMPTY = full suite (narrowing can hide the Heisenbug)"
+        required: false
+        default: ""
+      workers:
+        description: "Playwright workers (match CI's 3 to reproduce contention)"
+        required: false
+        default: "3"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  flake-probe:
+    name: Probe
+    runs-on: ubuntu-latest
+    # repeat_each * full 3-browser coverage suite is long; give it headroom.
+    timeout-minutes: 60
+    env:
+      CI: "true"
+      HUSKY: "0"
+      PLAYWRIGHT_WORKERS: ${{ inputs.workers }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Restore Turborepo + Bun cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .turbo
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-turbo-${{ hashFiles('bun.lock', 'turbo.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(bunx playwright --version | sed 's/Version //')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.pw.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium firefox webkit
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium firefox webkit
+
+      # Faithful repro: same config as the PR workflow's BDD step (full 3-browser suite
+      # under coverage), repeated. Any single failure across the repeats fails the job.
+      - name: Flake probe (repeated BDD)
+        env:
+          REPEAT_EACH: ${{ inputs.repeat_each }}
+          GREP: ${{ inputs.grep }}
+        run: |
+          set -euo pipefail
+          COVERAGE=1 bunx bddgen
+          if [ -n "$GREP" ]; then
+            COVERAGE=1 bunx playwright test --repeat-each="$REPEAT_EACH" -g "$GREP"
+          else
+            COVERAGE=1 bunx playwright test --repeat-each="$REPEAT_EACH"
+          fi
