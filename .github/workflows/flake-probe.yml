@@ -84,6 +84,12 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: bunx playwright install-deps chromium firefox webkit
 
+      # The agent apps import the viewer embed (@symbiot/viewer/dist/embed/index.html.gz),
+      # a build artifact. Running Playwright directly bypasses turbo's `test:e2e` -> `^build`
+      # dependency, so build explicitly or every scenario fails at "Given I open the viewer".
+      - name: Build
+        run: bun run build
+
       # Faithful repro: same config as the PR workflow's BDD step (full 3-browser suite
       # under coverage), repeated. Any single failure across the repeats fails the job.
       - name: Flake probe (repeated BDD)
