@@ -197,6 +197,32 @@ state that concurrent scenarios touch, so the viewers are booted per worker inst
 
 `retries` stays `0`: determinism comes from the isolation above, not from masking flakes.
 
+## Hunting CI-only flakes (flake probe)
+
+Because `retries` is `0`, a genuine flake turns one run red — so it must be fixed at the
+root, never quarantined or retried. Some flakes are Heisenbugs that reproduce **only** under
+the real CI shape: the full 3-browser suite **under coverage**, **repeated**, on a **Linux**
+runner. Narrowing to a single scenario or a single browser can hide them — the overlay-cancel
+highlight flake (#231) showed **0 failures across ~2,900 isolated runs** yet ~25% under the
+full suite. So a green _isolated_ probe is inconclusive.
+
+`.github/workflows/flake-probe.yml` (manual `workflow_dispatch`) hunts these faithfully: it
+mirrors the PR workflow's BDD step exactly and repeats it via Playwright's `--repeat-each`.
+Inputs: `repeat_each` (default `20`), `grep` (empty = full suite — the safe default), and
+`workers` (match CI's `3` to reproduce contention). To gate a fix, dispatch it twice against
+the fix branch and require **0 failures**; first prove the harness is faithful by dispatching
+it against the _unpatched_ tree and watching it red within the repeats. Since
+`workflow_dispatch` requires the file on the default branch, dispatch against a ref once it is
+on `main`, or validate pre-merge with a temporary `push`-triggered copy.
+
+**Pattern-A rollback rule (the canonical example).** The review editor applies an annotation
+**mark** eagerly when the composer opens (the highlight shows before a body is typed) and rolls
+it back on cancel. On the **overlay-dismiss** route the editor is blurred (Radix restores focus
+asynchronously), so the rollback **and** the `PlateContent` remount must commit **synchronously**
+inside the cancel handler — `flushSync` in `useComposerController`
+(`packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx`) — so the cleaned DOM lands
+_before_ focus restoration and can't orphan a stale highlight in the read-only editor (#231).
+
 ## E2E waiting rules
 
 Scenarios under `features/` never sleep on the wall clock. See the [`features/README.md`](../features/README.md) Conventions section for the rule, and `eslint.config.ts` + `.github/workflows/pr.yml` for the guards that prevent reintroduction.
