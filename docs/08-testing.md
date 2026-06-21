@@ -209,11 +209,11 @@ full suite. So a green _isolated_ probe is inconclusive.
 `.github/workflows/flake-probe.yml` (manual `workflow_dispatch`) hunts these faithfully: it
 mirrors the PR workflow's BDD step exactly and repeats it via Playwright's `--repeat-each`.
 Inputs: `repeat_each` (default `20`), `grep` (empty = full suite — the safe default), and
-`workers` (match CI's `3` to reproduce contention). To gate a fix, dispatch it twice against
-the fix branch and require **0 failures**; first prove the harness is faithful by dispatching
-it against the _unpatched_ tree and watching it red within the repeats. Since
-`workflow_dispatch` requires the file on the default branch, dispatch against a ref once it is
-on `main`, or validate pre-merge with a temporary `push`-triggered copy.
+`workers` (match CI's `3` to reproduce contention). To gate a fix, dispatch it against the fix
+branch ref twice and require **0 failures** (baseline-red is the pre-fix run history). It is
+`workflow_dispatch`-only on purpose: it never runs on `pull_request`/`push` and never appears
+as a PR check, so dispatch it explicitly against whatever ref you want to probe — it neither
+gates nor clutters the PR.
 
 **Pattern-A rollback rule (the canonical example).** The review editor applies an annotation
 **mark** eagerly when the composer opens (the highlight shows before a body is typed) and rolls
