@@ -72,6 +72,7 @@ The content is organized as follows:
     code-review-cost-monitor.yml
     code-review.yml
     contributing.yml
+    flake-probe.yml
     licenses.yml
     perf.yml
     pr.yml
@@ -3428,6 +3429,115 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: awinogradov/code-assistants/.github/actions/contributing-check@main
+</file>
+
+<file path=".github/workflows/flake-probe.yml">
+name: Flake Probe
+
+# Manually re-run the real BDD suite many times to hunt CI-only Heisenbugs.
+# Faithfulness matters: some flakes (e.g. the overlay-cancel highlight, symbiot#231)
+# reproduce ONLY under the full 3-browser suite under coverage, repeated, on Linux —
+# isolating a single scenario hides them. So this job mirrors the PR workflow's BDD
+# step exactly (CI=true → firefox/webkit @smoke; COVERAGE=1) and repeats it via
+# Playwright's --repeat-each. Dispatch it against a fix branch (baseline must red,
+# patched must be 0 failures across repeat_each, run twice) — never to mask a flake
+# with retries (playwright.config.ts deliberately keeps retries: 0).
+on:
+  workflow_dispatch:
+    inputs:
+      repeat_each:
+        description: "Times to repeat each selected test (>= 20 to gate a fix)"
+        required: false
+        default: "20"
+      grep:
+        description: "Optional Playwright -g title filter; EMPTY = full suite (narrowing can hide the Heisenbug)"
+        required: false
+        default: ""
+      workers:
+        description: "Playwright workers (match CI's 3 to reproduce contention)"
+        required: false
+        default: "3"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  flake-probe:
+    name: Probe
+    runs-on: ubuntu-latest
+    # repeat_each * full 3-browser coverage suite is long; give it headroom.
+    timeout-minutes: 60
+    env:
+      CI: "true"
+      HUSKY: "0"
+      PLAYWRIGHT_WORKERS: ${{ inputs.workers }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Restore Turborepo + Bun cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .turbo
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-turbo-${{ hashFiles('bun.lock', 'turbo.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(bunx playwright --version | sed 's/Version //')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.pw.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium firefox webkit
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium firefox webkit
+
+      # The agent apps import the viewer embed (@symbiot/viewer/dist/embed/index.html.gz),
+      # a build artifact. Running Playwright directly bypasses turbo's `test:e2e` -> `^build`
+      # dependency, so build explicitly or every scenario fails at "Given I open the viewer".
+      - name: Build
+        run: bun run build
+
+      # Faithful repro: same config as the PR workflow's BDD step (full 3-browser suite
+      # under coverage), repeated. Any single failure across the repeats fails the job.
+      - name: Flake probe (repeated BDD)
+        env:
+          REPEAT_EACH: ${{ inputs.repeat_each }}
+          GREP: ${{ inputs.grep }}
+        run: |
+          set -euo pipefail
+          COVERAGE=1 bunx bddgen
+          if [ -n "$GREP" ]; then
+            COVERAGE=1 bunx playwright test --repeat-each="$REPEAT_EACH" -g "$GREP"
+          else
+            COVERAGE=1 bunx playwright test --repeat-each="$REPEAT_EACH"
+          fi
 </file>
 
 <file path=".github/workflows/licenses.yml">
@@ -15185,6 +15295,32 @@ state that concurrent scenarios touch, so the viewers are booted per worker inst
 
 `retries` stays `0`: determinism comes from the isolation above, not from masking flakes.
 
+## Hunting CI-only flakes (flake probe)
+
+Because `retries` is `0`, a genuine flake turns one run red — so it must be fixed at the
+root, never quarantined or retried. Some flakes are Heisenbugs that reproduce **only** under
+the real CI shape: the full 3-browser suite **under coverage**, **repeated**, on a **Linux**
+runner. Narrowing to a single scenario or a single browser can hide them — the overlay-cancel
+highlight flake (#231) showed **0 failures across ~2,900 isolated runs** yet ~25% under the
+full suite. So a green _isolated_ probe is inconclusive.
+
+`.github/workflows/flake-probe.yml` (manual `workflow_dispatch`) hunts these faithfully: it
+mirrors the PR workflow's BDD step exactly and repeats it via Playwright's `--repeat-each`.
+Inputs: `repeat_each` (default `20`), `grep` (empty = full suite — the safe default), and
+`workers` (match CI's `3` to reproduce contention). To gate a fix, dispatch it against the fix
+branch ref twice and require **0 failures** (baseline-red is the pre-fix run history). It is
+`workflow_dispatch`-only on purpose: it never runs on `pull_request`/`push` and never appears
+as a PR check, so dispatch it explicitly against whatever ref you want to probe — it neither
+gates nor clutters the PR.
+
+**Pattern-A rollback rule (the canonical example).** The review editor applies an annotation
+**mark** eagerly when the composer opens (the highlight shows before a body is typed) and rolls
+it back on cancel. On the **overlay-dismiss** route the editor is blurred (Radix restores focus
+asynchronously), so the rollback **and** the `PlateContent` remount must commit **synchronously**
+inside the cancel handler — `flushSync` in `useComposerController`
+(`packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx`) — so the cleaned DOM lands
+_before_ focus restoration and can't orphan a stale highlight in the read-only editor (#231).
+
 ## E2E waiting rules
 
 Scenarios under `features/` never sleep on the wall clock. See the [`features/README.md`](../features/README.md) Conventions section for the rule, and `eslint.config.ts` + `.github/workflows/pr.yml` for the guards that prevent reintroduction.
@@ -16338,7 +16474,17 @@ Then("the {string} highlight is visible in the editor", async ({ page }, kind: s
 });
 
 Then("the {string} highlight is absent from the editor", async ({ page }, kind: string) => {
-  await expect(highlightLocator(page, kind)).toHaveCount(0);
+  try {
+    await expect(highlightLocator(page, kind)).toHaveCount(0);
+  } catch (error) {
+    // Temporary diagnostic (symbiot#231): dump the editor's per-cancel record so a flaky
+    // failure shows whether the model was cleaned and what the DOM held. Revert with the
+    // editor-side instrumentation once the mechanism is confirmed.
+    const diag = await page.evaluate(() =>
+      JSON.stringify((window as unknown as { __diag?: unknown[] }).__diag ?? null)
+    );
+    throw new Error(`[symbiot#231] highlight not absent. __diag=${diag}`, { cause: error });
+  }
 });
 </file>
 
@@ -26892,8 +27038,12 @@ export const ReviewEditor = ({
     },
   });
 
-  const { pending, setPending, contentKey, onComposerSave, onComposerCancel } =
-    useComposerController(editor, maps, setters, onChange);
+  const { pending, setPending, onComposerSave, onComposerCancel } = useComposerController(
+    editor,
+    maps,
+    setters,
+    onChange
+  );
 
   useTypingGuard(containerRef);
 
@@ -26929,7 +27079,7 @@ export const ReviewEditor = ({
     >
       <TaskToggleContext value={onToggleTask}>
         <Plate editor={editor}>
-          <PlateContent key={contentKey} readOnly className="outline-none" />
+          <PlateContent readOnly className="outline-none" />
           <ToolbarButtons
             onComment={onCommentClick}
             onInsert={onInsertClick}
@@ -27206,7 +27356,8 @@ describe("useComposerController", () => {
     act(() => {
       result.current.onComposerCancel();
     });
-    // The lifecycle effect rolled the eager comment mark off the leaf on close.
+    // Cancel rolls the eager comment mark off the leaf and replaces the value, so the cleaned
+    // children survive the rebuild (symbiot#231).
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(false);
     expect(marks(editor, [0, 0]).has("comment")).toBe(false);
   });
@@ -27441,6 +27592,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { flushSync } from "react-dom";
 import type { PlateEditor } from "platejs/react";
 import { type AnnotationComposerPayload } from "@symbiot/ui/components/AnnotationComposer";
 
@@ -27450,7 +27602,7 @@ import {
   type AppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
 import { applyTaskToggle, removeTaskToggle } from "../utils/applyTaskToggle.ts";
-import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
+import { hasAnnotationMark, removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
 import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
 import { type AnnotationMaps, type PruneSetters } from "./ReviewEditorState.tsx";
@@ -27777,13 +27929,30 @@ export interface ComposerController {
   pending: PendingAuthoring | null;
   /** Opens the composer for a freshly-applied annotation; wired to {@link useToolbarHandlers}. */
   setPending: Dispatch<SetStateAction<PendingAuthoring | null>>;
-  /** Re-render nonce for `PlateContent`; bumped on cancel so a rolled-back highlight can't linger. */
-  contentKey: number;
   /** Persist the composer payload and close. */
   onComposerSave: (payload: AnnotationComposerPayload) => void;
   /** Close without saving; rolls the eager mark back synchronously in the dismiss event. */
   onComposerCancel: () => void;
 }
+
+/**
+ * Temporary diagnostic (symbiot#231): right after the synchronous cancel commit, record whether
+ * the model was cleaned vs. what the DOM still shows, plus the focused element, on `window.__diag`.
+ * The failing BDD step reads it back. Revert with the step-side instrumentation once confirmed.
+ */
+const recordCancelDiag = (editor: PlateEditor, pending: PendingAuthoring): void => {
+  if (typeof document === "undefined") return;
+  const w = window as unknown as { __diag?: unknown[] };
+  const log = (w.__diag ??= []);
+  const active = document.activeElement;
+  log.push({
+    ev: "cancel",
+    id: pending.applied.id,
+    modelClean: !hasAnnotationMark(editor, pending.kind, pending.applied.id),
+    domCount: document.querySelectorAll(`[data-testid="annotation-${pending.kind}"]`).length,
+    activeTag: active ? active.tagName : null,
+  });
+};
 
 /**
  * Own the inline composer's `pending` state and its save / cancel handlers.
@@ -27812,7 +27981,6 @@ export const useComposerController = (
   onChange?: (snapshot: EditorSnapshot) => void
 ): ComposerController => {
   const [pending, setPending] = useState<PendingAuthoring | null>(null);
-  const [contentKey, setContentKey] = useState(0);
   const pendingRef = useRef<PendingAuthoring | null>(null);
   const savedRef = useRef(false);
 
@@ -27838,16 +28006,25 @@ export const useComposerController = (
       return;
     }
     const { current } = pendingRef;
-    setPending(null);
-    if (current === null) return;
-    dispatchComposerCancel(current, editor, maps, onChange);
-    // The unset cleans editor.children, but Plate's <Editable> can skip the re-render on
-    // the overlay-dismiss route (editor blurred), leaving a stale highlight in the DOM;
-    // bump the content key to force a clean re-render from the updated value (symbiot#231).
-    setContentKey((key) => key + 1);
+    if (current === null) {
+      setPending(null);
+      return;
+    }
+    // Close the composer and roll the eager mark back in one synchronous commit. A React
+    // re-render/remount does NOT clear the highlight on the blurred overlay-dismiss route
+    // (symbiot#231 __diag: modelClean=true, domCount=1, editor blurred) — slate-react won't
+    // reconcile the cleaned value into the blurred editor's DOM. Replacing the value with a
+    // fresh array forces it to rebuild every leaf from the already-cleaned children.
+    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous commit before Radix focus restoration (symbiot#231)
+    flushSync(() => {
+      setPending(null);
+      dispatchComposerCancel(current, editor, maps, onChange);
+      editor.tf.setValue([...editor.children]);
+    });
+    recordCancelDiag(editor, current);
   }, [editor, maps, onChange]);
 
-  return { pending, setPending, contentKey, onComposerSave, onComposerCancel };
+  return { pending, setPending, onComposerSave, onComposerCancel };
 };
 </file>
 
@@ -30195,6 +30372,18 @@ export const removeAnnotationMark = (
       editor.tf.unsetNodes(prefix, { at: path });
     }
   }
+};
+
+/** Whether any text leaf in the editor value still carries the `<prefix>_<id>` mark. */
+export const hasAnnotationMark = (
+  editor: PlateEditor,
+  kind: AnnotationKind,
+  id: string
+): boolean => {
+  const idKey = `${prefixOf(kind)}_${id}`;
+  const matches: { leaf: TextLeaf; path: number[] }[] = [];
+  collectMatchingPaths(editor.children, idKey, [], matches);
+  return matches.length > 0;
 };
 </file>
 
