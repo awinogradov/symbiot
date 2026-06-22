@@ -343,8 +343,6 @@ export interface ComposerController {
   pending: PendingAuthoring | null;
   /** Opens the composer for a freshly-applied annotation; wired to {@link useToolbarHandlers}. */
   setPending: Dispatch<SetStateAction<PendingAuthoring | null>>;
-  /** Re-render nonce for `PlateContent`; bumped on cancel so a rolled-back highlight can't linger. */
-  contentKey: number;
   /** Persist the composer payload and close. */
   onComposerSave: (payload: AnnotationComposerPayload) => void;
   /** Close without saving; rolls the eager mark back synchronously in the dismiss event. */
@@ -397,7 +395,6 @@ export const useComposerController = (
   onChange?: (snapshot: EditorSnapshot) => void
 ): ComposerController => {
   const [pending, setPending] = useState<PendingAuthoring | null>(null);
-  const [contentKey, setContentKey] = useState(0);
   const pendingRef = useRef<PendingAuthoring | null>(null);
   const savedRef = useRef(false);
 
@@ -427,21 +424,19 @@ export const useComposerController = (
       setPending(null);
       return;
     }
-    // Close the composer, roll the eager mark back, and remount PlateContent (key bump) in a
-    // single SYNCHRONOUS commit, so the cleaned editor DOM lands before Radix's modal
-    // focus-restoration runs. The unset already cleans editor.children; the residual flake is a
-    // concurrent-commit race — without flushSync the batched key bump interleaves with Radix
-    // focus restoration on the blurred overlay-dismiss route, and ~25% of CI runs leave the
-    // rolled-back highlight orphaned in the read-only DOM. flushSync orders the remount strictly
-    // before focus restoration, closing the race (symbiot#231).
-    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- required synchronous commit before Radix focus restoration (symbiot#231)
+    // Close the composer and roll the eager mark back in one synchronous commit. A React
+    // re-render/remount does NOT clear the highlight on the blurred overlay-dismiss route
+    // (symbiot#231 __diag: modelClean=true, domCount=1, editor blurred) — slate-react won't
+    // reconcile the cleaned value into the blurred editor's DOM. Replacing the value with a
+    // fresh array forces it to rebuild every leaf from the already-cleaned children.
+    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous commit before Radix focus restoration (symbiot#231)
     flushSync(() => {
       setPending(null);
       dispatchComposerCancel(current, editor, maps, onChange);
-      setContentKey((key) => key + 1);
+      editor.tf.setValue([...editor.children]);
     });
     recordCancelDiag(editor, current);
   }, [editor, maps, onChange]);
 
-  return { pending, setPending, contentKey, onComposerSave, onComposerCancel };
+  return { pending, setPending, onComposerSave, onComposerCancel };
 };

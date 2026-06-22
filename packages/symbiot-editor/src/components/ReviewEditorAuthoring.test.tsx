@@ -240,7 +240,7 @@ describe("useComposerController", () => {
     return new Set(Object.keys(node as Record<string, unknown>));
   };
 
-  it("rolls back the eager mark and remounts the editable when the composer closes without a save", () => {
+  it("rolls back the eager mark when the composer closes without a save", () => {
     const editor = seededEditor();
     const maps = emptyMaps();
     const setters = stubSetters();
@@ -249,17 +249,14 @@ describe("useComposerController", () => {
       result.current.setPending(pending("a"));
     });
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
-    const keyBeforeCancel = result.current.contentKey;
 
     act(() => {
       result.current.onComposerCancel();
     });
-    // Cancel rolls the eager comment mark off the leaf synchronously (flushSync)...
+    // Cancel rolls the eager comment mark off the leaf and replaces the value, so the cleaned
+    // children survive the rebuild (symbiot#231).
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(false);
     expect(marks(editor, [0, 0]).has("comment")).toBe(false);
-    // ...and bumps the content key so PlateContent remounts off the cleaned value before Radix
-    // focus restoration can orphan the highlight on the blurred overlay route (symbiot#231).
-    expect(result.current.contentKey).toBe(keyBeforeCancel + 1);
   });
 
   it("keeps the eager mark and writes the body when the composer is saved", () => {
@@ -270,15 +267,11 @@ describe("useComposerController", () => {
     act(() => {
       result.current.setPending(pending("a"));
     });
-    const keyBeforeSave = result.current.contentKey;
     act(() => {
       result.current.onComposerSave({ body: "note", images: [] });
     });
     // A save must NOT trigger the cancel rollback — the highlight stays.
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
-    // A save keeps the mark, so there is no rolled-back highlight to flush: the content key
-    // (the PlateContent remount nonce) must stay put — only a cancel bumps it.
-    expect(result.current.contentKey).toBe(keyBeforeSave);
     expect(setters.setBodies).toHaveBeenCalledTimes(1);
     // The body is persisted under the open annotation's id — run the state updater
     // to confirm the payload is routed to "a" (not a mis-routed or empty write).
