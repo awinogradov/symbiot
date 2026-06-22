@@ -249,14 +249,16 @@ describe("useComposerController", () => {
       result.current.setPending(pending("a"));
     });
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+    const keyBeforeCancel = result.current.plateKey;
 
     act(() => {
       result.current.onComposerCancel();
     });
-    // Cancel rolls the eager comment mark off the leaf and replaces the value, so the cleaned
-    // children survive the rebuild (symbiot#231).
+    // Cancel rolls the eager comment mark off the leaf...
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(false);
     expect(marks(editor, [0, 0]).has("comment")).toBe(false);
+    // ...and bumps the <Plate> remount nonce so the store rebuilds from the cleaned children (symbiot#231).
+    expect(result.current.plateKey).toBe(keyBeforeCancel + 1);
   });
 
   it("keeps the eager mark and writes the body when the composer is saved", () => {

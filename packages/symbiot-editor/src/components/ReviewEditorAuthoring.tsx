@@ -6,7 +6,6 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { flushSync } from "react-dom";
 import type { PlateEditor } from "platejs/react";
 import { type AnnotationComposerPayload } from "@symbiot/ui/components/AnnotationComposer";
 
@@ -16,7 +15,7 @@ import {
   type AppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
 import { applyTaskToggle, removeTaskToggle } from "../utils/applyTaskToggle.ts";
-import { hasAnnotationMark, removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
+import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
 import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
 import { type AnnotationMaps, type PruneSetters } from "./ReviewEditorState.tsx";
@@ -343,30 +342,13 @@ export interface ComposerController {
   pending: PendingAuthoring | null;
   /** Opens the composer for a freshly-applied annotation; wired to {@link useToolbarHandlers}. */
   setPending: Dispatch<SetStateAction<PendingAuthoring | null>>;
+  /** Remount nonce for the `<Plate>` store provider; bumped on cancel to rebuild it from the cleaned value. */
+  plateKey: number;
   /** Persist the composer payload and close. */
   onComposerSave: (payload: AnnotationComposerPayload) => void;
   /** Close without saving; rolls the eager mark back synchronously in the dismiss event. */
   onComposerCancel: () => void;
 }
-
-/**
- * Temporary diagnostic (symbiot#231): right after the synchronous cancel commit, record whether
- * the model was cleaned vs. what the DOM still shows, plus the focused element, on `window.__diag`.
- * The failing BDD step reads it back. Revert with the step-side instrumentation once confirmed.
- */
-const recordCancelDiag = (editor: PlateEditor, pending: PendingAuthoring): void => {
-  if (typeof document === "undefined") return;
-  const w = window as unknown as { __diag?: unknown[] };
-  const log = (w.__diag ??= []);
-  const active = document.activeElement;
-  log.push({
-    ev: "cancel",
-    id: pending.applied.id,
-    modelClean: !hasAnnotationMark(editor, pending.kind, pending.applied.id),
-    domCount: document.querySelectorAll(`[data-testid="annotation-${pending.kind}"]`).length,
-    activeTag: active ? active.tagName : null,
-  });
-};
 
 /**
  * Own the inline composer's `pending` state and its save / cancel handlers.
@@ -395,6 +377,7 @@ export const useComposerController = (
   onChange?: (snapshot: EditorSnapshot) => void
 ): ComposerController => {
   const [pending, setPending] = useState<PendingAuthoring | null>(null);
+  const [plateKey, setPlateKey] = useState(0);
   const pendingRef = useRef<PendingAuthoring | null>(null);
   const savedRef = useRef(false);
 
@@ -420,23 +403,15 @@ export const useComposerController = (
       return;
     }
     const { current } = pendingRef;
-    if (current === null) {
-      setPending(null);
-      return;
-    }
-    // Close the composer and roll the eager mark back in one synchronous commit. A React
-    // re-render/remount does NOT clear the highlight on the blurred overlay-dismiss route
-    // (symbiot#231 __diag: modelClean=true, domCount=1, editor blurred) — slate-react won't
-    // reconcile the cleaned value into the blurred editor's DOM. Replacing the value with a
-    // fresh array forces it to rebuild every leaf from the already-cleaned children.
-    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous commit before Radix focus restoration (symbiot#231)
-    flushSync(() => {
-      setPending(null);
-      dispatchComposerCancel(current, editor, maps, onChange);
-      editor.tf.setValue([...editor.children]);
-    });
-    recordCancelDiag(editor, current);
+    setPending(null);
+    if (current === null) return;
+    dispatchComposerCancel(current, editor, maps, onChange);
+    // The unset cleans editor.children, but on the blurred overlay-dismiss route PlateContent
+    // keeps rendering the stale highlight from Plate's store. Re-keying PlateContent (the store
+    // consumer) does NOT clear it — bump a nonce on the <Plate> store PROVIDER so the store
+    // re-initializes from the cleaned value (symbiot#231).
+    setPlateKey((key) => key + 1);
   }, [editor, maps, onChange]);
 
-  return { pending, setPending, onComposerSave, onComposerCancel };
+  return { pending, setPending, plateKey, onComposerSave, onComposerCancel };
 };

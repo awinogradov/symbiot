@@ -217,11 +217,11 @@ gates nor clutters the PR.
 
 **Pattern-A rollback rule (the canonical example).** The review editor applies an annotation
 **mark** eagerly when the composer opens (the highlight shows before a body is typed) and rolls
-it back on cancel. On the **overlay-dismiss** route the editor is blurred (Radix restores focus
-asynchronously), so the rollback **and** the `PlateContent` remount must commit **synchronously**
-inside the cancel handler — `flushSync` in `useComposerController`
-(`packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx`) — so the cleaned DOM lands
-_before_ focus restoration and can't orphan a stale highlight in the read-only editor (#231).
+it back on cancel. On the **overlay-dismiss** route the editor is blurred, and `PlateContent`
+keeps rendering the rolled-back highlight from a now-stale Plate store — re-keying `PlateContent`
+or replacing the value does **not** clear it. The fix bumps a nonce on the **`<Plate>` store
+provider** (`useComposerController` / `ReviewEditor.tsx`) so the store re-initializes from the
+cleaned value and the stale highlight can't linger in the read-only editor (#231).
 
 ## E2E waiting rules
 
