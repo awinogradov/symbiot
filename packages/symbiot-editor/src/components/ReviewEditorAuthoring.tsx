@@ -350,7 +350,7 @@ export interface ComposerController {
 }
 
 /**
- * Temporary diagnostic (symbiot#231): right after the synchronous cancel commit, record whether
+ * Temporary diagnostic (symbiot#236): right after the synchronous cancel commit, record whether
  * the model was cleaned vs. what the DOM still shows, plus the focused element, on `window.__diag`.
  * The failing BDD step reads it back. Revert with the step-side instrumentation once confirmed.
  */
@@ -375,7 +375,7 @@ const recordCancelDiag = (editor: PlateEditor, pending: PendingAuthoring): void 
  * event**, before the close commits and Radix's modal focus-restoration runs.
  * A deferred rollback (post-commit effect) races that focus restoration on the
  * overlay-dismiss route under CI load and intermittently leaves the highlight
- * behind (symbiot#231); running it in the handler closes the race.
+ * behind (symbiot#236); running it in the handler closes the race.
  *
  * Save and cancel are already separate handlers: a save closes the dialog
  * programmatically (`open` → false), which does NOT fire Radix `onOpenChange`,
@@ -424,12 +424,13 @@ export const useComposerController = (
       setPending(null);
       return;
     }
-    // Close the composer and roll the eager mark back in one synchronous commit. A React
-    // re-render/remount does NOT clear the highlight on the blurred overlay-dismiss route
-    // (symbiot#231 __diag: modelClean=true, domCount=1, editor blurred) — slate-react won't
-    // reconcile the cleaned value into the blurred editor's DOM. Replacing the value with a
-    // fresh array forces it to rebuild every leaf from the already-cleaned children.
-    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous commit before Radix focus restoration (symbiot#231)
+    // Close the composer and roll the eager mark back in one synchronous commit (mirrors the
+    // Cancel/Escape routes). The overlay-dismiss flake is closed primarily in AnnotationComposer,
+    // which neutralizes Radix's focus-restoration race on that route (onCloseAutoFocus); the
+    // setValue rebuild below stays as a slate-layer guarantee so a blurred read-only editor still
+    // rebuilds every leaf from the already-cleaned children (symbiot#236 __diag: modelClean=true,
+    // domCount=1, editor blurred).
+    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous commit before Radix focus restoration (symbiot#236)
     flushSync(() => {
       setPending(null);
       dispatchComposerCancel(current, editor, maps, onChange);

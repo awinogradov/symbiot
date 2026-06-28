@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import { ComposerForm, type ComposerPayload } from "./ComposerForm.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./Dialog.tsx";
@@ -141,12 +141,24 @@ export const AnnotationComposer = ({
   onCancel,
 }: AnnotationComposerProps): React.ReactElement => {
   const surface = kindSurface[kind];
+  // The overlay-dismiss route arms this ref (via onPointerDownOutside); onCloseAutoFocus then
+  // skips Radix's focus-restoration for THAT route only, removing the async re-focus that races
+  // the eager-mark rollback and orphans the highlight in the blurred read-only editor. Cancel and
+  // Escape never arm it, so they keep Radix's default focus return unchanged (symbiot#236).
+  const dismissedViaOverlayRef = useRef(false);
   const onOpenChange = useCallback(
     (next: boolean): void => {
       if (!next) onCancel();
     },
     [onCancel]
   );
+  const onPointerDownOutside = useCallback((): void => {
+    dismissedViaOverlayRef.current = true;
+  }, []);
+  const onCloseAutoFocus = useCallback((event: Event): void => {
+    if (dismissedViaOverlayRef.current) event.preventDefault();
+    dismissedViaOverlayRef.current = false;
+  }, []);
 
   const showQuote = kind !== "global" && typeof quote === "string";
   const header = headerFor(surface, kind, mode);
@@ -158,6 +170,8 @@ export const AnnotationComposer = ({
         data-kind={kind}
         data-mode={mode}
         className="sm:max-w-2xl"
+        onPointerDownOutside={onPointerDownOutside}
+        onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader className={header.hidden ? "sr-only" : undefined}>
           <DialogTitle>{header.title}</DialogTitle>
