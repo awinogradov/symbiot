@@ -217,16 +217,17 @@ gates nor clutters the PR.
 
 **Pattern-A rollback rule (the canonical example).** The review editor applies an annotation
 **mark** eagerly when the composer opens (the highlight shows before a body is typed) and rolls
-it back on cancel. On the **overlay-dismiss** route the editor is blurred and Radix's modal
-focus-restoration runs asynchronously, racing the rollback so the cleaned model never reconciles
-into the blurred read-only DOM and the highlight orphans. The fix neutralizes that race at its
-source: `AnnotationComposer` (`packages/symbiot-ui/src/components/AnnotationComposer.tsx`) arms a
-ref on Radix `onPointerDownOutside` and calls `event.preventDefault()` in `onCloseAutoFocus` for
-the overlay route only, so no async re-focus competes with the rollback — while the Cancel and
-Escape routes keep Radix's default focus return. The cancel handler still rolls the mark back
-**synchronously** (`flushSync` in `useComposerController`,
-`packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx`), with the `setValue` rebuild
-kept as a slate-layer reconciliation guarantee (#236).
+it back on cancel. The editor is read-only and blurred while the composer is open (focus sits in
+the composer textarea on every route), and on the **overlay-dismiss** route slate-react does not
+reconcile the cleaned model into that blurred DOM — `removeAnnotationMark` cleans `editor.children`
+(the `__diag` reads `modelClean=true`) yet the `<mark>` survives (`domCount=1`). Forcing
+reconciliation fails: a `PlateContent` re-key and a `setValue` rebuild both left the stale
+highlight. The fix **remounts** instead: `useComposerController`
+(`packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx`) bumps a `plateKey` nonce on
+the `<Plate>` store provider inside `flushSync`, so React tears down and rebuilds the editor DOM
+from the already-cleaned children (a stale leaf cannot survive a remount), and `flushSync` orders
+that remount before Radix's asynchronous focus work — an un-flushed remount races it and still
+flakes (#236).
 
 ## E2E waiting rules
 
