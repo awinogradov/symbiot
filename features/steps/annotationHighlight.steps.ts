@@ -43,12 +43,12 @@ Then("the {string} highlight is absent from the editor", async ({ page }, kind: 
   try {
     await expect(highlightLocator(page, kind)).toHaveCount(0);
   } catch (error) {
-    // Temporary diagnostic (symbiot#231): dump the editor's per-cancel record so a flaky
+    // Temporary diagnostic (symbiot#236): dump the editor's per-cancel record so a flaky
     // failure shows whether the model was cleaned and what the DOM held. Revert with the
     // editor-side instrumentation once the mechanism is confirmed.
     const diag = await page.evaluate(() =>
       JSON.stringify((window as unknown as { __diag?: unknown[] }).__diag ?? null)
     );
-    throw new Error(`[symbiot#231] highlight not absent. __diag=${diag}`, { cause: error });
+    throw new Error(`[symbiot#236] highlight not absent. __diag=${diag}`, { cause: error });
   }
 });

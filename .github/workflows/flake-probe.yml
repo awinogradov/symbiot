@@ -1,7 +1,7 @@
 name: Flake Probe
 
 # Manually re-run the real BDD suite many times to hunt CI-only Heisenbugs.
-# Faithfulness matters: some flakes (e.g. the overlay-cancel highlight, symbiot#231)
+# Faithfulness matters: some flakes (e.g. the overlay-cancel highlight, symbiot#236)
 # reproduce ONLY under the full 3-browser suite under coverage, repeated, on Linux —
 # isolating a single scenario hides them. So this job mirrors the PR workflow's BDD
 # step exactly (CI=true → firefox/webkit @smoke; COVERAGE=1) and repeats it via

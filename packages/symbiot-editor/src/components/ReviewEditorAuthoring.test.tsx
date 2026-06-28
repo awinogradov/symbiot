@@ -254,7 +254,7 @@ describe("useComposerController", () => {
       result.current.onComposerCancel();
     });
     // Cancel rolls the eager comment mark off the leaf and replaces the value, so the cleaned
-    // children survive the rebuild (symbiot#231).
+    // children survive the rebuild (symbiot#236).
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(false);
     expect(marks(editor, [0, 0]).has("comment")).toBe(false);
   });
