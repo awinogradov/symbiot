@@ -203,7 +203,7 @@ Because `retries` is `0`, a genuine flake turns one run red — so it must be fi
 root, never quarantined or retried. Some flakes are Heisenbugs that reproduce **only** under
 the real CI shape: the full 3-browser suite **under coverage**, **repeated**, on a **Linux**
 runner. Narrowing to a single scenario or a single browser can hide them — the overlay-cancel
-highlight flake (#231) showed **0 failures across ~2,900 isolated runs** yet ~25% under the
+highlight flake (#236) showed **0 failures across ~2,900 isolated runs** yet ~25% under the
 full suite. So a green _isolated_ probe is inconclusive.
 
 `.github/workflows/flake-probe.yml` (manual `workflow_dispatch`) hunts these faithfully: it
@@ -217,11 +217,16 @@ gates nor clutters the PR.
 
 **Pattern-A rollback rule (the canonical example).** The review editor applies an annotation
 **mark** eagerly when the composer opens (the highlight shows before a body is typed) and rolls
-it back on cancel. On the **overlay-dismiss** route the editor is blurred (Radix restores focus
-asynchronously), so the rollback **and** the `PlateContent` remount must commit **synchronously**
-inside the cancel handler — `flushSync` in `useComposerController`
-(`packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx`) — so the cleaned DOM lands
-_before_ focus restoration and can't orphan a stale highlight in the read-only editor (#231).
+it back on cancel. On the **overlay-dismiss** route the editor is blurred and Radix's modal
+focus-restoration runs asynchronously, racing the rollback so the cleaned model never reconciles
+into the blurred read-only DOM and the highlight orphans. The fix neutralizes that race at its
+source: `AnnotationComposer` (`packages/symbiot-ui/src/components/AnnotationComposer.tsx`) arms a
+ref on Radix `onPointerDownOutside` and calls `event.preventDefault()` in `onCloseAutoFocus` for
+the overlay route only, so no async re-focus competes with the rollback — while the Cancel and
+Escape routes keep Radix's default focus return. The cancel handler still rolls the mark back
+**synchronously** (`flushSync` in `useComposerController`,
+`packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx`), with the `setValue` rebuild
+kept as a slate-layer reconciliation guarantee (#236).
 
 ## E2E waiting rules
 
