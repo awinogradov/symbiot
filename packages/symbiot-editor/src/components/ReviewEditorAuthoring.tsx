@@ -343,6 +343,8 @@ export interface ComposerController {
   pending: PendingAuthoring | null;
   /** Opens the composer for a freshly-applied annotation; wired to {@link useToolbarHandlers}. */
   setPending: Dispatch<SetStateAction<PendingAuthoring | null>>;
+  /** Remount nonce for the `<Plate>` store provider; bumped on cancel to rebuild the editor DOM from the cleaned value. */
+  plateKey: number;
   /** Persist the composer payload and close. */
   onComposerSave: (payload: AnnotationComposerPayload) => void;
   /** Close without saving; rolls the eager mark back synchronously in the dismiss event. */
@@ -395,6 +397,7 @@ export const useComposerController = (
   onChange?: (snapshot: EditorSnapshot) => void
 ): ComposerController => {
   const [pending, setPending] = useState<PendingAuthoring | null>(null);
+  const [plateKey, setPlateKey] = useState(0);
   const pendingRef = useRef<PendingAuthoring | null>(null);
   const savedRef = useRef(false);
 
@@ -424,20 +427,23 @@ export const useComposerController = (
       setPending(null);
       return;
     }
-    // Close the composer and roll the eager mark back in one synchronous commit (mirrors the
-    // Cancel/Escape routes). The overlay-dismiss flake is closed primarily in AnnotationComposer,
-    // which neutralizes Radix's focus-restoration race on that route (onCloseAutoFocus); the
-    // setValue rebuild below stays as a slate-layer guarantee so a blurred read-only editor still
-    // rebuilds every leaf from the already-cleaned children (symbiot#236 __diag: modelClean=true,
-    // domCount=1, editor blurred).
-    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous commit before Radix focus restoration (symbiot#236)
+    // Close the composer, roll the eager mark back, and REMOUNT the editor in one synchronous
+    // commit. dispatchComposerCancel cleans editor.children, but the editor is read-only and
+    // blurred while the composer is open (focus is in the composer textarea, on EVERY route — so
+    // it is not a focus-restoration race), and on the overlay-dismiss route slate-react won't
+    // reconcile the cleaned value into that blurred DOM (symbiot#236 __diag: modelClean=true,
+    // domCount=1, activeTag=TEXTAREA). Bumping plateKey re-keys the <Plate> store provider so React
+    // rebuilds the editor DOM from the already-cleaned children — a stale leaf can't survive a
+    // remount. flushSync orders that remount before Radix's async focus work (an un-flushed
+    // plateKey raced it and still flaked).
+    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous remount before Radix focus restoration (symbiot#236)
     flushSync(() => {
       setPending(null);
       dispatchComposerCancel(current, editor, maps, onChange);
-      editor.tf.setValue([...editor.children]);
+      setPlateKey((key) => key + 1);
     });
     recordCancelDiag(editor, current);
   }, [editor, maps, onChange]);
 
-  return { pending, setPending, onComposerSave, onComposerCancel };
+  return { pending, setPending, plateKey, onComposerSave, onComposerCancel };
 };

@@ -114,7 +114,7 @@ export const ReviewEditor = ({
     },
   });
 
-  const { pending, setPending, onComposerSave, onComposerCancel } = useComposerController(
+  const { pending, setPending, plateKey, onComposerSave, onComposerCancel } = useComposerController(
     editor,
     maps,
     setters,
@@ -154,7 +154,7 @@ export const ReviewEditor = ({
       className="prose prose-neutral dark:prose-invert relative mx-auto max-w-3xl"
     >
       <TaskToggleContext value={onToggleTask}>
-        <Plate editor={editor}>
+        <Plate key={plateKey} editor={editor}>
           <PlateContent readOnly className="outline-none" />
           <ToolbarButtons
             onComment={onCommentClick}
