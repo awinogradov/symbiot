@@ -352,11 +352,37 @@ export interface ComposerController {
 }
 
 /**
- * Temporary diagnostic (symbiot#236): right after the synchronous cancel commit, record whether
- * the model was cleaned vs. what the DOM still shows, plus the focused element, on `window.__diag`.
- * The failing BDD step reads it back. Revert with the step-side instrumentation once confirmed.
+ * Temporary diagnostic helper (symbiot#236): probe the editor DOM after a cancel so a failing
+ * repeat can distinguish a remount no-op (`remounted=false`) from a lingering old editor
+ * (`contentEditables>1`) from a fresh editor that still renders the stale mark
+ * (`remounted=true, markInLiveEditor=true`).
  */
-const recordCancelDiag = (editor: PlateEditor, pending: PendingAuthoring): void => {
+const domProbe = (kind: string, editableBefore: Element | null): Record<string, unknown> => {
+  const editables = document.querySelectorAll("[contenteditable]");
+  const editableAfter = editables.item(0);
+  const marks = document.querySelectorAll(`[data-testid="annotation-${kind}"]`);
+  const firstMark = marks.item(0);
+  return {
+    domCount: marks.length,
+    remounted: editableBefore !== null && editableAfter !== editableBefore,
+    contentEditables: editables.length,
+    slateEditors: document.querySelectorAll("[data-slate-editor]").length,
+    editorRoots: document.querySelectorAll('[data-testid="editor-root"]').length,
+    markInLiveEditor:
+      firstMark === null ? null : firstMark.closest("[contenteditable]") === editableAfter,
+  };
+};
+
+/**
+ * Temporary diagnostic (symbiot#236): right after the cancel commit, push the model-vs-DOM state
+ * plus {@link domProbe}'s remount facts onto `window.__diag`; the failing BDD step reads it back.
+ * Revert once the mechanism is confirmed.
+ */
+const recordCancelDiag = (
+  editor: PlateEditor,
+  pending: PendingAuthoring,
+  editableBefore: Element | null
+): void => {
   if (typeof document === "undefined") return;
   const w = window as unknown as { __diag?: unknown[] };
   const log = (w.__diag ??= []);
@@ -365,8 +391,8 @@ const recordCancelDiag = (editor: PlateEditor, pending: PendingAuthoring): void 
     ev: "cancel",
     id: pending.applied.id,
     modelClean: !hasAnnotationMark(editor, pending.kind, pending.applied.id),
-    domCount: document.querySelectorAll(`[data-testid="annotation-${pending.kind}"]`).length,
-    activeTag: active ? active.tagName : null,
+    activeTag: active === null ? null : active.tagName,
+    ...domProbe(pending.kind, editableBefore),
   });
 };
 
@@ -436,13 +462,17 @@ export const useComposerController = (
     // rebuilds the editor DOM from the already-cleaned children — a stale leaf can't survive a
     // remount. flushSync orders that remount before Radix's async focus work (an un-flushed
     // plateKey raced it and still flaked).
+    // Temporary diagnostic (symbiot#236): snapshot the editable element before the remount so the
+    // diag can tell whether the <Plate> remount actually swapped it.
+    const editableBefore =
+      typeof document === "undefined" ? null : document.querySelector("[contenteditable]");
     // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous remount before Radix focus restoration (symbiot#236)
     flushSync(() => {
       setPending(null);
       dispatchComposerCancel(current, editor, maps, onChange);
       setPlateKey((key) => key + 1);
     });
-    recordCancelDiag(editor, current);
+    recordCancelDiag(editor, current, editableBefore);
   }, [editor, maps, onChange]);
 
   return { pending, setPending, plateKey, onComposerSave, onComposerCancel };
