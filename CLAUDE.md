@@ -19,6 +19,7 @@ Before making any changes:
 2. Inspect all file names under `docs/` and subfolders in the current repository — some files may be missing from the README
 3. Read files that appear relevant to the current task
 4. Treat `docs/` as the source of truth for project-specific conventions and follow those documents over this file when they conflict
+5. When an `rfc/` folder exists, treat its Accepted RFCs as binding versioned standards — follow them over `docs/` and this file when they conflict; see `rfc/README.md` for the convention
 
 **Rule Markers Legend:**
 
@@ -363,6 +364,13 @@ Choose ONE backend based on the project's needs. Do not mix.
 - 👤 No raw `gh pr create` — use `Skill(autopilot:pr:create)`
 - 👤 No raw `gh issue create` — use `Skill(autopilot:issue:create)`
 
+## 15. Git Workflow
+
+- 👤 **MANDATORY**: `CONTRIBUTING.md` in the repository root is the binding standard for every branch, commit, PR, and issue operation — read the governing section before acting; never restate or improvise its rules
+- 👤 Governing sections: "Branches" for branch names, "Commits" for commit messages, "PR Title" and "Special PR Prefixes" for PR titles, "PR Description" and "Magic Words" for PR bodies and issue linking, "How to Contribute" for issues
+- 👤 The `Skill(autopilot:*)` commands in §16.1 implement these conventions — invoking the skill satisfies this section
+- 👤 Never bypass validation hooks with `--no-verify` — fix the violation instead
+
 ## 16. AI Assistant Workflow
 
 ### 16.1 Claude Code
@@ -380,11 +388,13 @@ Choose ONE backend based on the project's needs. Do not mix.
 
 ### 16.2 MCP Servers
 
-**context7**, **Ref**, **Exa**: Look up documentation for all technologies
+Prefer the project-registered MCP servers declared in the repo's own `.mcp.json`. The repository README and `docs/` are the authoritative list of which servers are registered and when to reach for each — consult them before hand-rolling work a registered server handles.
 
-**Playwright**: Verify UI state with browser_snapshot
-
-**Chrome DevTools**: Performance analysis, network debugging, console logging, etc.
+- 👤 **Documentation servers** (context7, Ref, Exa) — look up docs for any technology, framework, or API (global/user servers, not project-registered)
+- 👤 **shadcn MCP server** — search, browse, add, or audit shadcn/ui registry components; prefer it over hand-editing component source
+- 👤 **Playwright MCP server** — persistent, exploratory UI verification with `browser_snapshot`; prefer the token-efficient `@playwright/cli` CLI for high-throughput agent runs
+- 👤 **Chrome DevTools MCP server** — performance traces, network inspection, console debugging
+- 👤 **Repomix MCP server** — pack the codebase into one digest and grep/read it for codebase-wide analysis instead of loading every file
 
 ## 17. Code Review
 
