@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "0b13b5dff182",
+  "strategy": "manual-commit",
+  "branch": "issue-241-plan-approve-accept-edits",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/claude-code/src/installHook.ts",
+    "apps/codex/src/installHook.ts",
+    "apps/copilot/src/installHook.ts",
+    "apps/gemini/src/installHook.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0b/13b5dff182/0/metadata.json",
+      "transcript": "/0b/13b5dff182/0/full.jsonl",
+      "compact_transcript": "/0b/13b5dff182/0/transcript.jsonl",
+      "content_hash": "/0b/13b5dff182/0/content_hash.txt",
+      "prompt": "/0b/13b5dff182/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21915,
+    "cache_creation_tokens": 289515,
+    "cache_read_tokens": 12850043,
+    "output_tokens": 75445,
+    "api_call_count": 76
+  }
+}

@@ -1,0 +1,337 @@
+/plan I see the issue. When plan is accepted it must swith to auto mode and continue, but now I see the dialog to chose mode for model run. Check the docs and recent updates. Create an issue firts then continue.
+
+---
+
+<task-notification>
+<task-id>a53dd698fd0ddad5f</task-id>
+<tool-use-id>toolu_01PhFzutbS3vJXLUgKgUdiJK</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi-Documents-Source-symbiot/67fe2d7c-6c37-44fc-a6f2-7333804ee310/tasks/a53dd698fd0ddad5f.output</output-file>
+<status>completed</status>
+<summary>Agent "Explore project structure and docs" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I now have a comprehensive picture. Here is the orientation.
+
+## 1. What Symbiot is (root README.md)
+
+Symbiot is a tool to **review and annotate the plans your AI coding agents produce**, then send structured feedback back to the agent. It intercepts a plan the moment an agent presents it (via a host hook), opens a browser-based editor where you comment/delete/insert/replace passages with markdown fidelity, and returns resolved feedback as markdown the agent can act on.
+
+Architecture flow: an agent (Claude Code / Codex / Gemini / OpenCode / Copilot) fires a hook on `ExitPlanMode` → `apps/claude-code` (or the peer hook app) intercepts the plan, persists it under `~/.symbiot/`, spawns `apps/viewer` (Bun server + React 19/Vite client) on a free port, and opens the browser. The viewer talks back over HTTP (`/api/plan`, `/api/feedback`, `/api/approve`, `/api/deny`). Storage is filesystem-only under `~/.symbiot/` (no DB). Stack: Bun, Turborepo, TypeScript, React 19 + Vite, Tailwind v4, shadcn/ui, PlateJS, Vitest, Playwright-BDD.
+
+Directly relevant to your bug, the README has an **"Auto-approve"** section (lines 127-148): "Reviewer Approve in the viewer auto-confirms the plan in Claude Code — no second 'Accept this plan?' prompt." It documents the two hooks (`PreToolUse` and `PermissionRequest`) under the `ExitPlanMode` matcher.
+
+**Documentation section entries** (README "Documentation" table): `CLAUDE.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSES.md`, `docs/` (index), `docs/01-product.md`, `docs/02-architecture.md`, `docs/03-server-contract.md`, `docs/04-version-history.md`, `docs/05-theming.md`, `docs/06-a11y.md`, `docs/07-perf.md`, `docs/08-testing.md`, `docs/09-release.md`, `docs/10-add-agent-integration.md`, `features/`, `fixtures/markdown`, `fixtures/golden`. It also has an **Apps** table and a **Packages** table.
+
+## 2. docs/ and rfc/
+
+There is **no `rfc/` directory** in this repo (confirmed — the path does not exist anywhere outside node_modules).
+
+Files under `/Users/tony_vi/Documents/Source/symbiot/docs/`:
+- `README.md` — docs index (numbered chapters).
+- `01-product.md` — product goals, non-goals, personas, principles, NFRs, success metrics.
+- `02-architecture.md` — app composition, package layering, HTTP surface, monorepo invariants, "architectural specials." **Contains the auto-mode approval detail** (lines 241-245, see below).
+- `03-server-contract.md` — HTTP surface between agent hook and viewer: routes, **modes**, request/response shapes.
+- `04-version-history.md` — on-disk version layout, version endpoints, History tab, diff overlays.
+- `05-theming.md` — annotation color tokens (OKLCH/hex/WCAG).
+- `06-a11y.md` — WCAG AA accessibility.
+- `07-perf.md` — performance budget, bundle visualizer, Lighthouse.
+- `08-testing.md` — unit coverage, golden-fixture gate, Playwright-BDD selector rule.
+- `09-release.md` — release pipeline, hook shim ↔ binary contract.
+- `10-add-agent-integration.md` — how to add a new agent integration via `@symbiot/agent-runtime`.
+- `appendix-a-copilot-contract.md` — GitHub Copilot CLI `agentStop` hook contract audit.
+
+**Docs touching "modes"/"auto mode":**
+- `docs/02-architecture.md` lines 241-245 describe the exact `PermissionRequest` payload: `{decision: {behavior: "allow", updatedPermissions: [{type: "setMode", mode: "auto", destination: "session"}]}}` — "switching the session to `auto` mode (the prompt's 'start in auto mode' choice) instead of Claude Code's post-approval `acceptEdits` default."
+- `docs/03-server-contract.md` has a **"Modes"** section (line 20) — but this is a *different* concept: the **viewer** runs in one of two modes, `plan` vs `annotate`, surfaced as the `mode` field on `GET /api/plan`. `/api/approve` and `/api/deny` are `plan`-mode-only; `/api/feedback` is `annotate`-mode-only.
+
+Note: "mode" is overloaded in this codebase — (a) Claude Code **permission mode** (auto / acceptEdits), which is your bug's domain; (b) **viewer mode** (plan / annotate); (c) editor/UI **TopBar mode** (e.g. `review`, in `packages/symbiot-ui` and `packages/symbiot-editor`).
+
+## 3. Top-level layout
+
+- `apps/` — one hook app per host plus the shared viewer:
+  - `apps/viewer/` — Bun HTTP server + React/Vite client, single-binary build.
+  - `apps/claude-code/` — Claude Code hook (`PreToolUse` / `PermissionRequest` on `ExitPlanMode`). **This is where your bug lives.**
+  - `apps/codex/` — Codex CLI hook (`Stop`).
+  - `apps/gemini/` — Gemini CLI hook (`AfterAgent`).
+  - `apps/copilot/` — Copilot CLI hook (`agentStop`).
+  - `apps/opencode-plugin/` — OpenCode in-process plugin (`session.idle`).
+  - `apps/portal/` — planned static share-viewer (not released, exports nothing).
+- `packages/` — `symbiot-agent-runtime` (shared spawn-and-decide loop `runPlanReview`), `symbiot-annotations`, `symbiot-editor` (PlateJS), `symbiot-ui` (shadcn/ui + ThemeProvider), `eslint-config`, `prettier-config`, `tailwind-config`, `typescript-config`.
+- `docs/`, `features/` (Playwright-BDD), `fixtures/` (markdown + golden), `CLAUDE.md`.
+
+Each hook app has a `src/` with a `cli.ts` entry, `runHook.ts`, `installHook.ts`, plus tests. The shared logic lives in `packages/symbiot-agent-runtime/src/` (`runPlanReview.ts`, `decision.ts`, `marker-store.ts`, `config-installer.ts`, `hook-command.ts`, etc.).
+
+## 4. Where "mode" / "plan accepted" / "auto mode" live
+
+The concept central to your bug is in **`/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/runHook.ts`**. Key points:
+
+- **The auto-mode payload** — `permissionRequestAllowPayload()` (lines 161-169) is emitted when a plan is approved. It returns:
+  ```ts
+  hookSpecificOutput: {
+    hookEventName: "PermissionRequest",
+    decision: {
+      behavior: "allow",
+      updatedPermissions: [{ type: "setMode", mode: "auto", destination: "session" }],
+    },
+  }
+  ```
+  The `TypeScript` type (lines 142-150) hardcodes `mode: "auto"`. The JSDoc (lines 152-160) explains this reproduces the native prompt's "start in auto mode" choice, "or Claude Code falls back to its post-approval `acceptEdits` default." This is the single place that decides which mode the model continues in after a plan is accepted — the most likely locus of "a dialog appears to choose the mode."
+
+- **Approve flow / "plan accepted":** `runPreToolUse` (lines 175-193) calls `runPlanReview` and, on `decision.kind === "approve"`, writes an approve marker (`writeApproveMarker`, keyed by SHA-256 of the plan) and calls `emitApproveDecision()`. Then the separate `PermissionRequest` event runs `runPermissionRequest` (lines 195-209), which reads the marker, checks freshness (`isFreshFor`, 60s TTL, `approveMarkerTtlMs` line 38), and only then emits the auto-mode allow payload. If the marker is stale/missing/mismatched, it writes nothing → Claude Code falls through to its **native prompt** (this fall-through is the documented "graceful degradation" and is another candidate for the dialog you're seeing, if the freshness/hash check fails).
+
+- **The upstream-bug note:** lines 125-139 (`emitApproveDecision`) carry a `TODO(symbiot#1, upstream anthropics/claude-code#50660)` — `permissionDecision` is "silently ignored for ExitPlanMode," so the `PreToolUse` payload is a runtime no-op and the `PermissionRequest` path (with `setMode`/`auto`) is what actually drives mode selection.
+
+- **Hook registration:** `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/installHook.ts` registers both `PreToolUse` and `PermissionRequest` under `matcher: "ExitPlanMode"` (lines 38-46).
+
+- **Tests to consult:** `apps/claude-code/src/runHook.test.ts` and `apps/claude-code/src/hooks.test.ts` exercise this payload and freshness logic.
+
+- **Shared decision types:** `packages/symbiot-agent-runtime/src/decision.ts` and `runPlanReview.ts` define the `approve`/`block` decision contract that `runHook.ts` consumes.
+
+Repo-wide, `mode: "auto"` / `setMode` appears only in `apps/claude-code/src/runHook.ts` and its mirror in `docs/02-architecture.md` (lines 241-245). Note that Claude Code's documented permission modes are typically `default`, `acceptEdits`, `plan`, and `bypassPermissions` — so the hardcoded `mode: "auto"` string in `runHook.ts` is worth scrutinizing as the likely root cause of Claude Code not honoring the setting and instead surfacing a mode-choice dialog.
+
+I made no modifications — read-only exploration only.</result>
+<usage><subagent_tokens>37560</subagent_tokens><tool_uses>9</tool_uses><duration_ms>91046</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a717c4dfaff4cadf1</task-id>
+<tool-use-id>toolu_01MiMRNU3JwAP3QCYf4Kpopw</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi-Documents-Source-symbiot/67fe2d7c-6c37-44fc-a6f2-7333804ee310/tasks/a717c4dfaff4cadf1.output</output-file>
+<status>completed</status>
+<summary>Agent "Explore mode selection dialog and plan acceptance" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have a complete picture. Here is my thorough report.
+
+## Summary
+
+"symbiot" is a plan-review tool: a Claude Code (and Codex/Gemini/Copilot/OpenCode) plugin that intercepts `ExitPlanMode`, opens a browser-based viewer for the human to approve/annotate a plan, then feeds the decision back to the agent. The reported "dialog asking the user to choose the mode" is not a symbiot component — it is Claude Code's own native "Accept this plan?" prompt (the one that offers "start in auto mode"). Symbiot is designed to suppress that native prompt and force the session into `auto` mode via a hook. The bug is that the suppression/auto-switch is failing, so Claude Code falls back to showing its native mode-choice dialog.
+
+Everything relevant lives in the Claude Code hook, not in the viewer UI.
+
+---
+
+## 1. The "mode" dialog — what it is and what triggers it
+
+There is no symbiot-owned "choose a mode" dialog anywhere in the repo. The only viewer "mode" is `ViewerMode` = `"plan" | "annotate"` (Approve/Deny vs Submit-feedback), which is unrelated to the run mode.
+
+- `/Users/tony_vi/Documents/Source/symbiot/apps/viewer/src/shared/apiTypes.ts:21-22`
+  ```ts
+  /** Operating mode of the viewer. `plan` = Approve/Deny; `annotate` = Submit feedback. */
+  export type ViewerMode = "plan" | "annotate";
+  ```
+
+The dialog the user sees is Claude Code's native post-plan prompt. It appears whenever symbiot's `PermissionRequest(ExitPlanMode)` hook does not emit its allow payload. That fallback is documented and lives here:
+
+- `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/runHook.ts:195-209` — `runPermissionRequest`. If the approve marker is missing/stale it writes nothing, and Claude Code "falls through to its native prompt (graceful degradation)":
+  ```ts
+  const marker = await readApproveMarker();
+  const fresh = marker !== null &amp;&amp; isFreshFor(marker, planHash, Date.now());
+  if (fresh) {
+    emitPermissionRequestAllow();      // suppresses the dialog + sets auto
+    ...
+    return 0;
+  }
+  // No fresh marker → write nothing → native "Accept this plan?" dialog appears
+  await logEvent({ event: "PermissionRequest", planHash, marker, emitted: "passthrough" });
+  return 0;
+  ```
+- Documented at `/Users/tony_vi/Documents/Source/symbiot/docs/02-architecture.md:254-256`: "When the marker is missing or stale, `PermissionRequest` writes nothing so Claude Code falls through to its native prompt."
+
+So the dialog is triggered by the passthrough branch (runHook.ts:204-208).
+
+---
+
+## 2. "Plan accepted" / accept-plan flow
+
+Two layers.
+
+Viewer client (browser) — when the reviewer clicks Approve:
+- `/Users/tony_vi/Documents/Source/symbiot/apps/viewer/src/client/hooks/useReviewSubmit.ts:40-50` — `onApprove`: `setPhase("submitting")` → `postApprove()` → delete draft → `setPhase("done")` → `window.close()`.
+- Wired into the UI at `/Users/tony_vi/Documents/Source/symbiot/apps/viewer/src/client/components/ReviewScreen.tsx:170-175` (`onApprove` from `useReviewSubmit`) and passed to `&lt;TopBar onApprove=… /&gt;` at line 208-215.
+
+Agent runtime — the server resolves the decision and the hook maps it:
+- `/Users/tony_vi/Documents/Source/symbiot/packages/symbiot-agent-runtime/src/runPlanReview.ts:60-73` — spawn viewer, `await server.resolved`, call `onResolved(decision)`.
+- `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/runHook.ts:175-193` — `runPreToolUse`. On `decision.kind === "approve"`:
+  ```ts
+  if (decision.kind === "approve") {
+    await writeApproveMarker(planHash);   // marker for the PermissionRequest run
+    emitApproveDecision();                // PreToolUse allow — a NO-OP today (see below)
+    await logEvent({ event: "PreToolUse", planHash, emitted: "allow" });
+    return 0;
+  }
+  ```
+- The transition after approval is a two-event handshake documented at `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/runHook.ts:211-233` and `docs/02-architecture.md:231-256`: PreToolUse writes a SHA-256-keyed marker → tool dispatch continues → `PermissionRequest(ExitPlanMode)` fires → reads marker → emits the auto-mode allow.
+
+---
+
+## 3. Where "auto mode" is defined and where it SHOULD be set (bug locus)
+
+- `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/runHook.ts:141-169` — the auto-mode payload:
+  ```ts
+  interface PermissionRequestAllowPayload {
+    hookSpecificOutput: {
+      hookEventName: "PermissionRequest";
+      decision: {
+        behavior: "allow";
+        updatedPermissions: Array&lt;{ type: "setMode"; mode: "auto"; destination: "session" }&gt;;
+      };
+    };
+  }
+
+  export const permissionRequestAllowPayload = (): PermissionRequestAllowPayload =&gt; ({
+    hookSpecificOutput: {
+      hookEventName: "PermissionRequest",
+      decision: {
+        behavior: "allow",
+        updatedPermissions: [{ type: "setMode", mode: "auto", destination: "session" }],
+      },
+    },
+  });
+  ```
+  This is the intended "switch to auto mode" mechanism. The JSDoc (lines 152-160) explicitly says it "reproduces the choice the native 'Accept this plan?' prompt offers ('start in auto mode')… or Claude Code falls back to its post-approval `acceptEdits` default."
+
+- Emitted only inside the `fresh` branch: `emitPermissionRequestAllow()` at `runHook.ts:171-173`, called from `runPermissionRequest` at `runHook.ts:199-203`.
+
+Where it should be set to auto but the dialog opens instead — three concrete failure points, all in `runHook.ts`:
+
+a) The PreToolUse approve payload is a deliberate NO-OP (upstream bug #50660):
+- `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/runHook.ts:125-139` — `emitApproveDecision`, with `TODO(symbiot#1 … #50660): permissionDecision is currently silently ignored for ExitPlanMode … so this PreToolUse payload is a no-op at runtime.` So auto-switching depends entirely on the PermissionRequest path working.
+
+b) The PermissionRequest passthrough fires when the marker isn't "fresh" → native dialog:
+- `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/runHook.ts:198-208`. Freshness is gated by `isFreshFor` (`runHook.ts:122-123`): the marker's `planHash` must equal `hashPlan(plan)` of the PermissionRequest's plan AND be younger than 60s (`approveMarkerTtlMs`, `runHook.ts:38`). If Claude Code passes even slightly different plan text between the PreToolUse and PermissionRequest events, or the marker predates by &gt;60s, the hashes/TTL fail and the dialog appears. This is the most likely runtime cause of the reported symptom.
+
+c) Potential value mismatch worth verifying: the payload uses `mode: "auto"` (runHook.ts:147, 166). Claude Code's documented permission modes are typically `default | acceptEdits | plan | bypassPermissions`. If `"auto"` is not a recognized `setMode` value, Claude Code may reject the `updatedPermissions`/allow and fall back to its native prompt. The unit test only asserts the payload shape (`runHook.test.ts:37-47`), not that Claude Code accepts the value — so an invalid mode string would pass tests yet still surface the dialog at runtime.
+
+Hook registration (both events under the `ExitPlanMode` matcher) is correct, so a missing registration is not the cause:
+- `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/hooks/hooks.json:15-40` (PreToolUse + PermissionRequest, matcher `ExitPlanMode`).
+- `/Users/tony_vi/Documents/Source/symbiot/apps/claude-code/src/installHook.ts:42-44` (`registerEvents: ["PreToolUse", "PermissionRequest"]`, `matcher: "ExitPlanMode"`).
+
+---
+
+## 4. State machines / status enums for the run lifecycle
+
+- Viewer submission phase — `/Users/tony_vi/Documents/Source/symbiot/apps/viewer/src/client/hooks/useReviewSubmit.ts:8-9`:
+  ```ts
+  /** Submission lifecycle phase: ready → submitting → done. */
+  export type Phase = "ready" | "submitting" | "done";
+  ```
+  Transitions: `ready` → (onApprove/onSubmit) `submitting` → after POST + draft delete `done` → `window.close()`. `phase === "done"` renders `&lt;SubmittedScreen&gt;` (`ReviewScreen.tsx:197`).
+
+- Viewer operating mode — `apiTypes.ts:22`: `"plan" | "annotate"` (drives Approve/Deny vs Submit-feedback UI; not the run mode).
+
+- Reviewer decision union — `/Users/tony_vi/Documents/Source/symbiot/packages/symbiot-agent-runtime/src/decision.ts:23-24` and `runPlanReview.ts:33-35`: decision kinds `approve` / `deny` / `feedback`. Mapping to host: only `deny` emits `{decision:"block", reason}`; `approve`/`feedback` write nothing (`decision.ts:55-58`).
+
+- Claude Code hook event/marker lifecycle — `runHook.ts:211-248` (`runHook` entry dispatch): `PreToolUse(ExitPlanMode)` → viewer/decide → on approve write marker `{planHash, approvedAt}` (`ApproveMarker`, `runHook.ts:31-35`; written `runHook.ts:80-87`), then `PermissionRequest(ExitPlanMode)` → read marker (`runHook.ts:108-120`) → fresh? emit auto-allow : passthrough. TTL constant `approveMarkerTtlMs = 60_000` (`runHook.ts:38`).
+
+---
+
+## Recommended focus for the fix
+
+The auto-mode transition hinges entirely on `runPermissionRequest` (`apps/claude-code/src/runHook.ts:195-209`) emitting `permissionRequestAllowPayload()`. The dialog appears when either (1) the marker isn't fresh — verify plan-text identity between the PreToolUse and PermissionRequest events and the 60s TTL (`isFreshFor`, runHook.ts:122-123, 198), or (2) Claude Code doesn't honor `{type:"setMode", mode:"auto", destination:"session"}` — verify `"auto"` is the accepted permission-mode value versus e.g. `"acceptEdits"` (runHook.ts:147, 166). The PreToolUse `emitApproveDecision` path (runHook.ts:130-139) is a known no-op and cannot be relied on to switch modes.</result>
+<usage><subagent_tokens>57705</subagent_tokens><tool_uses>25</tool_uses><duration_ms>188154</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a28c70681859a74a0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi-Documents-Source-symbiot/67fe2d7c-6c37-44fc-a6f2-7333804ee310/tasks/a28c70681859a74a0.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify Claude Code setMode values" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Perfect! I found the authoritative documentation. Here are your precise answers:
+
+## 1. Valid Permission Modes
+
+**Exact valid mode strings** (from `https://code.claude.com/docs/en/permission-modes.md`):
+
+| Mode | Value |
+|------|-------|
+| Manual (Interactive) | `"default"` |
+| Auto-approve edits | `"acceptEdits"` |
+| Plan first | `"plan"` |
+| Autonomous | `"auto"` |
+| Pre-approved only | `"dontAsk"` |
+| Bypass all checks | `"bypassPermissions"` |
+
+**Yes, `"auto"` is a valid permission mode.** It's listed in the official table and documented in detail in the ["Eliminate permission prompts with auto mode"](https://code.claude.com/docs/en/permission-modes.md#eliminate-prompts-with-auto-mode) section. There is no "auto mode that got renamed"—it has been available since Claude Code v2.1.83 or later.
+
+---
+
+## 2. PermissionRequest Hook Output Schema for Mode Switching
+
+**Yes, your schema is current and correct.** From `https://code.claude.com/docs/en/hooks-guide.md` (lines 413–433):
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PermissionRequest",
+    "decision": {
+      "behavior": "allow",
+      "updatedPermissions": [
+        { "type": "setMode", "mode": "acceptEdits", "destination": "session" }
+      ]
+    }
+  }
+}
+```
+
+**Valid field values:**
+
+- **`type`**: Must be `"setMode"` (this is the only type shown in the official hooks documentation for permission mode switching)
+- **`mode`**: Any of the six valid modes listed above: `"default"`, `"acceptEdits"`, `"plan"`, `"auto"`, `"dontAsk"`, `"bypassPermissions"`
+- **`destination`**: Must be `"session"` (applies the mode for the current session only; there is no other documented value)
+
+---
+
+## 3. Recent Changes
+
+**No schema changes in late 2025/early 2026.** The documentation shows:
+
+- The `updatedPermissions` array with `type: "setMode"` has been stable.
+- `"auto"` mode is not new; it was introduced in v2.1.83 and has remained stable since.
+- There is no evidence of renaming or removal. The mode has always been `"auto"`.
+
+To make an approved plan auto-accept edits, emit:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PermissionRequest",
+    "decision": {
+      "behavior": "allow",
+      "updatedPermissions": [
+        { "type": "setMode", "mode": "auto", "destination": "session" }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## 4. Behavior with Unrecognized Mode Values
+
+**The documentation does not explicitly cover this scenario.** However, the schema is strict and validated. If you emit an unrecognized `mode` value (e.g., `"mode": "unknown"`):
+
+- **Most likely**: It is silently ignored or causes a validation error (not documented in the public API).
+- **Then**: The native mode-choice prompt likely appears, since the hook's mode-setting directive failed.
+- **Recommendation**: Always use one of the six documented mode strings. Test your hook with a known mode first to verify the output format.
+
+---
+
+## Documentation Sources
+
+- **Permission Modes Reference**: https://code.claude.com/docs/en/permission-modes.md
+- **Hooks Guide (PermissionRequest + Auto-approval)**: https://code.claude.com/docs/en/hooks-guide.md (section "Auto-approve specific permission prompts", lines 385–436)
+- **Auto Mode Details**: https://code.claude.com/docs/en/permission-modes.md#eliminate-prompts-with-auto-mode
+
+All quotes are directly from official Claude Code v2.1.x documentation (last updated July 10, 2026 per the docs map).</result>
+<usage><subagent_tokens>78914</subagent_tokens><tool_uses>8</tool_uses><duration_ms>65695</duration_ms></usage>
+</task-notification>
+
+---
+
+⚠️ 5 installHook.test.ts failures — must be fixed
