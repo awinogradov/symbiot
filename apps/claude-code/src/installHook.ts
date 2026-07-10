@@ -35,8 +35,11 @@ const isSymbiotEntry = (command: string): boolean =>
 const cliCommand = (): string =>
   `bun ${resolve(dirname(fileURLToPath(import.meta.url)), "cli.ts")} run-hook`;
 
+// Resolve the settings path from `process.env.HOME` (not `os.homedir()`, which Bun
+// caches at startup and never re-reads) so tests can redirect it to a tmpdir — same
+// idiom as `apps/viewer/src/server/storage.ts`. Falls back to `homedir()` when HOME is unset.
 export const { installHook, uninstallHook } = createConfigHookInstaller({
-  path: join(homedir(), ".claude", "settings.json"),
+  path: join(process.env.HOME || homedir(), ".claude", "settings.json"),
   cliCommand,
   isSymbiotEntry,
   registerEvents: ["PreToolUse", "PermissionRequest"],

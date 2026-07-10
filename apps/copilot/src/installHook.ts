@@ -24,7 +24,9 @@ import { join } from "node:path";
 import { resolveHookCommand } from "@symbiot/agent-runtime/hook-command";
 import { removeIfOwned, writeAtomic } from "@symbiot/agent-runtime/managed-file";
 
-const hookPath = join(homedir(), ".copilot", "hooks", "symbiot-copilot.json");
+// Resolve from `process.env.HOME` (not `os.homedir()`, which Bun caches at startup and never
+// re-reads) so tests can redirect it to a tmpdir; falls back to `homedir()` when HOME is unset.
+const hookPath = join(process.env.HOME || homedir(), ".copilot", "hooks", "symbiot-copilot.json");
 
 /** Ownership sentinel — `uninstall-hook` only deletes a file still carrying it. */
 const managedBy = "symbiot-copilot";
