@@ -30,7 +30,9 @@ const cliCommand = (): string =>
   resolveHookCommand({ importMetaUrl: import.meta.url, binName: "symbiot-gemini" });
 
 export const { installHook, uninstallHook } = createConfigHookInstaller({
-  path: join(homedir(), ".gemini", "settings.json"),
+  // Resolve from `process.env.HOME` (not `os.homedir()`, which Bun caches at startup and
+  // never re-reads) so tests can redirect it to a tmpdir; falls back to `homedir()` when unset.
+  path: join(process.env.HOME || homedir(), ".gemini", "settings.json"),
   cliCommand,
   isSymbiotEntry,
   registerEvents: ["AfterAgent"],
