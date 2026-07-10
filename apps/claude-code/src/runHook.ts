@@ -144,7 +144,7 @@ interface PermissionRequestAllowPayload {
     hookEventName: "PermissionRequest";
     decision: {
       behavior: "allow";
-      updatedPermissions: Array<{ type: "setMode"; mode: "auto"; destination: "session" }>;
+      updatedPermissions: Array<{ type: "setMode"; mode: "acceptEdits"; destination: "session" }>;
     };
   };
 }
@@ -153,17 +153,22 @@ interface PermissionRequestAllowPayload {
  * The nested `{decision: {behavior: "allow"}}` shape Claude Code honors for the
  * `PermissionRequest(ExitPlanMode)` matcher — distinct from the PreToolUse-only
  * `permissionDecision` field. The `updatedPermissions` `setMode` entry
- * reproduces the choice the native "Accept this plan?" prompt offers ("start in
- * auto mode"): because the viewer replaces that prompt, the post-plan permission
- * mode must be carried here, or Claude Code falls back to its post-approval
- * `acceptEdits` default. Exported so the payload shape can be unit-asserted.
+ * reproduces the native "Accept this plan?" prompt's "Approve and accept edits"
+ * choice: because the viewer replaces that prompt, the post-plan permission mode
+ * must be carried here. `acceptEdits` is used deliberately over `auto`: `auto` is
+ * a gated research-preview mode (it requires an eligible model, provider, and org
+ * setting), so on any session that is not auto-eligible Claude Code cannot apply
+ * it and falls back to its native mode-selection prompt — the very dialog this
+ * hook exists to suppress. `acceptEdits` is the documented, universally available
+ * `setMode` value, so approval continues seamlessly everywhere. Exported so the
+ * payload shape can be unit-asserted.
  */
 export const permissionRequestAllowPayload = (): PermissionRequestAllowPayload => ({
   hookSpecificOutput: {
     hookEventName: "PermissionRequest",
     decision: {
       behavior: "allow",
-      updatedPermissions: [{ type: "setMode", mode: "auto", destination: "session" }],
+      updatedPermissions: [{ type: "setMode", mode: "acceptEdits", destination: "session" }],
     },
   },
 });
@@ -226,10 +231,10 @@ const runPermissionRequest = async (plan: string): Promise<number> => {
  *     schema and is ignored here). Reads the marker left by the PreToolUse
  *     run; if the plan hash matches and the marker is younger than 60 s,
  *     emits the allow payload, whose `updatedPermissions` `setMode` entry
- *     switches the session to `auto` mode (the native prompt's "start in auto
- *     mode" choice) instead of Claude Code's post-approval `acceptEdits`
- *     default. Otherwise writes nothing so Claude Code falls through to its
- *     native prompt — graceful degradation.
+ *     switches the session to `acceptEdits` mode (the native prompt's "Approve
+ *     and accept edits" choice) so editing continues without a second prompt.
+ *     Otherwise writes nothing so Claude Code falls through to its native
+ *     prompt — graceful degradation.
  */
 export const runHook = async (): Promise<number> => {
   const input = await readHookInput();

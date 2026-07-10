@@ -239,10 +239,14 @@ onResolved`), the package owns every other piece that is identical across agents
   on the deny path. `PermissionRequest` is a viewer-less reader that
   consults the marker (60 s TTL, plan-hash gated) and emits the nested
   `{decision: {behavior: "allow", updatedPermissions: [{type: "setMode",
-mode: "auto", destination: "session"}]}}` schema Claude Code honors for
+mode: "acceptEdits", destination: "session"}]}}` schema Claude Code honors for
   this event — suppressing the native "Accept this plan?" prompt and, in its
-  place, switching the session to `auto` mode (the prompt's "start in auto
-  mode" choice) instead of Claude Code's post-approval `acceptEdits` default.
+  place, switching the session to `acceptEdits` mode (the prompt's "Approve and
+  accept edits" choice) so editing continues without a second prompt. `auto`
+  mode is deliberately avoided: it is a gated research-preview mode, so on a
+  session that is not auto-eligible Claude Code cannot apply it and re-shows the
+  native mode-selection dialog — `acceptEdits` is the documented, universally
+  available `setMode` value.
 - **Two schemas — `PreToolUse` ≠ `PermissionRequest`.** The two events do
   NOT share an output shape. `PreToolUse` expects
   `hookSpecificOutput.permissionDecision` (`allow` / `deny` / `ask`) which

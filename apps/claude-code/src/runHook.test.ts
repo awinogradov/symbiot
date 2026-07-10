@@ -35,12 +35,12 @@ describe("hashPlan", () => {
 });
 
 describe("permissionRequestAllowPayload", () => {
-  it("allows ExitPlanMode and switches the session to auto mode", () => {
+  it("allows ExitPlanMode and switches the session to acceptEdits mode", () => {
     const { decision } = permissionRequestAllowPayload().hookSpecificOutput;
     expect(decision.behavior).toBe("allow");
     expect(decision.updatedPermissions).toContainEqual({
       type: "setMode",
-      mode: "auto",
+      mode: "acceptEdits",
       destination: "session",
     });
   });
