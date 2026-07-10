@@ -1,0 +1,36 @@
+/autopilot:run #236
+Revalidate, it was fixed recently
+
+---
+
+check
+
+---
+
+<task-notification>
+<task-id>bzv7hjtvr</task-id>
+<summary>Monitor event: "flake-probe run 29127273911 on main terminal state"</summary>
+<event>DONE: completed success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+check
+
+---
+
+check
+
+---
+
+/goal merge/close when green and no issues found
+
+---
+
+<task-notification>
+<task-id>buf3l2pui</task-id>
+<summary>Monitor event: "2nd flake-probe run 29129143194 on main terminal state"</summary>
+<event>DONE: completed failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
