@@ -67,20 +67,21 @@ dependencies — it only knows about the tuple model and the Plate value shape
 `/api/*` endpoint. Both the Bun dispatch table and the client `apiClient` key
 into the same registry, so route paths and methods never drift.
 
-| Method | Path                    | Purpose                                      |
-| ------ | ----------------------- | -------------------------------------------- |
-| GET    | `/api/plan`             | Plan markdown + viewer mode for the session. |
-| GET    | `/api/plan/versions`    | Every persisted version + the current one.   |
-| GET    | `/api/plan/version?n=N` | Markdown of a specific version.              |
-| POST   | `/api/plan/vscode-diff` | Spawn `code --diff <from> <to>` on the host. |
-| POST   | `/api/approve`          | Reviewer approved the plan.                  |
-| POST   | `/api/deny`             | Reviewer denied with free-text feedback.     |
-| POST   | `/api/feedback`         | Annotate-mode reviewer submitted feedback.   |
-| GET    | `/api/draft`            | Resume an in-progress draft.                 |
-| POST   | `/api/draft`            | Persist the draft (debounced).               |
-| DELETE | `/api/draft`            | Clear the draft.                             |
-| POST   | `/api/upload`           | Upload an image to the plan's uploads dir.   |
-| GET    | `/api/image`            | Read back an uploaded image by UUID.         |
+| Method | Path                    | Purpose                                                                   |
+| ------ | ----------------------- | ------------------------------------------------------------------------- |
+| GET    | `/api/plan`             | Plan markdown + viewer mode for the session.                              |
+| GET    | `/api/plan/versions`    | Every persisted version + the current one.                                |
+| GET    | `/api/plan/version?n=N` | Markdown of a specific version.                                           |
+| POST   | `/api/plan/vscode-diff` | Spawn `code --diff <from> <to>` on the host.                              |
+| POST   | `/api/approve`          | Reviewer approved the plan (draft mode: body carries the final markdown). |
+| POST   | `/api/deny`             | Reviewer denied with free-text feedback.                                  |
+| POST   | `/api/feedback`         | Annotate-mode reviewer submitted feedback.                                |
+| GET    | `/api/draft`            | Resume an in-progress draft.                                              |
+| POST   | `/api/draft`            | Persist the draft (debounced).                                            |
+| DELETE | `/api/draft`            | Clear the draft.                                                          |
+| POST   | `/api/draft/send`       | Draft mode: persist the edited body as the next version + resolve.        |
+| POST   | `/api/upload`           | Upload an image to the plan's uploads dir.                                |
+| GET    | `/api/image`            | Read back an uploaded image by UUID.                                      |
 
 ## Architectural specials
 
@@ -200,6 +201,42 @@ obsolete, delete the bullet rather than hedging it.
   the existing maps-change snapshot effect rather than an explicit
   `onChange`. The edit is a no-op when the id is unknown, so a stale edit
   can never resurrect a removed annotation.
+
+### Draft mode (UC5)
+
+- **The iteration loop lives in the agent, not the server.** The viewer stays
+  one-shot: each `symbiot draft` invocation is one boot → one decision.
+  "Send to agent" persists the edited body as the next `00N.md` and resolves
+  `{ kind: "draft", path, version }`; the agent refines the file and re-runs
+  the CLI with the emitted `--slug`. `runPlanReview` is reused unchanged by a
+  thin `runDraft` wrapper (`@symbiot/agent-runtime/draft`). No polling, no
+  long-lived server, no `/api/*` lifecycle change.
+- **Decision routes stay repeatable after resolution.** approve / deny /
+  feedback / draft-send deliberately re-run `finalize` on every call (no
+  "already resolved" guard): the BDD harness drives many scenarios against
+  one `--keep-alive` viewer, and the production one-shot flow stops the
+  server after the first resolution anyway. Double-submit protection is
+  client-side (the `busy` phase disables the actions; in draft mode they
+  also stay disabled until the editor delivers its serialize-back handle).
+- **Slug continuity is explicit, not H1-derived.** `savePlan` accepts a slug
+  override (threaded from `StartServerOptions.slug` / the CLI `--slug` flag)
+  and mid-session revisions persist via `saveRevision` under the session's
+  `{project, slug}`. A retitled draft therefore cannot fork its version
+  history; H1-derived slugging remains the first-boot default only.
+- **Serializer normalization is invisible in the diff by construction.** The
+  draft editor's `getMarkdown()` is the repo's only Plate→markdown serialize
+  path; the version diff compares deserialized Plate values, not markdown
+  bytes, so canonical-form churn can never show up as phantom changes —
+  pinned by `packages/symbiot-editor/src/utils/markdownRoundTrip.test.ts`
+  (semantic losslessness + idempotency + zero diff ops). A byte-identical
+  Send also skips the version write entirely.
+- **Two draft shapes ride one `/api/draft` endpoint.** The server stores the
+  autosave body opaquely; review mode persists the annotation `DraftPayload`,
+  draft mode a markdown `DraftBodyPayload { markdown, version, updatedAt }`.
+  The mode branch in `PlanLoaded` sits ABOVE the draft hooks so each surface
+  parses with its own schema, and draft hydration applies only when the
+  payload's `version` equals the boot version (a stale blob from a crashed
+  run never masks a fresh CLI seed).
 
 ### Hook semantics
 

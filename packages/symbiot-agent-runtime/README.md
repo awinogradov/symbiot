@@ -53,15 +53,16 @@ its return value (sync or async) becomes the resolved exit code.
 Beyond `runPlanReview`, this package owns the boilerplate that is identical across
 agent apps, each on its own subpath import (no barrel — import the actual path):
 
-| Import               | Exports                                                                             |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| `…/cli`              | `createCli` — dispatcher shell (usage/exit-64, error→exit-1)                        |
-| `…/annotate`         | `runAnnotate` — the shared `annotate <file.md>` flow                                |
-| `…/hook-input`       | `readHookInput`, `flagValue`, `parsePort`, `createStopPlanExtractor`                |
-| `…/decision`         | `emitBlockDecision`, `emitDecision` — the `{"decision":"block",…}` contract         |
-| `…/config-installer` | `createConfigHookInstaller` — merge a hook into a shared JSON settings file         |
-| `…/managed-file`     | `writeAtomic`, `readOwnership`, `removeIfOwned` — atomic write + ownership sentinel |
-| `…/marker-store`     | `createMarkerStore` — TTL re-entrancy markers under `~/.symbiot/hook-state/`        |
+| Import               | Exports                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `…/cli`              | `createCli` — dispatcher shell (usage/exit-64, error→exit-1)                                                                                                                         |
+| `…/annotate`         | `runAnnotate` — the shared `annotate <file.md>` flow                                                                                                                                 |
+| `…/draft`            | `runDraft` — the shared `draft [file.md] [--slug]` flow + `SYMBIOT_DRAFT_*` markers (contract: [`docs/03-server-contract.md`](../../docs/03-server-contract.md#draft-loop-contract)) |
+| `…/hook-input`       | `readHookInput`, `flagValue`, `parsePort`, `createStopPlanExtractor`                                                                                                                 |
+| `…/decision`         | `emitBlockDecision`, `emitDecision` — the `{"decision":"block",…}` contract                                                                                                          |
+| `…/config-installer` | `createConfigHookInstaller` — merge a hook into a shared JSON settings file                                                                                                          |
+| `…/managed-file`     | `writeAtomic`, `readOwnership`, `removeIfOwned` — atomic write + ownership sentinel                                                                                                  |
+| `…/marker-store`     | `createMarkerStore` — TTL re-entrancy markers under `~/.symbiot/hook-state/`                                                                                                         |
 
 An agent app supplies only its deltas (bin name, `agentId`, event/message field,
 install target/timeout, embedded `viewerHtmlGz`). See

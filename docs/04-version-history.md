@@ -25,7 +25,17 @@ Every viewer boot writes the plan as a fresh version under:
 - Writes are atomic (write to `.tmp` + `rename`).
 
 Storage helpers: `apps/viewer/src/server/storage.ts`. The relevant exports
-are `savePlan`, `loadPlan`, and `listVersions(meta)`.
+are `savePlan`, `loadPlan`, `saveRevision`, and `listVersions(meta)`.
+
+Draft mode (UC5) writes into the same layout: each `symbiot draft` boot
+persists its seed as the next `00N.md`, and "Send to agent" / a draft-mode
+Approve appends the edited body via `saveRevision` under the **session's**
+`{project, slug}` — never re-derived mid-session. Iteration continuity is
+carried by an explicit `--slug` handle (which `savePlan` accepts as an
+override), so a retitled draft cannot fork its history; the H1-derived slug
+remains the first-boot default. A re-opened revision therefore always has a
+predecessor in the same directory, and the draft session leads with the
+inline diff below (auto-compare on boot).
 
 ## Endpoints
 

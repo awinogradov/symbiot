@@ -28,20 +28,21 @@ features/
 ```
 
 Feature folders are keyed to the **story IDs in [`docs/01-product.md`](../docs/01-product.md)**
-(personas `P1`–`P3`, use cases `UC1`–`UC4`, non-functional requirements `NFR-1`..`NFR-9`),
+(personas `P1`–`P3`, use cases `UC1`–`UC5`, non-functional requirements `NFR-1`..`NFR-9`),
 not to UI surfaces. Each `.feature` lives in exactly one story folder — its primary
 journey — so per-persona coverage gaps are visible at the directory level.
 
-| Folder                    | Story                                                    |
-| ------------------------- | -------------------------------------------------------- |
-| `uc1-review-and-approve/` | UC1 — review, annotate, approve / request changes (P1)   |
-| `uc2-version-diff/`       | UC2 — inline diff between plan versions (P1)             |
-| `uc3-annotate-doc/`       | UC3 — annotate an arbitrary markdown document (P1)       |
-| `nfr-a11y/`               | NFR-5 — accessibility baseline                           |
-| `nfr-theming/`            | NFR-9 — theming integrity, no FOUC                       |
-| `nfr-markdown-fidelity/`  | NFR-4 — deterministic markdown rendering / round-trip    |
-| `nfr-upload-security/`    | NFR-3 — upload contract & zero-knowledge guarantees (P3) |
-| `diagnostics/`            | Cross-cutting dev diagnostics (no product-spec ID)       |
+| Folder                    | Story                                                      |
+| ------------------------- | ---------------------------------------------------------- |
+| `uc1-review-and-approve/` | UC1 — review, annotate, approve / request changes (P1)     |
+| `uc2-version-diff/`       | UC2 — inline diff between plan versions (P1)               |
+| `uc3-annotate-doc/`       | UC3 — annotate an arbitrary markdown document (P1)         |
+| `uc5-draft-plan/`         | UC5 — author a draft, iterate with the agent, approve (P1) |
+| `nfr-a11y/`               | NFR-5 — accessibility baseline                             |
+| `nfr-theming/`            | NFR-9 — theming integrity, no FOUC                         |
+| `nfr-markdown-fidelity/`  | NFR-4 — deterministic markdown rendering / round-trip      |
+| `nfr-upload-security/`    | NFR-3 — upload contract & zero-knowledge guarantees (P3)   |
+| `diagnostics/`            | Cross-cutting dev diagnostics (no product-spec ID)         |
 
 > **UC4 (share → import → respond, persona P2) has no folder yet** — there are no
 > scenarios for it. That gap is intentional and visible; filling it is tracked as a
@@ -68,12 +69,13 @@ quality bar this scenario exercises_. Filter a run by any tag with
 
 **`@UC<n>` — use case** (_which journey_ the scenario covers):
 
-| Tag    | Use case                                                                  |
-| ------ | ------------------------------------------------------------------------- |
-| `@UC1` | Plan emitted → developer reviews, annotates, approves / requests changes  |
-| `@UC2` | Plan revised → inline diff between version N-1 and N → review the delta   |
-| `@UC3` | Developer annotates an arbitrary markdown document in `annotate` mode     |
-| `@UC4` | Plan shared → teammate imports, annotates, shares back (no scenarios yet) |
+| Tag    | Use case                                                                     |
+| ------ | ---------------------------------------------------------------------------- |
+| `@UC1` | Plan emitted → developer reviews, annotates, approves / requests changes     |
+| `@UC2` | Plan revised → inline diff between version N-1 and N → review the delta      |
+| `@UC3` | Developer annotates an arbitrary markdown document in `annotate` mode        |
+| `@UC4` | Plan shared → teammate imports, annotates, shares back (no scenarios yet)    |
+| `@UC5` | Developer authors a draft in `draft` mode, iterates with the agent, approves |
 
 **`@NFR-<n>` — non-functional requirement** (_which quality bar_ the scenario locks in):
 
