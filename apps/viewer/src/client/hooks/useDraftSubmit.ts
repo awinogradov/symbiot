@@ -40,7 +40,16 @@ export const useDraftSubmit = ({ editorHandle, cancelDraft }: DraftSubmitProps):
       setPhase("submitting");
       cancelDraft();
       const markdown = editorHandle.getMarkdown();
-      await (kind === "sent" ? postDraftSend(markdown) : postApprove(markdown));
+      try {
+        await (kind === "sent" ? postDraftSend(markdown) : postApprove(markdown));
+      } catch (error) {
+        // A failed decision POST (e.g. 500 write failure) must not strand the
+        // UI in "submitting" — the server did not resolve, so re-enable the
+        // actions and let the author retry.
+        console.error("draft submit failed", error);
+        setPhase("ready");
+        return;
+      }
       await deleteDraft().catch(() => undefined);
       setOutcome(kind);
       setPhase("done");

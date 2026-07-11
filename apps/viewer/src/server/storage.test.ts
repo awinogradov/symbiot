@@ -47,6 +47,15 @@ describe("listVersions", () => {
 });
 
 describe("savePlan slug override", () => {
+  it("rejects a slug that is not a plain path-safe token", async () => {
+    await freshHome();
+    for (const bad of ["../../../escape", "a/b", ".hidden", "UPPER", ""]) {
+      await expect(savePlan("claude-code", "# Plan\n", "/tmp/proj", bad)).rejects.toThrow(
+        /invalid slug/
+      );
+    }
+  });
+
   it("persists under the explicit slug instead of the H1-derived one", async () => {
     const home = await freshHome();
     const meta = await savePlan(

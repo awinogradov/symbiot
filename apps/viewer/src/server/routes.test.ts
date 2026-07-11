@@ -402,6 +402,17 @@ describe("POST /api/draft/send", () => {
 });
 
 describe("POST /api/approve with a draft body", () => {
+  it("returns 400 when markdown is present but empty (never a silent path-less approve)", async () => {
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("appr-empty", { resolve });
+    const res = await send("POST", "/api/approve", routeCtx, {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markdown: "   " }),
+    });
+    expect(res?.status).toBe(400);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
   it("persists the body and resolves approve with the persisted path", async () => {
     const dir = join(homeRoot, ".symbiot", "agents", "claude-code", "history", project, "appr-md");
     await mkdir(dir, { recursive: true });

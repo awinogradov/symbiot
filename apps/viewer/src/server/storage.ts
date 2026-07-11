@@ -39,6 +39,16 @@ export const assertValidAgentId = (agentId: string): void => {
   if (!agentIdRe.test(agentId)) throw new Error(`invalid agentId: ${JSON.stringify(agentId)}`);
 };
 
+/**
+ * Guard an explicit slug override (draft mode's `--slug`). The H1-derived
+ * default is slugified, but an override would reach `join()`-built paths
+ * verbatim — reject anything that is not a plain slug so it can never escape
+ * the `history/` namespace.
+ */
+export const assertValidSlug = (slug: string): void => {
+  if (!agentIdRe.test(slug)) throw new Error(`invalid slug: ${JSON.stringify(slug)}`);
+};
+
 const agentDir = (agentId: string): string => {
   assertValidAgentId(agentId);
   return join(getStorageRoot(), "agents", agentId);
@@ -248,6 +258,7 @@ export const savePlan = async (
   cwd: string = process.cwd(),
   slug?: string
 ): Promise<PlanMeta> => {
+  if (slug !== undefined) assertValidSlug(slug);
   const project = deriveProjectSlug(cwd);
   const planSlug = slug ?? derivePlanSlug(plan);
   const displayName = resolveDisplayName(cwd);

@@ -218,10 +218,24 @@ const persistRevision = async (
   }
 };
 
-const parseMarkdownBody = async (req: Request): Promise<string | null> => {
+/**
+ * A `markdown` key that is present but empty/whitespace is distinguished from
+ * an absent body: draft-mode clients always send the field, so an emptied
+ * document must 400 (matching `draftSendRoute`) instead of silently degrading
+ * an Approve into a path-less plan-mode approve.
+ */
+type MarkdownBody =
+  | { kind: "absent" }
+  | { kind: "invalid" }
+  | { kind: "present"; markdown: string };
+
+const parseMarkdownBody = async (req: Request): Promise<MarkdownBody> => {
   const body = (await req.json().catch(() => null)) as { markdown?: unknown } | null;
-  const markdown = body?.markdown;
-  return typeof markdown === "string" && markdown.trim().length > 0 ? markdown : null;
+  if (body === null || !("markdown" in body)) return { kind: "absent" };
+  const { markdown } = body;
+  return typeof markdown === "string" && markdown.trim().length > 0
+    ? { kind: "present", markdown }
+    : { kind: "invalid" };
 };
 
 // NOTE: approve/deny/feedback/draft-send stay repeatable after resolution
@@ -230,21 +244,22 @@ const parseMarkdownBody = async (req: Request): Promise<string | null> => {
 // the first resolution anyway. Double-click protection lives client-side
 // (the `busy` phase disables the actions).
 const approveRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
-  const markdown = await parseMarkdownBody(req);
-  if (markdown === null) {
+  const body = await parseMarkdownBody(req);
+  if (body.kind === "invalid") return badRequest("missing markdown");
+  if (body.kind === "absent") {
     await finalize(ctx, { kind: "approve" });
     return new Response(null, { status: 204 });
   }
-  const persisted = await persistRevision(ctx, markdown);
+  const persisted = await persistRevision(ctx, body.markdown);
   if (persisted instanceof Response) return persisted;
   await finalize(ctx, { kind: "approve", path: persisted.path });
   return new Response(null, { status: 204 });
 };
 
 const draftSendRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
-  const markdown = await parseMarkdownBody(req);
-  if (markdown === null) return badRequest("missing markdown");
-  const persisted = await persistRevision(ctx, markdown);
+  const body = await parseMarkdownBody(req);
+  if (body.kind !== "present") return badRequest("missing markdown");
+  const persisted = await persistRevision(ctx, body.markdown);
   if (persisted instanceof Response) return persisted;
   await finalize(ctx, { kind: "draft", path: persisted.path, version: persisted.version });
   return new Response(null, { status: 204 });
