@@ -14,6 +14,7 @@ const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) 
         <TopBar
           onApprove={props.onApprove ?? vi.fn()}
           onDeny={props.onDeny ?? vi.fn()}
+          onSend={props.onSend}
           projectName={props.projectName ?? "demo"}
           busy={props.busy}
           mode={props.mode}
@@ -61,6 +62,21 @@ describe("TopBar", () => {
     expect(screen.getByTestId(expectedTestId).textContent).toContain(expectedText);
     const otherTestId = expectedTestId === "top-bar-approve" ? "top-bar-deny" : "top-bar-approve";
     expect(screen.queryByTestId(otherTestId)).toBeNull();
+  });
+
+  it("draft mode renders Approve and Send to agent side by side", () => {
+    renderTopBar({ mode: "draft" });
+    expect(screen.getByTestId("top-bar-approve").textContent).toContain("Approve");
+    expect(screen.getByTestId("send-to-agent").textContent).toContain("Send to agent");
+    expect(screen.queryByTestId("top-bar-deny")).toBeNull();
+  });
+
+  it("clicking Send to agent invokes onSend exactly once", async () => {
+    const user = userEvent.setup();
+    const onSend = vi.fn();
+    renderTopBar({ mode: "draft", onSend });
+    await user.click(screen.getByTestId("send-to-agent"));
+    expect(onSend).toHaveBeenCalledTimes(1);
   });
 
   it("busy disables the action button", () => {

@@ -4,8 +4,12 @@ import { expect } from "@playwright/test";
 
 /** Decision payload written by the viewer routes when `--decision-file` is set. */
 export interface DecisionRecord {
-  kind: "approve" | "deny" | "feedback";
+  kind: "approve" | "deny" | "feedback" | "draft";
   feedback?: string;
+  /** Absolute path of the persisted plan body (draft decisions; draft-mode approves). */
+  path?: string;
+  /** Persisted version number (draft decisions). */
+  version?: number;
   at?: number;
 }
 
