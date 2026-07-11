@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "a2f7488f9f30",
+  "strategy": "manual-commit",
+  "branch": "issue-236-overlay-cancel-defer",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "packages/symbiot-editor/src/components/ReviewEditor.tsx",
+    "packages/symbiot-editor/src/components/ReviewEditorAuthoring.test.tsx",
+    "packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx",
+    "packages/symbiot-editor/src/utils/applyAnnotation.test.ts",
+    "packages/symbiot-editor/src/utils/applyAnnotation.ts",
+    "packages/symbiot-editor/src/utils/kit.ts",
+    "packages/symbiot-editor/src/utils/pendingHighlight.test.ts",
+    "packages/symbiot-editor/src/utils/pendingHighlight.ts",
+    "packages/symbiot-ui/src/components/AnnotationComposer.tsx",
+    "packages/symbiot-ui/src/components/Dialog.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a2/f7488f9f30/0/metadata.json",
+      "transcript": "/a2/f7488f9f30/0/full.jsonl",
+      "compact_transcript": "/a2/f7488f9f30/0/transcript.jsonl",
+      "content_hash": "/a2/f7488f9f30/0/content_hash.txt",
+      "prompt": "/a2/f7488f9f30/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9417,
+    "cache_creation_tokens": 290947,
+    "cache_read_tokens": 16042640,
+    "output_tokens": 102594,
+    "api_call_count": 74
+  }
+}

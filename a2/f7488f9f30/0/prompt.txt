@@ -1,0 +1,1 @@
+/autopilot:plan we are trying to fix #236. Use @progress.md as handoff doc to continue. Deep analyze, read react and playwright docs to fix. Use short probes to check hypotesess.
