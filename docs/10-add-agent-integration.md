@@ -41,6 +41,7 @@ from the actual subpath (never a barrel):
 | `@symbiot/agent-runtime`                  | `runPlanReview` — the spawn → await → decide loop                                  | all                      |
 | `@symbiot/agent-runtime/cli`              | `createCli` — dispatcher shell (usage/exit-64, error→exit-1)                       | all                      |
 | `@symbiot/agent-runtime/annotate`         | `runAnnotate` — the shared `annotate <file.md>` flow                               | all                      |
+| `@symbiot/agent-runtime/draft`            | `runDraft` — the shared `draft [file.md] [--slug]` flow + marker constants         | claude-code              |
 | `@symbiot/agent-runtime/hook-input`       | `readHookInput`, `flagValue`, `parsePort`, `createStopPlanExtractor`               | stdin hooks              |
 | `@symbiot/agent-runtime/decision`         | `emitBlockDecision`, `emitDecision` — the `{"decision":"block","reason"}` contract | stdin hooks              |
 | `@symbiot/agent-runtime/config-installer` | `createConfigHookInstaller` — merge a hook into a shared JSON settings file        | codex/gemini/claude-code |

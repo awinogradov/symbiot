@@ -109,6 +109,28 @@ the plan-mode flow:
 bin/symbiot annotate path/to/document.md
 ```
 
+### Draft mode (`/draft` skill · `symbiot draft`)
+
+The inverse, human-initiated flow (UC5): you write the plan, the agent
+refines it. In Claude Code, invoke the plugin's `/draft` skill — optionally
+with a markdown file to seed from (`/draft notes/plan.md`) — and the viewer
+opens with an **editable** document. "Send to agent" hands your revision to
+the agent, which refines it and re-opens the viewer leading with the inline
+diff; "Approve" ends the loop and the agent implements the agreed plan.
+
+The CLI form:
+
+```sh
+bin/symbiot draft                        # blank draft
+bin/symbiot draft path/to/seed.md        # seeded draft
+bin/symbiot draft refined.md --slug s    # agent re-run: same version history
+```
+
+The blocking command reports its outcome as a single marker line on stdout
+(`SYMBIOT_DRAFT_REVISION <path>` / `SYMBIOT_DRAFT_APPROVED <path>` /
+`SYMBIOT_DRAFT_CANCELLED`). The normative marker and exit-code contract lives
+in [`docs/03-server-contract.md` § Draft loop contract](../../docs/03-server-contract.md#draft-loop-contract).
+
 ## Local development
 
 For contributors iterating on the source tree (no need to compile a

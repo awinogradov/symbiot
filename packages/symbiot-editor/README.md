@@ -29,6 +29,15 @@ ReviewEditor                          DiffEditor
                                           a single visual language.
 ```
 
+`DraftEditor` (the viewer's `draft` mode, UC5) is the third surface:
+`SymbiotDraftKit` is the bare shared markdown surface (no annotation plugins,
+no `DiffPlugin`), its `<PlateContent>` is editable — no `readOnly`, no typing
+guard — and `DraftEditorHandle.getMarkdown()` serializes the value back to
+markdown via `editor.api.markdown.serialize()`. That serialize-back path is
+the package's only Plate→markdown direction; `src/utils/markdownRoundTrip.test.ts`
+pins it semantically lossless, byte-idempotent, and invisible to the version
+diff (NFR-4).
+
 ### Why a separate package
 
 Kept distinct from `@symbiot/ui` on purpose:
@@ -45,7 +54,7 @@ in [`../../docs/02-architecture.md`](../../docs/02-architecture.md):
 
 - `aboveNodes` render hooks return `children` for non-diff elements, not `undefined` — Plate drops the entire element otherwise.
 - The host re-keys `DiffEditor` on `mode` change so `usePlateEditor` builds a fresh editor with the right initial value. Mixing `usePlateEditor`'s `deps` array with conditional value computation produces stale renders.
-- The editor stays mounted as `<Plate readOnly>` for the entire session. Annotation transforms run via `editor.tf.*`, which bypass DOM `contenteditable=false` entirely. No transient readOnly toggling.
+- The review/diff editors stay mounted as `<Plate readOnly>` for the entire session. Annotation transforms run via `editor.tf.*`, which bypass DOM `contenteditable=false` entirely. No transient readOnly toggling. Only `DraftEditor` is editable — it carries no annotation plugins, so the two enforcement mechanisms never mix.
 
 ## Installation
 

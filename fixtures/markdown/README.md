@@ -2,10 +2,12 @@
 
 Sample markdown documents used by the Playwright-BDD harness, the perf script, and for manual smoke tests of the viewer.
 
-| File                  | Purpose                                                                                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `elements.md`         | Default fixture — exercises every supported markdown element in one pass.                                                                                                      |
-| `elements-revised.md` | Same H1 (and therefore same on-disk slug) as `elements.md`, with intentional changes so the inline diff has insertions, a deletion, and an inline word replacement to surface. |
+| File                    | Purpose                                                                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `elements.md`           | Default fixture — exercises every supported markdown element in one pass.                                                                                                      |
+| `elements-revised.md`   | Same H1 (and therefore same on-disk slug) as `elements.md`, with intentional changes so the inline diff has insertions, a deletion, and an inline word replacement to surface. |
+| `draft-seed.md`         | Seed for the draft-mode (UC5) BDD viewer — boots the editable authoring surface on a fresh slug.                                                                               |
+| `draft-seed-revised.md` | Same H1 as `draft-seed.md`; booted after it by the draft-iterate BDD viewer so the revision lands with a predecessor and leads with the inline diff.                           |
 
 ## Manual diff smoke
 

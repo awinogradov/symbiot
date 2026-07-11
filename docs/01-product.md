@@ -37,12 +37,13 @@ Core flows:
 - **UC2.** Agent revises a plan → viewer shows an inline diff between version N-1 and N → developer reviews the delta.
 - **UC3.** Developer annotates an arbitrary markdown document (`annotate` mode) and routes feedback back to the agent.
 - **UC4.** Developer shares an annotated plan; a teammate imports it, adds annotations, shares back.
+- **UC5.** Developer authors a plan in the edit-first `draft` mode (`/draft` skill or `symbiot draft`), iterates with the agent through versioned revisions with inline diffs, and approves to hand the agreed plan to the agent to implement.
 
 The persona (`P1`–`P3`), use-case (`UC1`–`UC4`), and `NFR-*` IDs above are **stable anchors**: the Playwright-BDD suite mirrors this taxonomy — feature files are grouped into `features/uc<n>-*/` and `features/nfr-*/` folders and tagged `@P<n>`/`@UC<n>`/`@NFR-<n>`, so per-persona coverage gaps are visible at the directory level (see [`features/README.md`](../features/README.md)). UC4 has no scenarios yet — that gap is intentional and tracked separately.
 
 ## Product principles
 
-1. **Read-first, edit-on-intent.** The default surface is a clean rendered document. Annotation tools appear on selection; they never clutter the reading experience.
+1. **Read-first, edit-on-intent.** The default surface is a clean rendered document. Annotation tools appear on selection; they never clutter the reading experience. The edit-first `draft` mode (UC5) coexists with this principle rather than diluting it: it is opt-in, entered only by an explicit user command (`/draft` / `symbiot draft`), and the read-first review/annotate surfaces are untouched by it.
 2. **Annotations are document data.** Every annotation is a node or mark in the Plate value, not an overlay keyed by character offset.
 3. **Markdown is the boundary.** Input is markdown, export is markdown, the wire format the agent sees is markdown. The Plate value is an internal representation only.
 4. **The model survives versions.** Annotations are anchored by Plate path _and_ an `originalText` text-quote fallback, so a re-rendered or diffed plan keeps annotations meaningful.
