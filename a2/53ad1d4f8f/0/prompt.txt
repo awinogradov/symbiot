@@ -1,0 +1,10 @@
+check
+
+---
+
+<task-notification>
+<task-id>by11pdc3b</task-id>
+<summary>Monitor event: "fix-branch flake-probe #1 run 29131415512 terminal state"</summary>
+<event>DONE: completed failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
