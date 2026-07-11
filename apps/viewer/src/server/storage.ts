@@ -237,18 +237,40 @@ const nextVersionIn = async (dir: string): Promise<number> => {
  * Persist a fresh plan version under
  * ~/.symbiot/agents/{agentId}/history/{project}/{slug}/00N.md.
  * Atomic-write semantics (write to .tmp + rename).
+ *
+ * `slug` overrides the H1-derived plan slug. Draft mode passes it (`--slug`)
+ * so iteration continuity never hangs on the document title staying stable —
+ * a retitled draft keeps appending to the same history directory.
  */
 export const savePlan = async (
   agentId: string,
   plan: string,
-  cwd: string = process.cwd()
+  cwd: string = process.cwd(),
+  slug?: string
 ): Promise<PlanMeta> => {
   const project = deriveProjectSlug(cwd);
-  const slug = derivePlanSlug(plan);
+  const planSlug = slug ?? derivePlanSlug(plan);
   const displayName = resolveDisplayName(cwd);
-  const version = await nextVersionIn(planDir(agentId, project, slug));
-  await writeAtomic(planFile(agentId, project, slug, version), plan);
-  return { project, slug, version, displayName };
+  const version = await nextVersionIn(planDir(agentId, project, planSlug));
+  await writeAtomic(planFile(agentId, project, planSlug, version), plan);
+  return { project, slug: planSlug, version, displayName };
+};
+
+/**
+ * Append the next plan version under an existing session's `{project, slug}`
+ * without re-deriving either (draft mode's "Send to agent" persistence — the
+ * session meta, not the document's current H1, owns continuity). Returns the
+ * persisted version number and its absolute on-disk path.
+ */
+export const saveRevision = async (
+  agentId: string,
+  meta: Pick<PlanMeta, "project" | "slug">,
+  plan: string
+): Promise<{ version: number; path: string }> => {
+  const version = await nextVersionIn(planDir(agentId, meta.project, meta.slug));
+  const path = planFile(agentId, meta.project, meta.slug, version);
+  await writeAtomic(path, plan);
+  return { version, path };
 };
 
 export const loadPlan = async (agentId: string, meta: PlanMeta): Promise<string> =>

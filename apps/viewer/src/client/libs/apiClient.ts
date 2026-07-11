@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { apiRoutes, type ApiRouteId } from "../../shared/apiRoutes.ts";
 import type {
+  DraftBodyPayload,
   DraftPayload,
   PlanResponse,
   PlanVersionResponse,
@@ -22,7 +23,7 @@ const planMetaSchema = z.object({
 
 const planResponseSchema = z.object({
   plan: z.string(),
-  mode: z.enum(["plan", "annotate"]),
+  mode: z.enum(["plan", "annotate", "draft"]),
   meta: planMetaSchema,
 }) satisfies z.ZodType<PlanResponse>;
 
@@ -96,8 +97,17 @@ export const fetchPlanVersion = (version: number): Promise<PlanVersionResponse> 
     query: { n: String(version) },
   });
 
-/** Approve the plan. Server records the decision and shuts down. */
-export const postApprove = (): Promise<void> => request("approve", { schema: null });
+/**
+ * Approve the plan. Server records the decision and shuts down. Draft mode
+ * passes the edited `markdown` so the final body is persisted as a version and
+ * its path travels in the decision; plan mode omits it.
+ */
+export const postApprove = (markdown?: string): Promise<void> =>
+  request("approve", { schema: null, ...(markdown === undefined ? {} : { body: { markdown } }) });
+
+/** Draft mode's "Send to agent": persist the edited body as the next version and resolve the session. */
+export const postDraftSend = (markdown: string): Promise<void> =>
+  request("draftSend", { schema: null, body: { markdown } });
 
 /** Deny the plan (plan mode). Reviewer's free-text feedback travels in the body. */
 export const postDeny = (feedback: string): Promise<void> =>
@@ -117,3 +127,22 @@ export const putDraft = (draft: DraftPayload): Promise<void> =>
 
 /** Remove the persisted draft for this plan. Idempotent on the server. */
 export const deleteDraft = (): Promise<void> => request("draftDelete", { schema: null });
+
+const draftBodyPayloadSchema = z.object({
+  markdown: z.string(),
+  version: z.number().int(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<DraftBodyPayload>;
+
+/**
+ * Load the draft-mode autosave payload, or null when absent. A payload that
+ * fails the draft-body schema (e.g. an annotation draft persisted under the
+ * same slug by a review session) also resolves null — draft mode never
+ * hydrates review-shaped state.
+ */
+export const getDraftBody = (): Promise<DraftBodyPayload | null> =>
+  request("draftGet", { schema: draftBodyPayloadSchema.nullable() }).catch(() => null);
+
+/** Persist the draft-mode autosave payload. Debounced by the caller. */
+export const putDraftBody = (payload: DraftBodyPayload): Promise<void> =>
+  request("draftPut", { schema: null, body: payload });

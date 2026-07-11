@@ -13,6 +13,7 @@ import {
   planFilePath,
   saveDraft,
   saveFeedback,
+  saveRevision,
   saveUpload,
   uploadPath,
   agentUploadsRoot,
@@ -25,11 +26,17 @@ import {
   mintUuidFilename,
 } from "./uploadSecurity.ts";
 
-/** Outcome of the reviewer's interaction with a plan. */
+/**
+ * Outcome of the reviewer's interaction with a plan. `draft` is draft mode's
+ * "Send to agent": `path`/`version` locate the persisted revision the coding
+ * agent reads next. An approve issued from draft mode carries the `path` of
+ * the final persisted body; plan-mode approves omit it.
+ */
 export type Decision =
-  | { kind: "approve" }
+  | { kind: "approve"; path?: string }
   | { kind: "deny"; feedback: string }
-  | { kind: "feedback"; feedback: string };
+  | { kind: "feedback"; feedback: string }
+  | { kind: "draft"; path: string; version: number };
 
 interface RouteContext {
   plan: string;
@@ -187,8 +194,59 @@ const finalize = async (ctx: RouteContext, decision: Decision): Promise<void> =>
   ctx.resolve(decision);
 };
 
-const approveRoute = async (ctx: RouteContext): Promise<Response> => {
-  await finalize(ctx, { kind: "approve" });
+/**
+ * Persist an edited document body as the next plan version under the session's
+ * `{project, slug}` (never re-derived — session meta owns continuity). A body
+ * byte-identical to the boot plan reuses the boot version instead of writing a
+ * no-op revision. A write failure (EACCES/ENOSPC) returns a 500 Response
+ * WITHOUT resolving the session, so the one-shot server stays retryable.
+ */
+const persistRevision = async (
+  ctx: RouteContext,
+  markdown: string
+): Promise<{ version: number; path: string } | Response> => {
+  if (markdown === ctx.plan) {
+    return {
+      version: ctx.meta.version,
+      path: planFilePath(ctx.agentId, ctx.meta, ctx.meta.version),
+    };
+  }
+  try {
+    return await saveRevision(ctx.agentId, ctx.meta, markdown);
+  } catch (error) {
+    return jsonResponse({ reason: "write-failed", message: errorMessage(error) }, 500);
+  }
+};
+
+const parseMarkdownBody = async (req: Request): Promise<string | null> => {
+  const body = (await req.json().catch(() => null)) as { markdown?: unknown } | null;
+  const markdown = body?.markdown;
+  return typeof markdown === "string" && markdown.trim().length > 0 ? markdown : null;
+};
+
+// NOTE: approve/deny/feedback/draft-send stay repeatable after resolution
+// (no isResolved guard): the BDD harness drives many scenarios against one
+// keep-alive viewer, and the production one-shot flow stops the server after
+// the first resolution anyway. Double-click protection lives client-side
+// (the `busy` phase disables the actions).
+const approveRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  const markdown = await parseMarkdownBody(req);
+  if (markdown === null) {
+    await finalize(ctx, { kind: "approve" });
+    return new Response(null, { status: 204 });
+  }
+  const persisted = await persistRevision(ctx, markdown);
+  if (persisted instanceof Response) return persisted;
+  await finalize(ctx, { kind: "approve", path: persisted.path });
+  return new Response(null, { status: 204 });
+};
+
+const draftSendRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  const markdown = await parseMarkdownBody(req);
+  if (markdown === null) return badRequest("missing markdown");
+  const persisted = await persistRevision(ctx, markdown);
+  if (persisted instanceof Response) return persisted;
+  await finalize(ctx, { kind: "draft", path: persisted.path, version: persisted.version });
   return new Response(null, { status: 204 });
 };
 
@@ -339,12 +397,13 @@ const routes: Record<string, Handler> = {
   [routeKey("planVersions")]: (_req, ctx) => planVersionsRoute(ctx),
   [routeKey("planVersion")]: (req, ctx) => planVersionRoute(req, ctx),
   [routeKey("planVscodeDiff")]: (req, ctx) => planVscodeDiffRoute(req, ctx),
-  [routeKey("approve")]: (_req, ctx) => approveRoute(ctx),
+  [routeKey("approve")]: (req, ctx) => approveRoute(req, ctx),
   [routeKey("deny")]: (req, ctx) => denyRoute(req, ctx),
   [routeKey("feedback")]: (req, ctx) => feedbackRoute(req, ctx),
   [routeKey("draftGet")]: (_req, ctx) => draftGetRoute(ctx),
   [routeKey("draftPut")]: (req, ctx) => draftPostRoute(req, ctx),
   [routeKey("draftDelete")]: (_req, ctx) => draftDeleteRoute(ctx),
+  [routeKey("draftSend")]: (req, ctx) => draftSendRoute(req, ctx),
   [routeKey("upload")]: (req, ctx) => uploadRoute(req, ctx),
   [routeKey("image")]: (req, ctx) => imageRoute(req, ctx),
 };

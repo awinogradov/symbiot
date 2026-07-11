@@ -18,8 +18,11 @@ export interface PlanMeta {
   displayName: string;
 }
 
-/** Operating mode of the viewer. `plan` = Approve/Deny; `annotate` = Submit feedback. */
-export type ViewerMode = "plan" | "annotate";
+/**
+ * Operating mode of the viewer. `plan` = Approve/Deny; `annotate` = Submit
+ * feedback; `draft` = edit-first authoring (Send to agent / Approve).
+ */
+export type ViewerMode = "plan" | "annotate" | "draft";
 
 /** Response payload of `GET /api/plan`. */
 export interface PlanResponse {
@@ -38,6 +41,19 @@ export interface PlanVersionsResponse {
 export interface PlanVersionResponse {
   plan: string;
   meta: PlanMeta;
+}
+
+/**
+ * Draft-mode autosave payload stored via the same `/api/draft` endpoint (the
+ * server treats the body as an opaque string; the shape is client-enforced).
+ * `version` pins the payload to the boot version it was typed against —
+ * hydration ignores any other version, so a stale blob from a crashed prior
+ * run can never mask a fresh agent revision.
+ */
+export interface DraftBodyPayload {
+  markdown: string;
+  version: number;
+  updatedAt: number;
 }
 
 /**

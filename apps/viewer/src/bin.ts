@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import type { ViewerMode } from "./shared/apiTypes.ts";
-import { startServer, type RunningServer } from "./server/startServer.ts";
+import { startServer, type Decision, type RunningServer } from "./server/startServer.ts";
 
 interface CliArgs {
   planPath: string | null;
@@ -23,7 +23,8 @@ const parsePort = (raw: string | null): number | null => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-const parseMode = (raw: string | null): ViewerMode => (raw === "annotate" ? "annotate" : "plan");
+const parseMode = (raw: string | null): ViewerMode =>
+  raw === "annotate" || raw === "draft" ? raw : "plan";
 
 const parseArgs = (argv: string[]): CliArgs => ({
   planPath: flagValue(argv, "--plan"),
@@ -46,14 +47,13 @@ const readPlan = async (planPath: string | null): Promise<string> => {
   return readStdin();
 };
 
-const printDecision = (
-  decision:
-    | { kind: "approve" }
-    | { kind: "deny"; feedback: string }
-    | { kind: "feedback"; feedback: string }
-): void => {
+const printDecision = (decision: Decision): void => {
   if (decision.kind === "approve") {
     process.stdout.write("APPROVED\n");
+    return;
+  }
+  if (decision.kind === "draft") {
+    process.stdout.write(`DRAFT\n${decision.path}\n`);
     return;
   }
   if (decision.kind === "feedback") {
@@ -63,11 +63,7 @@ const printDecision = (
   process.stdout.write(`DENIED\n${decision.feedback}\n`);
 };
 
-const exitCodeFor = (kind: "approve" | "deny" | "feedback"): number => {
-  if (kind === "approve") return 0;
-  if (kind === "feedback") return 0;
-  return 2;
-};
+const exitCodeFor = (kind: Decision["kind"]): number => (kind === "deny" ? 2 : 0);
 
 const runOneShot = async (server: RunningServer): Promise<void> => {
   const decision = await server.resolved;
