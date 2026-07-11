@@ -33,6 +33,10 @@ import { repoRoot } from "./world.ts";
 const planPath = join(repoRoot, "fixtures", "markdown", "elements.md");
 /** Headingless plan booted by the no-heading viewer so the no-H1 document-title fallback is exercised. */
 const noHeadingPlanPath = join(repoRoot, "fixtures", "markdown", "no-heading.md");
+/** Seed booted by the draft-mode viewer (fresh slug, no predecessor → editable surface). */
+const draftSeedPath = join(repoRoot, "fixtures", "markdown", "draft-seed.md");
+/** Revision of the draft seed (same H1 → same slug) booted by the draft-iterate viewer AFTER the draft viewer, so it lands with a predecessor and leads with the inline diff. */
+const draftSeedRevisedPath = join(repoRoot, "fixtures", "markdown", "draft-seed-revised.md");
 /** Viewer CLI entrypoint spawned once per mode, per worker. */
 const viewerBin = join(repoRoot, "apps", "viewer", "src", "bin.ts");
 /** Prefix for each worker's throwaway `HOME` under the OS temp dir; teardown removes its own dir. */
@@ -51,12 +55,18 @@ export interface ViewerInstances {
   annotateUrl: string;
   /** Headingless-plan viewer for the document-title no-H1 fallback. */
   noHeadingUrl: string;
+  /** Draft-mode viewer booted on a fresh slug (editable surface, no predecessor). */
+  draftUrl: string;
+  /** Draft-mode viewer booted as a revision of the draft seed (predecessor exists → leads with the diff). */
+  draftIterateUrl: string;
   /** This worker's isolated `HOME`; `~/.symbiot` state lives under here. */
   home: string;
   /** Where the plan-mode viewer writes each Approve/Deny decision. */
   planDecisionFile: string;
   /** Where the annotate-mode viewer writes each Submit-feedback decision. */
   annotateDecisionFile: string;
+  /** Where the draft-mode viewer writes each Send-to-agent/Approve decision. */
+  draftDecisionFile: string;
 }
 
 /** A worker's running viewers plus the teardown that kills them and removes its `HOME`. */
@@ -129,7 +139,7 @@ const killViewer = (child: ChildProcess): Promise<void> => {
 const spawnViewer = async (
   home: string,
   plan: string,
-  mode: "plan" | "annotate",
+  mode: "plan" | "annotate" | "draft",
   decisionFile: string | null,
   label: string
 ): Promise<SpawnedViewer> => {
@@ -181,6 +191,7 @@ export const startWorkerViewers = async (): Promise<WorkerViewers> => {
 
     const planDecisionFile = join(home, "last-decision.json");
     const annotateDecisionFile = join(home, "annotate-decision.json");
+    const draftDecisionFile = join(home, "draft-decision.json");
 
     const plan = await spawnViewer(home, planPath, "plan", planDecisionFile, "plan");
     started.push(plan.child);
@@ -194,15 +205,31 @@ export const startWorkerViewers = async (): Promise<WorkerViewers> => {
     started.push(annotate.child);
     const noHeading = await spawnViewer(home, noHeadingPlanPath, "plan", null, "no-heading");
     started.push(noHeading.child);
+    // Order matters: the draft viewer boots the seed as 001.md of its slug, then
+    // the draft-iterate viewer boots the same-H1 revision as 002.md — giving the
+    // iterate session a predecessor so it leads with the inline diff.
+    const draft = await spawnViewer(home, draftSeedPath, "draft", draftDecisionFile, "draft");
+    started.push(draft.child);
+    const draftIterate = await spawnViewer(
+      home,
+      draftSeedRevisedPath,
+      "draft",
+      null,
+      "draft-iterate"
+    );
+    started.push(draftIterate.child);
 
     return {
       instances: {
         planUrl: plan.url,
         annotateUrl: annotate.url,
         noHeadingUrl: noHeading.url,
+        draftUrl: draft.url,
+        draftIterateUrl: draftIterate.url,
         home,
         planDecisionFile,
         annotateDecisionFile,
+        draftDecisionFile,
       },
       stop: cleanup,
     };

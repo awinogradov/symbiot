@@ -333,6 +333,92 @@ describe("GET /api/image", () => {
   });
 });
 
+describe("POST /api/draft/send", () => {
+  const jsonInit = (body: unknown): RequestInit => ({
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const historyDirFor = (slugName: string): string =>
+    join(homeRoot, ".symbiot", "agents", "claude-code", "history", project, slugName);
+
+  it("persists the body as the next version and resolves a draft decision", async () => {
+    const dir = historyDirFor("draft-send");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "001.md"), "v1");
+    await writeFile(join(dir, "002.md"), "boot plan");
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("draft-send", { resolve });
+    const res = await send("POST", "/api/draft/send", routeCtx, jsonInit({ markdown: "# Edited" }));
+    expect(res?.status).toBe(204);
+    const expectedPath = join(dir, "003.md");
+    expect(await readFile(expectedPath, "utf8")).toBe("# Edited");
+    expect(resolve).toHaveBeenCalledWith({ kind: "draft", path: expectedPath, version: 3 });
+  });
+
+  it("reuses the boot version without writing when the body is byte-identical", async () => {
+    const dir = historyDirFor("draft-send-noop");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "002.md"), "boot plan");
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("draft-send-noop", { resolve });
+    const res = await send(
+      "POST",
+      "/api/draft/send",
+      routeCtx,
+      jsonInit({ markdown: "boot plan" })
+    );
+    expect(res?.status).toBe(204);
+    expect(resolve).toHaveBeenCalledWith({ kind: "draft", path: join(dir, "002.md"), version: 2 });
+    await expect(readFile(join(dir, "003.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("returns 400 on a missing or empty markdown body", async () => {
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("draft-send-bad", { resolve });
+    expect((await send("POST", "/api/draft/send", routeCtx))?.status).toBe(400);
+    expect(
+      (await send("POST", "/api/draft/send", routeCtx, jsonInit({ markdown: "  " })))?.status
+    ).toBe(400);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 without resolving when the version write fails (server stays retryable)", async () => {
+    // A FILE occupying the slug's history-directory path makes writeAtomic's
+    // mkdir fail — the persistence error path, without mocking storage.
+    await mkdir(join(homeRoot, ".symbiot", "agents", "claude-code", "history", project), {
+      recursive: true,
+    });
+    await writeFile(historyDirFor("draft-send-fail"), "not a directory");
+    const resolve = vi.fn();
+    const markResolved = vi.fn();
+    const routeCtx = ctxFor("draft-send-fail", { resolve, markResolved });
+    const res = await send("POST", "/api/draft/send", routeCtx, jsonInit({ markdown: "# Edited" }));
+    expect(res?.status).toBe(500);
+    expect(await res?.json()).toMatchObject({ reason: "write-failed" });
+    expect(resolve).not.toHaveBeenCalled();
+    expect(markResolved).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/approve with a draft body", () => {
+  it("persists the body and resolves approve with the persisted path", async () => {
+    const dir = join(homeRoot, ".symbiot", "agents", "claude-code", "history", project, "appr-md");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "002.md"), "boot plan");
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("appr-md", { resolve });
+    const res = await send("POST", "/api/approve", routeCtx, {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markdown: "# Final" }),
+    });
+    expect(res?.status).toBe(204);
+    const expectedPath = join(dir, "003.md");
+    expect(await readFile(expectedPath, "utf8")).toBe("# Final");
+    expect(resolve).toHaveBeenCalledWith({ kind: "approve", path: expectedPath });
+  });
+});
+
 describe("GET /api/plan/versions", () => {
   it("lists persisted version numbers and the current version", async () => {
     const routeCtx = ctxFor("versions");

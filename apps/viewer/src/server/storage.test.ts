@@ -15,6 +15,7 @@ const {
   resolveDisplayName,
   saveDraft,
   savePlan,
+  saveRevision,
 } = await import("./storage.ts");
 
 /** Point storage at a throwaway HOME so each test owns an isolated `~/.symbiot`. */
@@ -42,6 +43,47 @@ describe("listVersions", () => {
     await writeFile(join(planDir, "1.md"), "single-digit");
 
     expect(await listVersions("claude-code", { project, slug })).toEqual([1, 2, 10]);
+  });
+});
+
+describe("savePlan slug override", () => {
+  it("persists under the explicit slug instead of the H1-derived one", async () => {
+    const home = await freshHome();
+    const meta = await savePlan(
+      "claude-code",
+      "# Some Retitled Plan\n\nbody\n",
+      "/tmp/proj",
+      "pinned-slug"
+    );
+    expect(meta.slug).toBe("pinned-slug");
+    const file = join(
+      home,
+      ".symbiot",
+      "agents",
+      "claude-code",
+      "history",
+      "proj",
+      "pinned-slug",
+      "001.md"
+    );
+    expect(await readFile(file, "utf8")).toContain("# Some Retitled Plan");
+  });
+});
+
+describe("saveRevision", () => {
+  it("appends the next version under the session meta and returns its path", async () => {
+    const home = await freshHome();
+    const dir = join(home, ".symbiot", "agents", "claude-code", "history", "proj", "rev");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "001.md"), "v1");
+    const result = await saveRevision(
+      "claude-code",
+      { project: "proj", slug: "rev" },
+      "# Revised\n"
+    );
+    expect(result.version).toBe(2);
+    expect(result.path).toBe(join(dir, "002.md"));
+    expect(await readFile(result.path, "utf8")).toBe("# Revised\n");
   });
 });
 

@@ -19,9 +19,12 @@ interface CoverageFixture {
 interface ViewerUrlFixtures {
   annotateUrl: string;
   noHeadingUrl: string;
+  draftUrl: string;
+  draftIterateUrl: string;
   symbiotHome: string;
   planDecisionFile: string;
   annotateDecisionFile: string;
+  draftDecisionFile: string;
 }
 
 interface CodexHookFixture {
@@ -74,6 +77,12 @@ export const test = base.extend<
   noHeadingUrl: async ({ viewers }, provide) => {
     await provide(viewers.noHeadingUrl);
   },
+  draftUrl: async ({ viewers }, provide) => {
+    await provide(viewers.draftUrl);
+  },
+  draftIterateUrl: async ({ viewers }, provide) => {
+    await provide(viewers.draftIterateUrl);
+  },
   symbiotHome: async ({ viewers }, provide) => {
     await provide(viewers.home);
   },
@@ -82,6 +91,9 @@ export const test = base.extend<
   },
   annotateDecisionFile: async ({ viewers }, provide) => {
     await provide(viewers.annotateDecisionFile);
+  },
+  draftDecisionFile: async ({ viewers }, provide) => {
+    await provide(viewers.draftDecisionFile);
   },
   autoCoverage: [
     async ({ page, browserName }, use, testInfo) => {
