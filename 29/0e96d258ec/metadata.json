@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "290e96d258ec",
+  "strategy": "manual-commit",
+  "branch": "issue-172-draft-mode",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/viewer/src/client/hooks/useDraftSubmit.ts",
+    "apps/viewer/src/server/routes.test.ts",
+    "apps/viewer/src/server/routes.ts",
+    "apps/viewer/src/server/storage.test.ts",
+    "apps/viewer/src/server/storage.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/29/0e96d258ec/0/metadata.json",
+      "transcript": "/29/0e96d258ec/0/full.jsonl",
+      "compact_transcript": "/29/0e96d258ec/0/transcript.jsonl",
+      "content_hash": "/29/0e96d258ec/0/content_hash.txt",
+      "prompt": "/29/0e96d258ec/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 60250,
+    "cache_creation_tokens": 1888621,
+    "cache_read_tokens": 90720821,
+    "output_tokens": 246794,
+    "api_call_count": 222
+  }
+}
