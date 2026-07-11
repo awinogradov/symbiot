@@ -37,6 +37,8 @@ const noHeadingPlanPath = join(repoRoot, "fixtures", "markdown", "no-heading.md"
 const draftSeedPath = join(repoRoot, "fixtures", "markdown", "draft-seed.md");
 /** Revision of the draft seed (same H1 → same slug) booted by the draft-iterate viewer AFTER the draft viewer, so it lands with a predecessor and leads with the inline diff. */
 const draftSeedRevisedPath = join(repoRoot, "fixtures", "markdown", "draft-seed-revised.md");
+/** Unique-H1 seed for the autosave-reload scenario — its own slug, no predecessor, and no scenario ever resolves this session, so autosave stays writable. */
+const draftAutosaveSeedPath = join(repoRoot, "fixtures", "markdown", "draft-autosave-seed.md");
 /** Viewer CLI entrypoint spawned once per mode, per worker. */
 const viewerBin = join(repoRoot, "apps", "viewer", "src", "bin.ts");
 /** Prefix for each worker's throwaway `HOME` under the OS temp dir; teardown removes its own dir. */
@@ -59,6 +61,8 @@ export interface ViewerInstances {
   draftUrl: string;
   /** Draft-mode viewer booted as a revision of the draft seed (predecessor exists → leads with the diff). */
   draftIterateUrl: string;
+  /** Draft-mode viewer reserved for the autosave-reload scenario (never resolved). */
+  draftAutosaveUrl: string;
   /** This worker's isolated `HOME`; `~/.symbiot` state lives under here. */
   home: string;
   /** Where the plan-mode viewer writes each Approve/Deny decision. */
@@ -218,6 +222,14 @@ export const startWorkerViewers = async (): Promise<WorkerViewers> => {
       "draft-iterate"
     );
     started.push(draftIterate.child);
+    const draftAutosave = await spawnViewer(
+      home,
+      draftAutosaveSeedPath,
+      "draft",
+      null,
+      "draft-autosave"
+    );
+    started.push(draftAutosave.child);
 
     return {
       instances: {
@@ -226,6 +238,7 @@ export const startWorkerViewers = async (): Promise<WorkerViewers> => {
         noHeadingUrl: noHeading.url,
         draftUrl: draft.url,
         draftIterateUrl: draftIterate.url,
+        draftAutosaveUrl: draftAutosave.url,
         home,
         planDecisionFile,
         annotateDecisionFile,

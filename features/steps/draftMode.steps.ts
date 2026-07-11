@@ -13,6 +13,24 @@ Given("I open the draft iterate viewer", async ({ page, draftIterateUrl }) => {
   await page.goto(draftIterateUrl);
 });
 
+Given("I open the draft autosave viewer", async ({ page, draftAutosaveUrl }) => {
+  await page.goto(draftAutosaveUrl);
+});
+
+When("the draft body autosave has flushed", async ({ page }) => {
+  // useDraftBody debounces 1s before POSTing the markdown body; wait for the
+  // server's 2xx so the persisted state is guaranteed before the reload.
+  await page.waitForResponse(
+    (res) => res.url().includes("/api/draft") && res.request().method() === "POST" && res.ok(),
+    { timeout: 5_000 }
+  );
+});
+
+When("I reload the draft viewer page", async ({ page }) => {
+  await page.reload();
+  await page.getByTestId("draft-editor-root").waitFor({ state: "visible" });
+});
+
 Then("the draft editor is visible", async ({ page }) => {
   await page.getByTestId("draft-editor-root").waitFor({ state: "visible" });
 });

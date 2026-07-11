@@ -21,6 +21,7 @@ interface ViewerUrlFixtures {
   noHeadingUrl: string;
   draftUrl: string;
   draftIterateUrl: string;
+  draftAutosaveUrl: string;
   symbiotHome: string;
   planDecisionFile: string;
   annotateDecisionFile: string;
@@ -82,6 +83,9 @@ export const test = base.extend<
   },
   draftIterateUrl: async ({ viewers }, provide) => {
     await provide(viewers.draftIterateUrl);
+  },
+  draftAutosaveUrl: async ({ viewers }, provide) => {
+    await provide(viewers.draftAutosaveUrl);
   },
   symbiotHome: async ({ viewers }, provide) => {
     await provide(viewers.home);
