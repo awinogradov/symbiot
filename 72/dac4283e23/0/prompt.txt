@@ -1,0 +1,6 @@
+<task-notification>
+<task-id>bwxv52snd</task-id>
+<summary>Monitor event: "focus-fix flake-probe #1 run 29150161441 terminal state"</summary>
+<event>DONE: completed failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
