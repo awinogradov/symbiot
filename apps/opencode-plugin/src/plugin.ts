@@ -114,7 +114,9 @@ const persistIfFeedback = async (
   generation: number,
   decision: Decision | null
 ): Promise<void> => {
-  if (decision === null || decision.kind === "approve") return;
+  // A `draft` decision is draft-mode-only and unreachable from this plan-mode
+  // review; only deny/feedback resolutions carry feedback to persist.
+  if (decision === null || !("feedback" in decision)) return;
   if (reviewGenerations.get(sessionID) !== generation) return;
   await writePendingFeedback(sessionID, decision.feedback);
 };

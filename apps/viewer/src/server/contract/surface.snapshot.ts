@@ -18,7 +18,7 @@
  */
 
 /** Mirrors `ViewerMode` in `../../shared/apiTypes.ts`. */
-export type ViewerModeSnapshot = "plan" | "annotate";
+export type ViewerModeSnapshot = "plan" | "annotate" | "draft";
 
 /** Mirrors `PlanMeta` in `../../shared/apiTypes.ts`. */
 export interface PlanMetaSnapshot {
@@ -30,9 +30,10 @@ export interface PlanMetaSnapshot {
 
 /** Mirrors `Decision` in `../routes.ts`. */
 export type DecisionSnapshot =
-  | { kind: "approve" }
+  | { kind: "approve"; path?: string }
   | { kind: "deny"; feedback: string }
-  | { kind: "feedback"; feedback: string };
+  | { kind: "feedback"; feedback: string }
+  | { kind: "draft"; path: string; version: number };
 
 /** Mirrors `StartServerOptions` in `../startServer.ts`. */
 export interface StartServerOptionsSnapshot {
@@ -44,6 +45,7 @@ export interface StartServerOptionsSnapshot {
   decisionFile?: string | null;
   port?: number | null;
   mode?: ViewerModeSnapshot;
+  slug?: string;
   agentId?: string;
 }
 

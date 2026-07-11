@@ -57,7 +57,7 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
  * read-write review editors render the same prose tokens (paragraphs, tables,
  * lists, code blocks, void elements), so the shared base lives once here and
  * the per-mode appendices are layered on top in {@link SymbiotEditorKit} /
- * {@link SymbiotDiffKit}.
+ * {@link SymbiotDiffKit} / {@link SymbiotDraftKit}.
  *
  * `HorizontalRulePlugin` ships with `render: { as: "hr" }`, which React 19
  * rejects because Slate-React always passes a zero-width text node as
@@ -127,3 +127,11 @@ export const SymbiotEditorKit = [
  * appended last so its leaf renderer wins on any leaf carrying `leaf.diff`.
  */
 export const SymbiotDiffKit = [...symbiotBaseKit, DiffPlugin];
+
+/**
+ * Plate plugin composition for the editable draft editor (`draft` viewer
+ * mode). The bare shared markdown surface: no annotation-authoring plugins
+ * (drafting is free-text typing, not review marks) and no `DiffPlugin`
+ * (revision diffs render in the separate read-only diff viewer).
+ */
+export const SymbiotDraftKit = [...symbiotBaseKit];

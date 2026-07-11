@@ -28,6 +28,12 @@ export const apiRoutes = {
   draftGet: { method: "GET", path: "/api/draft" },
   draftPut: { method: "POST", path: "/api/draft" },
   draftDelete: { method: "DELETE", path: "/api/draft" },
+  /**
+   * Draft mode's "Send to agent": persists the edited document body as the
+   * next plan version and resolves the session with a `draft` decision, so the
+   * blocking CLI hands the revision path to the coding agent.
+   */
+  draftSend: { method: "POST", path: "/api/draft/send" },
   upload: { method: "POST", path: "/api/upload" },
   image: { method: "GET", path: "/api/image" },
 } as const satisfies Record<string, ApiRoute>;

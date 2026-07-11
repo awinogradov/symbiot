@@ -190,7 +190,9 @@ const runPreToolUse = (plan: string): Promise<number> => {
         await logEvent({ event: "PreToolUse", planHash, emitted: "allow" });
         return 0;
       }
-      await emitBlockDecision(decision.feedback);
+      // A `draft` decision is draft-mode-only and unreachable from the plan
+      // review this hook drives; degrade it to an empty-reason block.
+      await emitBlockDecision("feedback" in decision ? decision.feedback : "");
       await logEvent({ event: "PreToolUse", planHash, emitted: "block" });
       return 0;
     },

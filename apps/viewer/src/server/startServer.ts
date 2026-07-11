@@ -34,8 +34,13 @@ export interface StartServerOptions {
   decisionFile?: string | null;
   /** Bind to this port instead of an OS-assigned one. */
   port?: number | null;
-  /** Viewer mode: 'plan' (Approve/Deny) or 'annotate' (Submit feedback). Defaults to 'plan'. */
+  /** Viewer mode: 'plan' (Approve/Deny), 'annotate' (Submit feedback), or 'draft' (edit-first authoring). Defaults to 'plan'. */
   mode?: ViewerMode;
+  /**
+   * Overrides the H1-derived plan slug for the boot version. Draft mode passes
+   * it (`--slug`) so a retitled draft keeps its version history and diffs.
+   */
+  slug?: string;
   /**
    * Per-agent storage namespace under `~/.symbiot/agents/<agentId>/`. Defaults
    * to `"claude-code"` so single-agent installs and the bare CLI keep working;
@@ -85,7 +90,7 @@ const initStorage = async (
 ): Promise<{ agentId: string; meta: PlanMeta }> => {
   const agentId = options.agentId ?? defaultAgentId;
   await migrateLegacyTree();
-  const meta = await savePlan(agentId, options.plan, options.cwd);
+  const meta = await savePlan(agentId, options.plan, options.cwd, options.slug);
   return { agentId, meta };
 };
 

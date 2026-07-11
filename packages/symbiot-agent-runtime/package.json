@@ -8,6 +8,7 @@
     ".": "./src/runPlanReview.ts",
     "./cli": "./src/cli.ts",
     "./annotate": "./src/annotate.ts",
+    "./draft": "./src/draft.ts",
     "./hook-input": "./src/hook-input.ts",
     "./decision": "./src/decision.ts",
     "./config-installer": "./src/config-installer.ts",

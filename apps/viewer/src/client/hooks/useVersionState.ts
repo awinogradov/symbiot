@@ -58,6 +58,16 @@ const findPredecessorInIndex = (
   return versions[idx - 1] ?? null;
 };
 
+/** Optional behavior switches for {@link useVersionState}. */
+export interface VersionStateOptions {
+  /**
+   * Start with the predecessor-diff overlay ON when the boot version has a
+   * predecessor. Draft mode passes true so a re-opened revision leads with the
+   * vN-1 → vN inline diff ("Back to editing" exits it).
+   */
+  autoCompareOnBoot?: boolean;
+}
+
 /**
  * Loads the on-disk version history for the active plan and lets the reviewer
  * switch which version the editor renders. The initial `activePlan` mirrors
@@ -66,7 +76,10 @@ const findPredecessorInIndex = (
  * `activeVersion` changes so the diff editor has both sides available.
  *
  */
-export const useVersionState = (plan: PlanResponse): VersionState => {
+export const useVersionState = (
+  plan: PlanResponse,
+  options: VersionStateOptions = {}
+): VersionState => {
   const [versions, setVersions] = useState<number[]>([plan.meta.version]);
   const [activeVersion, setActiveVersion] = useState<number>(plan.meta.version);
   const [activePlan, setActivePlan] = useState<string>(plan.plan);
@@ -77,11 +90,20 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
   const [diffMode, setDiffMode] = useState<DiffMode>(readDiffMode);
   const [compareWithPredecessor, setCompareWithPredecessor] = useState(false);
 
+  const autoCompareOnBoot = options.autoCompareOnBoot === true;
   useCancelledFetch(
     fetchPlanVersions,
-    (res) => setVersions(res.versions.length > 0 ? res.versions : [plan.meta.version]),
+    (res) => {
+      const list = res.versions.length > 0 ? res.versions : [plan.meta.version];
+      setVersions(list);
+      // Draft mode leads with the revision diff: flip the overlay on once the
+      // fetched history proves a predecessor of the boot version exists.
+      if (autoCompareOnBoot && list.some((v) => v < plan.meta.version)) {
+        setCompareWithPredecessor(true);
+      }
+    },
     null,
-    [plan.meta.version]
+    [plan.meta.version, autoCompareOnBoot]
   );
 
   const latestActiveRequestRef = useRef(0);

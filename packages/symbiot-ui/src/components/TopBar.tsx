@@ -5,11 +5,13 @@ import { Kbd, formatHotkey } from "./Kbd.tsx";
 import { SendIcon } from "./SendIcon.tsx";
 import { SettingsMenu } from "./SettingsMenu.tsx";
 
-export type TopBarMode = "plan" | "annotate";
+export type TopBarMode = "plan" | "annotate" | "draft";
 
 interface TopBarProps {
   onApprove: () => void;
   onDeny: () => void;
+  /** Draft mode only: the "Send to agent" action rendered next to Approve. */
+  onSend?: () => void;
   /** Name of the project being reviewed; rendered as muted subtitle next to the wordmark. */
   projectName: string;
   busy?: boolean;
@@ -24,6 +26,7 @@ const denyLabel = (mode: TopBarMode): string =>
 interface ActionsProps {
   onApprove: () => void;
   onDeny: () => void;
+  onSend?: () => void;
   busy: boolean;
   mode: TopBarMode;
   hasAnnotations: boolean;
@@ -32,10 +35,31 @@ interface ActionsProps {
 const Actions = ({
   onApprove,
   onDeny,
+  onSend,
   busy,
   mode,
   hasAnnotations,
 }: ActionsProps): React.ReactElement => {
+  if (mode === "draft") {
+    return (
+      <>
+        <Button
+          data-testid="top-bar-approve"
+          variant="outline"
+          size="sm"
+          onClick={onApprove}
+          disabled={busy}
+        >
+          <CheckIcon />
+          Approve
+        </Button>
+        <Button data-testid="send-to-agent" size="sm" onClick={onSend} disabled={busy}>
+          <SendIcon />
+          Send to agent
+        </Button>
+      </>
+    );
+  }
   if (mode === "plan" && !hasAnnotations) {
     return (
       <Button
@@ -63,6 +87,7 @@ const Actions = ({
 export const TopBar = ({
   onApprove,
   onDeny,
+  onSend,
   projectName,
   busy = false,
   mode = "plan",
@@ -85,6 +110,7 @@ export const TopBar = ({
       <Actions
         onApprove={onApprove}
         onDeny={onDeny}
+        onSend={onSend}
         busy={busy}
         mode={mode}
         hasAnnotations={hasAnnotations}
