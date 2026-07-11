@@ -1,1 +1,736 @@
 /autopilot:plan #172
+
+---
+
+<task-notification>
+<task-id>a1c2e63c02665cf72</task-id>
+<tool-use-id>toolu_01PFysgpF9eQBCtiRj3hCgEg</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi--warp-worktrees-symbiot-jackrabbit-dry-lightning/03c61c58-a050-4221-b474-083429fd21f8/tasks/a1c2e63c02665cf72.output</output-file>
+<status>completed</status>
+<summary>Agent "Search codebase TODOs" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>```json
+{
+  "todos": [],
+  "total": 0
+}
+```</result>
+<usage><subagent_tokens>12592</subagent_tokens><tool_uses>2</tool_uses><duration_ms>5973</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a86457970165a31c2</task-id>
+<tool-use-id>toolu_01Unr6thuQSdZwtsGEnaPXfQ</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi--warp-worktrees-symbiot-jackrabbit-dry-lightning/03c61c58-a050-4221-b474-083429fd21f8/tasks/a86457970165a31c2.output</output-file>
+<status>completed</status>
+<summary>Agent "Resolve issue context" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Assignment succeeded: `@awinogradov (just assigned)`.
+
+```json
+{
+  "source": "GitHub Issue #172",
+  "issueId": 172,
+  "title": "Draft plans in the viewer, iterate with the agent, then approve to implement",
+  "status": "OPEN",
+  "labels": ["enhancement"],
+  "url": "https://github.com/awinogradov/symbiot/issues/172",
+  "assignee": "@awinogradov (just assigned)",
+  "description": "## Context\n\nToday symbiot is entirely **agent-initiated** and **read-first**. The coding agent emits a plan at `ExitPlanMode` (Claude Code) / `Stop` (Codex) / `AfterAgent` (Gemini) / `agentStop` (Copilot); the hook opens the viewer; the human annotates a **read-only** document (`&lt;PlateContent readOnly /&gt;` in `ReviewEditor`); resolved annotations route back as feedback markdown. Concretely:\n\n- Viewer modes are `plan` and `annotate` only (`ViewerMode` in `apps/viewer/src/shared/apiTypes.ts`).\n- The editor never accepts free text — annotations are applied programmatically via `editor.tf.*`, bypassing `contenteditable=false`.\n- The server never accepts an edited document body. It serves `GET /api/plan` and accepts back only annotations/feedback (`POST /api/draft` saves *annotation* drafts; `POST /api/approve` / `/api/deny` / `/api/feedback`).\n- There is no \"new/blank document\" path, and symbiot ships **no user-invoked commands** — every skill in `.agents/skills/` is `user-invocable: false`.\n\nThis issue adds the **inverse, human-initiated flow**: the developer opens the viewer to *write* a draft plan themselves, iterates with the coding agent (the agent refines and re-opens the viewer with revisions), and on **Approve** hands the agreed plan to the agent to implement.\n\n**Product tension (acknowledged):** this brushes G9 / Principle 1 (\"read-first, edit-on-intent\"). We honor it by adding a *new* edit-first `draft` mode that **coexists** with the read-first review modes — review/annotate flows and hook interception/feedback routing are untouched (respects NG1). It builds on the existing version/diff machinery (UC2, `@platejs/diff`) and the shared `runPlanReview` loop in `@symbiot/agent-runtime`.\n\nRelated: #69 (open), #28 (closed), #32 (closed), #64 (closed)\n\n## What\n\n1. A new **`draft` `ViewerMode`** with an **editable** PlateJS surface — free-text authoring with lossless markdown round-trip (NFR-4), distinct from the read-only review editor.\n2. A user-invocable **`/draft` skill** *and* a **`symbiot draft [file]` CLI subcommand** (mirrors `annotate` in `apps/claude-code/src/cli.ts`) that opens the viewer in draft mode — blank, or seeded from an existing markdown file.\n3. An **agent-mediated iteration loop**: \"Send to agent\" persists the edited draft as a new version under `~/.symbiot/...`; the coding agent reads it, refines, and re-opens the viewer with the revision (inline diff vs the previous version). Repeat until approved. No model runs inside the viewer — \"the model\" is the coding agent already in the loop.\n4. An **Approve → implement** handoff: the approved draft becomes the agreed plan and is handed to the agent to execute.\n\n## Why\n\n- The current flow only supports *reacting* to an agent's plan. Developers often want to **lead** with their own intent — sketch the plan, then have the agent sharpen it — before any code is written. Symbiot already owns the ideal surface (markdown, versioning, inline diff); this reuses it for authoring.\n- Keeping iteration **agent-mediated** (no in-viewer model) preserves the offline / zero-network / no-SaaS guarantees (NFR-2, NFR-3, NG5) and the \"markdown is the boundary\" principle.\n- Shipping it as a new, opt-in `draft` mode + explicit user command leaves the read-first review identity unchanged for anyone who doesn't invoke it.\n\n## Scope\n\n- **In scope:**\n  - New `draft` `ViewerMode` + edit-first editor surface in `packages/symbiot-editor` (free-text typing, not annotation marks); lossless markdown round-trip with unit tests (NFR-4, NFR-8).\n  - A blank-document creation path in the viewer (no such concept today).\n  - New server route to persist an edited document body + version it under `~/.symbiot/agents/&lt;id&gt;/history/&lt;project&gt;/&lt;slug&gt;/00N.md`; document it in `docs/server-contract.md`.\n  - `/draft` user-invocable skill (first user command in the plugin) + `symbiot draft [file]` CLI subcommand in `apps/claude-code/src/cli.ts`.\n  - Extend `runPlanReview` (`@symbiot/agent-runtime`) with a compose → return-to-agent → reopen-with-revision cycle, reusing version persistence and `@platejs/diff` (UC2).\n  - Approve → implement handoff: define how the approved markdown is delivered to the agent as the plan it implements.\n  - Docs (`product.md`, `server-contract.md`, `architecture.md`) + BDD scenarios for author → iterate → approve → implement.\n- **Out of scope:**\n  - No model API inside the viewer — iteration is agent-mediated (NFR-2/3, NG5).\n  - No change to existing read-first review/annotate flows or hook interception (NG1).\n  - Draft sharing/export via the portal — deferred to a follow-up.\n  - Codex/Gemini/Copilot draft triggers — Claude Code first; other agents follow the agent-app manifest pattern later.\n\n## Solution\n\nA new edit-first mode and a user command, with the agent in the loop reusing the version/diff machinery. Phased:\n\n- [ ] **Phase 1 — Editable mode.** Add `draft` to `ViewerMode`; add an editable editor surface in `symbiot-editor` (free text, lossless markdown round-trip). Unit tests for round-trip.\n- [ ] **Phase 2 — Trigger.** `/draft` skill + `symbiot draft [file]` CLI subcommand; opens the viewer in draft mode (blank or seeded).\n- [ ] **Phase 3 — Document round-trip.** Server route to persist the edited draft body + version it under `~/.symbiot`; wire a \"Send to agent\" action. Update `server-contract.md`.\n- [ ] **Phase 4 — Agent loop.** Extend `runPlanReview` so the agent reads the draft, refines, and reopens the viewer with the revision (inline diff vN-1 → vN). Repeat until approve.\n- [ ] **Phase 5 — Approve → implement.** Hand the approved draft to the agent as the plan to execute.\n- [ ] **Phase 6 — Docs + BDD.** product.md / architecture.md / server-contract.md; BDD for the full flow.\n\n```text\nDeveloper        /draft skill · `symbiot draft`        apps/viewer (draft mode)            coding agent\n    |  invoke  --------------------------------&gt;  open viewer (blank / seeded)\n    |                                             editable PlateJS — write draft\n    |                                             \"Send to agent\" -- persist vN --&gt; reads vN\n    |                                                 (~/.symbiot/.../00N.md)        refines\n    |  review revision  &lt;---- reopen viewer (inline diff vN-1 -&gt; vN) &lt;--------------  writes vN+1\n    |        (iterate ...)\n    |  Approve  --------------------------------------------------------------------&gt; implements approved plan\n```\n",
+  "comments": []
+}
+```</result>
+<usage><subagent_tokens>25938</subagent_tokens><tool_uses>3</tool_uses><duration_ms>49007</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae0ee5c3c801680f2</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi--warp-worktrees-symbiot-jackrabbit-dry-lightning/03c61c58-a050-4221-b474-083429fd21f8/tasks/ae0ee5c3c801680f2.output</output-file>
+<status>completed</status>
+<summary>Agent "Explore viewer client+server" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have a complete picture. Here is the structured map.
+
+---
+
+# Viewer client + server map (for issue #172: edit-first `draft` ViewerMode)
+
+## 1. `ViewerMode` type and the plan payload
+
+**File: `apps/viewer/src/shared/apiTypes.ts`**
+
+```ts
+// line 22
+export type ViewerMode = "plan" | "annotate";
+
+// lines 8-19  — plan revision identity
+export interface PlanMeta {
+  project: string;
+  slug: string;
+  version: number;
+  displayName: string;   // "&lt;repo&gt; · &lt;branch&gt;" from git, basename(cwd) fallback
+}
+
+// lines 25-29  — GET /api/plan payload
+export interface PlanResponse {
+  plan: string;          // markdown of the boot version
+  mode: ViewerMode;
+  meta: PlanMeta;
+}
+
+// lines 32-35
+export interface PlanVersionsResponse { versions: number[]; current: number; }
+// lines 38-41
+export interface PlanVersionResponse { plan: string; meta: PlanMeta; }
+
+// lines 53-69  — persisted reviewer draft (annotate/plan drafts)
+export interface DraftPayload {
+  value: unknown[];
+  commentBodies: Record&lt;string, string&gt;;
+  commentImages?: Record&lt;string, string[]&gt;;
+  commentOriginalTexts?: Record&lt;string, string&gt;;
+  suggestionOriginalTexts?: Record&lt;string, string&gt;;
+  insertionNewTexts?: Record&lt;string, string&gt;;
+  insertionImages?: Record&lt;string, string[]&gt;;
+  insertionOriginalTexts?: Record&lt;string, string&gt;;
+  replacementTexts?: Record&lt;string, string&gt;;
+  replacementImages?: Record&lt;string, string[]&gt;;
+  replacementOriginalTexts?: Record&lt;string, string&gt;;
+  globalComments: { id: string; body: string; images?: string[] }[];
+  updatedAt: number;
+}
+```
+
+Note: `GET /api/plan` returns `mode` and a single `plan` string — **not** a `versions` array. Version history is a separate endpoint (`/api/plan/versions` + `/api/plan/version?n=N`). The payload has no `markdown` field; the field is `plan`.
+
+**Everywhere `ViewerMode` / `mode` is consumed:**
+- `apps/viewer/src/shared/apiTypes.ts:22` — definition, used in `PlanResponse.mode`.
+- `apps/viewer/src/server/startServer.ts` — `StartServerOptions.mode?` (line 38), threaded into `RequestContext.mode` and defaulted `options.mode ?? "plan"` (line 146).
+- `apps/viewer/src/server/routes.ts:39` — `RouteContext.mode`; surfaced only via `planRoute` → `{ plan, mode, meta }` (line 64). No route handler branches on mode server-side.
+- `apps/viewer/src/bin.ts` — CLI `--mode` parsing: `parseMode` (line 26) returns `"annotate"` only for literal `"annotate"`, else `"plan"`.
+- `apps/viewer/src/client/libs/apiClient.ts:25` — zod `z.enum(["plan", "annotate"])` in `planResponseSchema`.
+- `apps/viewer/src/client/components/App.tsx:15` — passes `plan?.mode` to `&lt;DebugBar&gt;`.
+- `apps/viewer/src/client/components/DebugBar.tsx:25,102` — displays `Mode: {mode}`.
+- `apps/viewer/src/client/components/ReviewScreen.tsx` — `plan.mode` drives `useReviewSubmit({ planMode })`, `useReviewHotkeys({ mode })`, `&lt;TopBar mode&gt;`, and `&lt;SubmittedScreen mode&gt;`.
+- `apps/viewer/src/client/components/SubmittedScreen.tsx:18` — `headingFor(mode)`: `annotate` → "Feedback submitted.", else "Sent to the agent."
+- `apps/viewer/src/client/hooks/useReviewSubmit.ts:57` — `planMode === "annotate" ? postFeedback : postDeny`.
+- `packages/symbiot-ui/src/components/TopBar.tsx:8` — its own `TopBarMode = "plan" | "annotate"`; `denyLabel` = "Submit feedback" (annotate) vs "Request changes" (plan); in `plan` mode with no annotations shows an Approve button.
+- `packages/symbiot-agent-runtime/src/runPlanReview.ts:42` — `mode?: StartServerOptions["mode"]` forwarded to `startServer`.
+- Contract snapshot mirror: `apps/viewer/src/server/contract/surface.snapshot.ts:21` — `ViewerModeSnapshot = "plan" | "annotate"`.
+
+**For #172:** adding `"draft"` means editing the union in `apiTypes.ts:22`, the snapshot mirror at `surface.snapshot.ts:21`, the zod enum at `apiClient.ts:25`, `bin.ts` `parseMode`, and `TopBarMode` in the UI package (a separate literal union that must stay in sync).
+
+## 2. API route constants — `apps/viewer/src/shared/apiRoutes.ts`
+
+Single source of truth; server keys its handler map by `routeKey(id)` = `"&lt;METHOD&gt; &lt;path&gt;"`; client `apiClient` dispatches by the same ids.
+
+```ts
+export type HttpMethod = "GET" | "POST" | "DELETE";
+export const apiRoutes = {
+  plan:           { method: "GET",    path: "/api/plan" },
+  planVersions:   { method: "GET",    path: "/api/plan/versions" },
+  planVersion:    { method: "GET",    path: "/api/plan/version" },       // ?n=N
+  planVscodeDiff: { method: "POST",   path: "/api/plan/vscode-diff" },
+  approve:        { method: "POST",   path: "/api/approve" },
+  deny:           { method: "POST",   path: "/api/deny" },
+  feedback:       { method: "POST",   path: "/api/feedback" },
+  draftGet:       { method: "GET",    path: "/api/draft" },
+  draftPut:       { method: "POST",   path: "/api/draft" },
+  draftDelete:    { method: "DELETE", path: "/api/draft" },
+  upload:         { method: "POST",   path: "/api/upload" },
+  image:          { method: "GET",    path: "/api/image" },              // ?id=&amp;ext=
+} as const satisfies Record&lt;string, ApiRoute&gt;;
+export type ApiRouteId = keyof typeof apiRoutes;
+export const routeKey = (id: ApiRouteId): string =&gt; `${apiRoutes[id].method} ${apiRoutes[id].path}`;
+```
+
+Adding a route = add an entry here, then add a handler keyed by `routeKey("newId")` in `routes.ts`, and a client helper in `apiClient.ts`. There is **no draft-specific "annotation drafts" POST beyond `POST /api/draft`** — the issue's phrase "POST /api/draft (annotation drafts)" refers to this existing draft-autosave endpoint.
+
+## 3. Route handlers — `apps/viewer/src/server/routes.ts`
+
+`RouteContext` (lines 34-47): `{ plan, meta, agentId, mode, resolve(decision), isResolved(), markResolved(), decisionFile? }`.
+
+`Decision` union (lines 29-32): `{ kind:"approve" } | { kind:"deny"; feedback } | { kind:"feedback"; feedback }`.
+
+Handler map at lines 337-350; dispatched by `handleApi(req, url, ctx)` (line 358) keyed by `` `${req.method} ${url.pathname}` ``. Non-matching `/api/*` → 404; everything else → `null` (falls through to static assets).
+
+| Route | Handler | Request | Response | Validation |
+|---|---|---|---|---|
+| GET /api/plan | `planRoute` (63) | — | 200 `{ plan, mode, meta }` | none |
+| GET /api/plan/versions | `planVersionsRoute` (66) | — | 200 `{ versions:number[], current }` | none |
+| GET /api/plan/version | `planVersionRoute` (83) | `?n=` | 200 `{ plan, meta }`; 400 invalid; 404 ENOENT | regex `/^[1-9]\d*$/` |
+| POST /api/plan/vscode-diff | `planVscodeDiffRoute` (142) | `{from,to}` | 204 / 400 / 404 / 503 `{reason:"code-cli-missing"}` | `parseVersionNumber` (int ≥1) |
+| POST /api/approve | `approveRoute` (190) | — | 204 | — → `finalize({kind:"approve"})` |
+| POST /api/deny | `denyRoute` (195) | `{feedback?}` | 204 | image refs rewritten; `finalize({kind:"deny",feedback})` |
+| POST /api/feedback | `feedbackRoute` (327) | `{feedback?}` | 204 | `saveFeedback` to disk, then `finalize({kind:"feedback",feedback})` |
+| GET /api/draft | `draftGetRoute` (202) | — | 200 raw JSON body / **204 when none** | none (raw passthrough) |
+| POST /api/draft | `draftPostRoute` (211) | raw text body | 204 (silent no-op if `isResolved()`) | none — `saveDraft` writes raw text |
+| DELETE /api/draft | `draftDeleteRoute` (221) | — | 204 | — |
+| POST /api/upload | `uploadRoute` (229) | multipart `file` | 200 `{id,extension}` / 400 | extension whitelist + traversal guard |
+| GET /api/image | `imageRoute` (282) | `?id=&amp;ext=` | 200 bytes / 400 / 404 | uuid + extension + traversal |
+
+Notable: **no Zod on the server** — validation is hand-rolled regex/type guards. Zod lives only on the client (`apiClient.ts`). `POST /api/draft` stores the body as an opaque raw string (`req.text()` → `saveDraft`), so the `DraftPayload` shape is only enforced client-side.
+
+**How the server knows review is "done" (critical for #172):** There is **no polling and no long-poll**. `startServer` creates a single `resolved` Promise (`startServer.ts:126-129`) and passes `resolve` into every request's `ctx`. The approve/deny/feedback handlers call `finalize(ctx, decision)` (lines 181-188), which: (1) `clearDraft`, (2) `ctx.markResolved()` (flips `resolvedFlag` so late `POST /api/draft` becomes a 204 no-op — line 215), (3) optionally writes `decisionFile` JSON `{...decision, at:Date.now()}` for out-of-band readers (Playwright), (4) `ctx.resolve(decision)`. The agent/runtime side (`runPlanReview.ts:70`) simply does `await server.resolved` then `server.stop()`. So the "wait" is an in-process Promise resolved by an HTTP POST — a **one-shot** lifecycle: one decision ends the server.
+
+For an iterate-until-approve `draft` flow you'll need to either loop `startServer` per revision, or change this one-shot model (e.g. a decision kind that persists a new version + keeps the server alive instead of resolving). `savePlan` (bumps version) is currently only called once at boot in `initStorage`.
+
+## 4. Storage — `apps/viewer/src/server/storage.ts`
+
+On-disk layout (per agent namespace):
+```
+~/.symbiot/agents/&lt;agentId&gt;/history/&lt;project&gt;/&lt;slug&gt;/00N.md      (plan versions)
+~/.symbiot/agents/&lt;agentId&gt;/annotations/&lt;project&gt;/&lt;slug&gt;/00N.md  (feedback, annotate mode)
+~/.symbiot/agents/&lt;agentId&gt;/drafts/&lt;project&gt;/&lt;slug&gt;/draft.json   (in-progress draft)
+~/.symbiot/agents/&lt;agentId&gt;/uploads/&lt;project&gt;/&lt;slug&gt;/&lt;uuid&gt;.&lt;ext&gt;
+```
+Root: `getStorageRoot()` = `join(HOME, ".symbiot")` (line 15). `defaultAgentId = "claude-code"` (line 29). `migrateLegacyTree()` (line 96) relocates pre-namespacing flat dirs into the default agent namespace on every boot.
+
+Version filename = zero-padded 3 digits: `padVersion(n)` → `String(n).padStart(3,"0")` + `.md` (line 207, 212).
+
+Key functions (signatures):
+```ts
+deriveProjectSlug(cwd): string                          // slugify(basename(cwd))  (122)
+derivePlanSlug(plan): string                            // slugify(firstHeading||"untitled-plan") (124)
+resolveDisplayName(cwd, git?): string                   // git "&lt;repo&gt; · &lt;branch&gt;" | basename (204)
+
+savePlan(agentId, plan, cwd?): Promise&lt;PlanMeta&gt;        // atomic write to next 00N.md; returns {project,slug,version,displayName} (241)
+loadPlan(agentId, meta): Promise&lt;string&gt;                // readFile 00N.md by meta.version (254)
+planFilePath(agentId, meta{project,slug}, version): string   // absolute path (263)
+listVersions(agentId, meta{project,slug}): Promise&lt;number[]&gt;  // ascending; [] if dir absent (274)
+
+saveFeedback(agentId, meta, feedback): Promise&lt;{version}&gt;     // next 00N.md under annotations/ (301)
+
+saveDraft(agentId, meta, draft: string): Promise&lt;void&gt;  // atomic write draft.json (315)
+loadDraft(agentId, meta): Promise&lt;string | null&gt;        // null on ENOENT (320)
+clearDraft(agentId, meta): Promise&lt;void&gt;                // rm -f, idempotent (330)
+
+uploadPath(agentId, meta, filename): string             (338)
+saveUpload(target, bytes: ArrayBuffer): Promise&lt;void&gt;   (342)
+loadUpload(target): Promise&lt;Buffer | null&gt;              (347)
+```
+Internals: `nextVersionIn(dir)` (222) scans `/^(\d{3})\.md$/`, returns `max+1` or `1`. `writeAtomic` (215) writes to `&lt;target&gt;.&lt;uuid&gt;.tmp` then renames. **A write path that bumps versions already exists (`savePlan`/`nextVersionIn`)** — this is the primitive #172's "versioned revisions" would reuse to persist each new plan revision (currently only invoked at boot, so no route writes new versions today).
+
+## 5. Server contract — `apps/viewer/src/server/contract/`
+
+`surface.assert.ts` is **compile-time only** (no runtime); it emits `Assert&lt;Equals&lt;live, snapshot&gt;&gt;` type-equality checks that fail `tsc --noEmit` if the live types drift from the pinned snapshot. It pins exactly four surfaces:
+- `StartServerOptions` ↔ `StartServerOptionsSnapshot`
+- `RunningServer` ↔ `RunningServerSnapshot`
+- `Decision` ↔ `DecisionSnapshot`
+- `typeof startServer` ↔ `StartServerSnapshot`
+
+`surface.snapshot.ts` inlines these shapes (deliberately not re-imported from live source, so drift is detectable). It mirrors `ViewerModeSnapshot`, `PlanMetaSnapshot`, `DecisionSnapshot`, `StartServerOptionsSnapshot` (includes `mode?: ViewerModeSnapshot`, line 46), `RunningServerSnapshot`, `StartServerSnapshot`.
+
+**What adding a route requires:** The contract does **not** enumerate individual `/api/*` routes — adding a route to `apiRoutes.ts` + `routes.ts` + `apiClient.ts` alone does **not** touch the snapshot. You only need to regenerate `surface.snapshot.ts` if you change `StartServerOptions` (e.g. add a new field), `RunningServer`, `Decision` (e.g. add a new decision kind for draft approval), or `ViewerMode` (which flows into `StartServerOptionsSnapshot.mode`). For #172, adding `"draft"` to `ViewerMode` **will** trip the assert via `StartServerOptionsSnapshot.mode`, and adding a new `Decision` kind will trip `AssertDecision` — both snapshot edits must land in the same PR. There is no separate runtime contract `.test` file; enforcement is purely through `tsc`/`typecheck`.
+
+## 6. Client flow
+
+Render tree: `App` (`App.tsx`) → `useLoadedPlan()` (GET /api/plan) → `LoadingFallback` until loaded → `PlanLoaded` → `useDraft()` (GET /api/draft, gates on first response) → `ReviewScreen`.
+
+**`ReviewScreen.tsx`** composes everything:
+- `useReviewState({draft, saveDraft})` — editor handle, sidebar entries, draft hydration, global comments, `reloadKey` (Clear-All).
+- `useReviewEdit(state)` — inline edit composer.
+- `useVersionState(plan)` — version history + diff.
+- `useReviewSubmit({planMode, editorHandle, collectEntries, cancelDraft})` — approve/deny/feedback, `phase`.
+- `phase === "done"` → renders `&lt;SubmittedScreen mode={plan.mode}&gt;`.
+
+**How mode selects what renders:** Currently mode does **not** switch which pane renders — it only changes button labels (`TopBar` via `denyLabel`), the submit endpoint (`useReviewSubmit`: `postFeedback` vs `postDeny`), hotkeys, and the done-screen heading. Both `plan` and `annotate` render the same `ReviewEditor` (an annotation editor over read-only-ish markdown). The `draft` mode you're adding would be the first mode that changes the *editing surface* (editable plan body + revisions), so the pane selector in `ReviewScreen`/`EditorPane` is where mode-based branching would be introduced.
+
+**`EditorPane` (ReviewScreen.tsx:123)** picks the pane:
+- `isHistorical || inCompareOverlay` → `&lt;DiffOverlay&gt;` → `&lt;DiffMount&gt;` (read-only diff).
+- else → `&lt;EditorMount&gt;` (editable `ReviewEditor`).
+
+`deriveReviewFlags` (line 69): `isHistorical = activeVersion !== bootVersion`; `canCompareWithPredecessor = onBoot &amp;&amp; previousVersion !== null`; `inCompareOverlay = canCompare &amp;&amp; compareWithPredecessor`; `inDiffMode = showsDiff &amp;&amp; previousPlan !== null`.
+
+**`EditorMount.tsx`** — mounts `@symbiot/editor` `ReviewEditor`, `key=`review-${reloadKey}-${activeVersion}`` (remount on Clear-All / version switch). `gatedHydration` (line 76) zeroes all draft hydration when `activeVersion !== bootVersion` so historical marks don't anchor onto unrelated text.
+
+**`DiffMount.tsx`** — thin wrapper over `@symbiot/editor` `DiffEditor`, `key=`${mode}|${previousVersion}|${currentVersion}``, props `current`/`previous` markdown + `mode` (`clean`|`raw`).
+
+**`useVersionState.ts`** — version history engine:
+- Seeds `versions=[plan.meta.version]`, then GET /api/plan/versions.
+- `previousVersion` via `versionIndex` map (predecessor = element before active in the ascending list).
+- Lazily fetches predecessor markdown via GET /api/plan/version?n= whenever `activeVersion` changes (effect at line 100), guarded by request-id refs against races.
+- `onSelectVersion(n)` fetches that version, resets `compareWithPredecessor=false`.
+- `diffMode` persisted in `localStorage["symbiot.diffMode"]`.
+- `previousPlan` derived only when fetched version matches current predecessor.
+
+**Submit (`useReviewSubmit.ts`)** — sequence for both paths: `setPhase("submitting")` → `cancelDraft()` (stops autosave first) → POST decision → `deleteDraft()` (best-effort) → `setPhase("done")` → `window.close()`.
+- `onApprove` → `postApprove()`.
+- `onSubmit` → `serializeFeedback(collectEntries())` then `planMode === "annotate" ? postFeedback : postDeny`.
+
+**Draft autosave (`useDraft.ts`)** — loads draft on mount; `save` debounced 1s → `putDraft(toPayload(snapshot))` (Maps → `Object.fromEntries`); `cancel` sets `disabledRef` and clears timer so no post-submit resurrection.
+
+## 7. Startup &amp; plan source — `startServer.ts` + `bin.ts`
+
+**`bin.ts`** CLI: flags `--plan &lt;file&gt;` (else reads stdin; errors if TTY and no file), `--no-open`, `--keep-alive`, `--decision-file &lt;path&gt;`, `--port &lt;n&gt;`, `--mode &lt;plan|annotate&gt;`. `main()` reads the plan, calls `startServer({plan, openInBrowser:!noOpen, decisionFile, port, mode})`. Without `--keep-alive`, `runOneShot` awaits `server.resolved`, stops, prints (`APPROVED` / feedback / `DENIED\n...`), exits with code from `exitCodeFor` (approve/feedback → 0, deny → 2).
+
+**`startServer.ts`** `StartServerOptions` (lines 21-45): `{ plan, cwd?, openInBrowser?, staticRoot?, indexHtmlGz?, decisionFile?, port?, mode?, agentId? }`. `RunningServer` (48-53): `{ url, meta, resolved:Promise&lt;Decision&gt;, stop() }`.
+- `initStorage` (83): `agentId = options.agentId ?? "claude-code"` → `migrateLegacyTree()` → `savePlan(agentId, plan, cwd)` returns `meta` (this is where the boot plan becomes version 00N).
+- `Bun.serve` on `127.0.0.1`, `port: options.port ?? 0` (OS-assigned unless given).
+- Origin locked to `http://127.0.0.1:${port}` with CORS/preflight (`cors.ts`); non-loopback origins → 403.
+- Serves embedded gzipped `index.html` if `indexHtmlGz` set, else static from `staticRoot` (default `dist/client`).
+
+The **plan source** is thus the markdown string passed as `options.plan` (from `--plan`/stdin/programmatic caller), persisted immediately as the boot version; the client never receives a file path, only the markdown via `GET /api/plan`.
+
+## 8. Client fetch helpers — `apps/viewer/src/client/libs/apiClient.ts`
+
+All go through one generic `request&lt;T&gt;(id: ApiRouteId, {schema, body?, query?})` that: resolves `{method,path}` from `apiRoutes`, JSON-encodes `body`, builds query string, `fetch`, throws on `!res.ok`, returns `undefined` when `schema===null`, parses `null` on 204 (for nullable schemas like draft), else `schema.parse(await res.json())`. Zod schemas: `planResponseSchema` (with `mode` enum), `planVersionsResponseSchema`, `planVersionResponseSchema`, `draftPayloadSchema` (note: its zod schema omits the `insertion*`/`replacement*` optional fields present in the TS `DraftPayload` — those pass through unvalidated).
+
+Exported helpers:
+```ts
+fetchPlan(): Promise&lt;PlanResponse&gt;
+fetchPlanVersions(): Promise&lt;PlanVersionsResponse&gt;
+fetchPlanVersion(version: number): Promise&lt;PlanVersionResponse&gt;
+postApprove(): Promise&lt;void&gt;
+postDeny(feedback: string): Promise&lt;void&gt;
+postFeedback(feedback: string): Promise&lt;void&gt;
+getDraft(): Promise&lt;DraftPayload | null&gt;
+putDraft(draft: DraftPayload): Promise&lt;void&gt;
+deleteDraft(): Promise&lt;void&gt;
+```
+(No client helper exists for `planVscodeDiff`, `upload`, or `image` — upload/image are used directly by the editor package; vscode-diff has no in-app caller.)
+
+---
+
+### Key implications for adding a `draft` mode
+- The `ViewerMode` union is duplicated in 3+ spots that must stay in sync: `apiTypes.ts`, `surface.snapshot.ts`, client zod enum, `bin.ts parseMode`, and the separate `TopBarMode` in `symbiot-ui`.
+- The server lifecycle is **one-shot** (`resolved` Promise ends the server on first approve/deny/feedback). An iterate-via-revisions loop needs either repeated `startServer` calls (runtime side) or a new non-terminal server action + a route that calls `savePlan` to persist a new version without resolving. `savePlan`/`nextVersionIn` already implement version bumping; only boot currently calls it.
+- Version history rendering (`useVersionState` + `DiffMount`/`DiffOverlay`) already does predecessor-diff — reusable for "inline diff between revisions."
+- Adding routes doesn't touch the compile-time contract; adding a `Decision` kind or the `"draft"` mode literal does (regenerate `surface.snapshot.ts` in the same PR).
+- There is no separate `/api/draft` for "annotation drafts" beyond the existing autosave endpoint; the editable-plan editor is `@symbiot/editor`'s `ReviewEditor` (annotation overlay), which today is not a plain-markdown editable surface — a draft editor may need a different editor mode in that package.</result>
+<usage><subagent_tokens>74859</subagent_tokens><tool_uses>26</tool_uses><duration_ms>176824</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3c7c25209bed1ab9</task-id>
+<tool-use-id>toolu_01EzUzazUx9nkMrc9fdf3DRS</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi--warp-worktrees-symbiot-jackrabbit-dry-lightning/03c61c58-a050-4221-b474-083429fd21f8/tasks/a3c7c25209bed1ab9.output</output-file>
+<status>completed</status>
+<summary>Agent "Explore editor + markdown round-trip" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have a comprehensive picture. Here is my structured report.
+
+---
+
+# Exploration Report: symbiot-editor draft-mode editor (issue #172)
+
+## Critical finding up front
+**There is no markdown serialize-back (`Plate value → markdown`) path anywhere in the repo today.** Every use of `@platejs/markdown` is `markdown.deserialize(...)` (markdown → Plate value). A grep for `markdown.serialize` / `.serialize(md` across `packages` and `apps` returns nothing. The `MarkdownPlugin` from `@platejs/markdown@53.0.4` exposes `editor.getApi(MarkdownPlugin).markdown.serialize(value)`, but it is unused. Your "lossless markdown round-trip" (free-text authoring → markdown) requires wiring up that serialize direction, which does not exist yet. NFR-4's "markdown ↔ Plate ... idempotent" is currently only enforced one-directionally (deserialize) plus the annotation→feedback custom serializer.
+
+---
+
+## 1. ReviewEditor.tsx
+`/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/packages/symbiot-editor/src/components/ReviewEditor.tsx`
+
+**Construction:**
+- `usePlateEditor({ plugins: SymbiotEditorKit, value: (e) =&gt; ... })` (from `platejs/react`).
+- The `value` initializer: if `initialValue` prop is provided, use it verbatim (saved Plate value, overrides markdown); else `e.getApi(MarkdownPlugin).markdown.deserialize(markdown)` then `stampBlockLines(markdown, deserialized)` (stamps `__symbiotBlockLines` source-line ranges per top-level block).
+- Rendered as `&lt;Plate editor={editor}&gt;&lt;PlateContent readOnly className="outline-none" /&gt; ...&lt;/Plate&gt;`. **readOnly is enforced at `&lt;PlateContent readOnly /&gt;`** (line 158).
+- **Belt-and-suspenders**: `useTypingGuard(containerRef)` additionally blocks `beforeinput/paste/drop/cut/dragstart` at capture phase (see §5).
+- Marks are applied programmatically via `editor.tf.*` transforms (bypass `contenteditable=false`), never typed.
+- Wrapped in `TaskToggleContext` provider; renders `&lt;ToolbarButtons&gt;` (floating selection toolbar) and `&lt;AnnotationComposer&gt;` (modal).
+
+**Props interface (`ReviewEditorProps`):**
+```ts
+interface ReviewEditorProps {
+  markdown: string;                                     // plan version markdown
+  initialValue?: unknown[];                             // saved Plate value; OVERRIDES markdown deserialize
+  initialBodies?: Map&lt;string, string&gt;;
+  initialImages?: Map&lt;string, string[]&gt;;
+  initialCommentOriginalTexts?: Map&lt;string, string&gt;;
+  initialSuggestionOriginalTexts?: Map&lt;string, string&gt;;
+  initialInsertionNewTexts?: Map&lt;string, string&gt;;
+  initialInsertionImages?: Map&lt;string, string[]&gt;;
+  initialInsertionOriginalTexts?: Map&lt;string, string&gt;;
+  initialReplacementTexts?: Map&lt;string, string&gt;;
+  initialReplacementImages?: Map&lt;string, string[]&gt;;
+  initialReplacementOriginalTexts?: Map&lt;string, string&gt;;
+  onReady?: (handle: ReviewEditorHandle) =&gt; void;
+  onChange?: (snapshot: EditorSnapshot) =&gt; void;
+  onComposerOpenChange?: (open: boolean) =&gt; void;
+}
+```
+`ReviewEditorHandle` / `EditorSnapshot` / `AnnotationHandleKind` are defined in `ReviewEditorTypes.tsx` and re-exported from `ReviewEditor.tsx`. The handle exposes `getValue(): unknown[]` (returns `editor.children`) plus getters for all ten annotation maps, `removeAnnotation`, `updateAnnotation`, `triggerAnnotation`, `hasValidSelection`. There is **no `getMarkdown()`** on the handle today.
+
+---
+
+## 2. utils/kit.ts
+`/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/packages/symbiot-editor/src/utils/kit.ts`
+
+**Markdown serialization setup:** `MarkdownPlugin.configure({ options: { remarkPlugins: [remarkGfm] } })` → exported internally as `MarkdownWithGfm`. Uses `@platejs/markdown` + `remark-gfm`. Deserialize round-trip is the only path used.
+
+**`symbiotBaseKit`** (shared surface, in order):
+`MarkdownWithGfm`, `SourceLinesPlugin`, `BasicBlocksPlugin`, `ParagraphPlugin.withComponent(ParagraphElement)`, `H1..H6Plugin.withComponent(HeadingElement)`, `BasicMarksPlugin`, `CodePlugin.withComponent(InlineCodeLeaf)`, `HorizontalRulePlugin.withComponent(HrElement)`, `CodeBlockPlugin`/`CodeLinePlugin` (+ `CodeSyntaxLeafPlugin`, `CodeSyntaxPlugin` for shiki), `ListPlugin.configure(...)`, `Table*Plugin`, `ImagePlugin.withComponent(VoidImage)`.
+
+**Two exported kits:**
+- `SymbiotEditorKit = [...symbiotBaseKit, SuggestionMarkPlugin, InsertionMarkPlugin, ReplacementMarkPlugin, CommentPlugin.withComponent(CommentLeaf)]` — the editable review editor (annotation-authoring leaf marks).
+- `SymbiotDiffKit = [...symbiotBaseKit, DiffPlugin]` — the read-only diff viewer (omits annotation plugins; `DiffPlugin` last so its leaf renderer wins on `leaf.diff`).
+
+Note the comment on lines 55-61 already anticipates multiple editor modes: *"Shared markdown surface used by every editor mode... the per-mode appendices are layered on top."* A **draft kit** would naturally be a third `[...symbiotBaseKit, ...]` composition (likely with no annotation/diff plugins, and NOT read-only).
+
+**No existing serialize-back path.** `serializeFeedback` (§3) is a *custom* annotation→feedback-markdown serializer, unrelated to Plate/`@platejs/markdown` serialization.
+
+---
+
+## 3. Lossless markdown round-trip (NFR-4) &amp; test conventions
+- **NFR-4** (`docs/01-product.md:58`): "Determinism: markdown ↔ Plate and annotation ↔ feedback serialization are deterministic and idempotent."
+- **Golden-fixture gate** (`docs/08-testing.md`): NFR-8 requires unit tests for markdown round-trip, annotation serialize/deserialize, share codec, diff computation. **Coverage gate fails build below 90%** on lines/statements/branches/functions for `packages/symbiot-annotations/src/**` and the editor component layer (issue #123 extended it).
+- **`serializeFeedback.ts`** (`packages/symbiot-annotations/src/serializeFeedback.ts`): serializes `AnnotationEntry[]` → feedback markdown (`# Plan Feedback`, numbered `## N. (lines N–M) ...` headings per kind). Output is **byte-pinned** against `fixtures/golden/*.md`.
+- **Golden fixtures** (`fixtures/golden/`): `comment.md`, `global-comment.md`, `deletion.md`, `insertion.md`, `replacement.md`, `mixed.md`, `task.md`. Tuples `C/G/D/I/R`. Test `packages/symbiot-annotations/src/serializeFeedback.test.ts` walks each fixture, deserializes canonical input → annotation model → serializer → asserts byte-for-byte equality. Update procedure: change serializer, copy actual output into fixture, commit together.
+- **`fixtures/markdown/elements.md`** + `elements-revised.md`: the "every supported markdown element" corpus, used by Playwright-BDD, perf, and diff smoke. `elements-revised.md` shares the same H1 so it produces the same slug, with intentional insert/delete/word-replace so the inline diff surfaces.
+- **encode/decode/walkAnnotations** (`packages/symbiot-annotations/src/`): `walkAnnotations.ts` walks a `PlateValue`, groups contiguous leaves by mark prefix (`comment_`, `suggestion_`, `insertion_`, `replacement_`, `task_`), reads `__symbiotBlockLines` + `checked`, does drift detection via `resolveAnchor` (dualAnchor). `encode.ts`/`decode.ts` convert `AnnotationEntry[]` ↔ compact tuples (`AnnotationTuple`); `share.ts` does `serialize/deserialize/encrypt/decrypt` for shareable documents (`fixtures/golden/share-codec/`). **This is annotation round-trip, not markdown round-trip.**
+- **Markdown "round-trip" tested today** = `packages/symbiot-editor/src/utils/kit.test.ts`, which only asserts *deserialize* correctness (e.g. `` `command` `` → leaf with `code: true`), not serialize-back.
+
+**Test conventions:** vitest 4.1.6, `vitest run --passWithNoTests`. Component/hook tests use `// @vitest-environment happy-dom`, `@testing-library/react` (`renderHook`, `act`, `render`), `describe/it/expect/vi` from vitest. Pure-logic tests use `createSlateEditor({ plugins: SymbiotEditorKit })` from `platejs` (no DOM). Shared stubs in `_reviewEditorTestHelpers.ts` (`emptyMaps`, `stubEditor`, `stubSetters`). Representative: `ReviewEditorState.test.tsx` (hook, happy-dom), `ReviewEditorAuthoring.test.tsx` (mixes `renderHook` + `createSlateEditor`), `kit.test.ts` (pure slate).
+
+---
+
+## 4. DiffEditor.tsx + utils/diffPlugin.ts
+
+`/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/packages/symbiot-editor/src/components/DiffEditor.tsx`
+
+**Inputs = two markdown strings** (not Plate values):
+```ts
+interface DiffEditorProps {
+  current: string;   // markdown of version selected in History tab
+  previous: string;  // markdown of the immediately preceding version
+  mode: DiffMode;    // "clean" | "raw"
+}
+export type DiffMode = "clean" | "raw";
+```
+**Flow (`buildDiff`):** `createPlateEditor({ plugins: SymbiotDiffKit })` (transient, off render path) → `md.deserialize(previous)` and `md.deserialize(current)` → `computeDiffValue(prevValue, currValue, editor)` → `hasAnyDiff` + (`mode==="clean"` ? `pickChangedBlocks(full)` : `full`). The live `usePlateEditor({ plugins: SymbiotDiffKit, value: diff.rendered })` renders read-only via `&lt;PlateContent readOnly /&gt;`. Empty-state banner when `!hasChanges`. Root `data-testid="diff-editor-root"`, `data-diff-mode`, `data-diff-empty`.
+
+`/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/packages/symbiot-editor/src/utils/diffPlugin.ts`
+- `DiffPlugin` = `toPlatePlugin(createSlatePlugin({ key: "diff", node: { isLeaf: true } }).overrideEditor(withGetFragmentExcludeDiff), { render: { node: DiffLeaf, aboveNodes: diffElementWrapper } })`. Key `"diff"` avoids collision with `"suggestion"`/`"comment"` marks; `withGetFragmentExcludeDiff` keeps diff leaves out of copy/paste.
+- `computeDiffValue(previous, current, editor)` → `computeDiff(prev, curr, { isInline: editor.api.isInline, lineBreakChar: "¶" })` from `@platejs/diff`. Result leaves carry `leaf.diff: true` + `leaf.diffOperation`.
+- `pickChangedBlocks(value)` (Clean filter), `hasAnyDiff(value)`, `containsDiff(node)` helpers.
+
+**Where the client invokes it:** `apps/viewer/src/client/components/DiffMount.tsx` wraps `DiffEditor`; `ReviewScreen.tsx` chooses **DiffMount vs EditorMount based on `version.activeVersion !== bootVersion`** (`isHistorical`, line 73). Historical version → read-only `DiffMount` (predecessor diff via `useVersionState.ts` which imports `DiffMode`); boot/current version → editable `EditorMount` (`ReviewEditor`). Clean/Raw toggle re-keys `DiffMount` on `mode`.
+
+For issue #172: the version/diff machinery is fully reusable — a draft edit produces new markdown; feeding `previous`=prior version markdown and `current`=draft markdown into `DiffEditor` gives you the predecessor diff for free, **provided you can serialize the draft Plate value back to markdown** (the missing piece from §2).
+
+---
+
+## 5. Authoring / State / Toolbar / typingGuard — what "authoring" means today
+
+"Authoring" today = **annotation authoring**, NOT free-text editing. The plan text is frozen; the reviewer only drops anchored marks.
+
+- **`ReviewEditorAuthoring.tsx`**: hooks `useToolbarHandlers`, `useComposerController`, `useRemoveAnnotation`, `useUpdateAnnotation`, `useReadyHandle`, `useTaskToggle`. `PendingAuthoring = {kind: "comment"|"insertion"|"replacement", applied: AppliedAnnotation}`. Marks applied eagerly via `applyAnnotation(editor, kind)` (calls `editor.tf.*`), then a composer captures the body. Save/cancel dispatch into the ten annotation maps. Insertion/Replacement store free-text *proposals* in `insertionNewTexts`/`replacementTexts` maps — but that free text lives in the **composer textarea**, not the Plate surface.
+- **`ReviewEditorState.tsx`**: `useAnnotationState` bundles ten `Map`s + setters (`AnnotationMaps`, `PruneSetters`, `InitialState`, `AnnotationStateBundle`). Sub-hooks `useInsertionState`/`useReplacementState`. `maps` memo depends on individual state values (loop-avoidance).
+- **`ReviewEditorToolbar.tsx`**: `ToolbarButtons` — floating selection toolbar with Comment/Insert/Replace/Delete buttons (`data-testid="toolbar-*"`, `Kbd` hotkeys C/I/R/D).
+- **`typingGuard.ts`**: `useTypingGuard(containerRef)` adds capture-phase listeners blocking `["beforeinput","paste","drop","cut","dragstart"]` and `preventDefault()`/`stopPropagation()`. This is the **primary thing a draft mode must NOT apply** (or must conditionally skip) so typing works. Its docstring explicitly frames it as read-only enforcement.
+
+**Nothing here supports editable prose today.** The only free-text input surface is the composer `&lt;Textarea&gt;` (§6).
+
+---
+
+## 6. symbiot-ui — free-text surfaces &amp; mode-dependent UI
+
+- **Free-text input today** = `ComposerForm.tsx` → `&lt;Textarea&gt;` (`/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/packages/symbiot-ui/src/components/ComposerForm.tsx`). `ComposerPayload = { body: string; images: ImageRef[] }`. Enter saves, Shift+Enter newline, Esc cancels; auto-focus on `open`. This is a plain textarea, not a rich editor.
+- **`AnnotationComposer.tsx`**: polymorphic modal over `kind: "comment"|"insertion"|"replacement"|"global"` and `mode: "create"|"edit"`. Per-kind `KindSurface` (title/placeholder/quoteClass/testIds). `AnnotationComposerPayload = ComposerPayload`.
+- **Mode-dependent UI:**
+  - **`TopBar.tsx`**: `export type TopBarMode = "plan" | "annotate"`. Props `{ onApprove, onDeny, projectName, busy?, mode?, hasAnnotations? }`. In `plan` mode with no annotations → "Approve" button; otherwise → "Request changes"/"Submit feedback" (`denyLabel(mode)`). `data-mode={mode}` on `&lt;header&gt;`. **This is the existing precedent for a mode enum** — a draft mode would likely extend `TopBarMode` (e.g. add `"draft"`) or add a mode switch here.
+  - **`SettingsMenu.tsx`**: theme-only dropdown (System/Light/Dark) via `useTheme`. Currently no editor-mode control; a mode toggle could live here or in the TopBar.
+
+---
+
+## 7. symbiot-editor package.json deps
+`/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/packages/symbiot-editor/package.json`
+
+Plate stack (all pinned):
+- `platejs`: **53.0.3**
+- `@platejs/markdown`: **53.0.4** (provides `MarkdownPlugin`; `.markdown.deserialize` used, `.markdown.serialize` available but unused)
+- `@platejs/diff`: **53.0.0** (`computeDiff`, `withGetFragmentExcludeDiff`, `DiffOperation`)
+- `@platejs/basic-nodes`: 53.0.0, `@platejs/code-block`: 53.0.0, `@platejs/comment`: 53.0.0, `@platejs/list`: 53.0.2, `@platejs/media`: 53.0.1, `@platejs/table`: 53.0.0
+- `remark-gfm`: 4.0.1, `remark-parse`: 11.0.0, `unified`: 11.0.5, `shiki`: 1.29.2, `lucide-react`: 1.16.0
+- Dev: `vitest`: 4.1.6, react 19, `@types/bun`. Scripts: `test` = `vitest run --passWithNoTests`, `lint` = eslint `--max-warnings=0`, `typecheck` = `tsc --noEmit`. Exports: `./components/*` → `./src/components/*.tsx`, `./utils/*` → `./src/utils/*.ts`.
+
+---
+
+## 8. Test conventions (representative)
+Covered in §3. Summary: vitest + happy-dom (`// @vitest-environment happy-dom` pragma) + `@testing-library/react` for component/hook tests; `createSlateEditor({ plugins: SymbiotEditorKit })` for pure logic. Run via `bun run test` → `vitest run --passWithNoTests`. 90% coverage gate on branches/functions/lines/statements. Golden fixtures byte-pinned. Representative files: `ReviewEditorState.test.tsx` (hook), `ReviewEditorAuthoring.test.tsx` (hook + slate), `kit.test.ts` (slate deserialize), `diffPlugin.test.ts` (deserialize + computeDiff).
+
+---
+
+## Key entry points for implementing #172
+
+**Markdown (de)serialization entry points:**
+- Deserialize (exists): `editor.getApi(MarkdownPlugin).markdown.deserialize(markdown)` — used in `ReviewEditor.tsx:112`, `DiffEditor.tsx:33-34`, `kit.test.ts`, `diffPlugin.test.ts`.
+- Serialize (**missing, must add**): `editor.getApi(MarkdownPlugin).markdown.serialize(value)` — nowhere in codebase. This is the core new dependency for lossless draft round-trip and the NFR-4 idempotency test you'll need to add (likely `deserialize(serialize(deserialize(md)))` stability against `fixtures/markdown/elements.md`).
+
+**Reuse map for a draft editor:**
+- Add a third kit in `kit.ts`: `SymbiotDraftKit = [...symbiotBaseKit]` (no annotation/diff plugins).
+- Build a `DraftEditor` sibling to `ReviewEditor`/`DiffEditor` that mounts `&lt;PlateContent /&gt;` **without** `readOnly` and **without** `useTypingGuard`.
+- Reuse `stampBlockLines`/`SourceLinesPlugin` optionally; reuse `SymbiotDiffKit` + `DiffEditor` for predecessor/version diff of the draft (feed serialized draft markdown as `current`).
+- Mode plumbing precedent: `TopBarMode` (`"plan"|"annotate"`) and `ReviewScreen`'s `isHistorical` pane selector — extend these to route to the new editable surface.
+- Prop-interface precedent to mirror: `ReviewEditorProps` (markdown + `initialValue` override), `onChange(EditorSnapshot)`, `onReady(handle)`.
+
+**Exact prop interfaces** for `ReviewEditor` (`ReviewEditorProps`) and `DiffEditor` (`DiffEditorProps` + `DiffMode`) are quoted verbatim in §1 and §4 above.</result>
+<usage><subagent_tokens>79326</subagent_tokens><tool_uses>27</tool_uses><duration_ms>189176</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a34922fe51e3d0fe5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi--warp-worktrees-symbiot-jackrabbit-dry-lightning/03c61c58-a050-4221-b474-083429fd21f8/tasks/a34922fe51e3d0fe5.output</output-file>
+<status>completed</status>
+<summary>Agent "Explore agent-integration chain" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have a comprehensive picture. Here is the structured summary.
+
+## Summary: Codebase map for issue #172 (`/draft` skill + `symbiot draft [file]` subcommand)
+
+### 1. CLI subcommand surface — `apps/claude-code/src/cli.ts`
+Single `createCli(...).run(process.argv.slice(2))` call. Registration pattern is a `handlers` map keyed by subcommand string; each handler receives the argv **tail** and returns `Promise&lt;number&gt;` (exit code).
+
+Current handlers: `install-hook`, `uninstall-hook`, `run-hook`, `annotate`.
+```ts
+createCli({
+  binName: "symbiot",
+  usageCommands: "&lt;install-hook|uninstall-hook|run-hook|annotate &lt;file.md&gt;&gt;",
+  handlers: {
+    "install-hook": async () =&gt; { /* installHook() */ return 0; },
+    "uninstall-hook": async () =&gt; { /* uninstallHook() */ return 0; },
+    "run-hook": () =&gt; runHook(),
+    annotate: (argv) =&gt; runAnnotate(argv[0]),   // argv[0] = file path
+  },
+}).run(process.argv.slice(2));
+```
+Adding `draft` = one new entry `draft: (argv) =&gt; runDraft(argv[0])`, plus update `usageCommands`. Note there is NO `prepare` handler in `cli.ts` even though `hooks.json` calls `symbiot prepare` — `prepare` is handled entirely by the shell shim (`apps/claude-code/bin/symbiot`, see item 5), which intercepts `prepare` and `exec "$BIN" "$@"` for every other subcommand. So a new `draft` subcommand flows through the shim automatically with no shim change.
+
+`createCli` itself is `packages/symbiot-agent-runtime/src/cli.ts`:
+```ts
+export type CommandHandler = (argv: string[]) =&gt; Promise&lt;number&gt; | number;
+export interface CreateCliOptions { binName: string; usageCommands: string; handlers: Record&lt;string, CommandHandler&gt;; }
+export interface Cli { dispatch: (argv: string[]) =&gt; Promise&lt;number&gt;; run: (argv: string[]) =&gt; void; }
+export const createCli: (opts: CreateCliOptions) =&gt; Cli;
+```
+Unknown command → usage line on stderr + exit 64. `run` maps unhandled rejection → stderr + exit 1.
+
+### 2. `symbiot annotate` — `apps/claude-code/src/runAnnotate.ts`
+Thin binding over the shared runtime helper. Imports the embedded viewer bundle (`@symbiot/viewer/dist/embed/index.html.gz` with `{ type: "file" }`) and calls:
+```ts
+export const runAnnotate = (filePath: string | undefined): Promise&lt;number&gt; =&gt;
+  runAnnotateShared({ filePath, binName: "symbiot", agentId: "claude-code", indexHtmlGz: viewerHtmlGz });
+```
+The shared flow is `packages/symbiot-agent-runtime/src/annotate.ts`:
+```ts
+export interface RunAnnotateOptions {
+  filePath: string | undefined; binName: string; agentId: string;
+  indexHtmlGz: string; startServer?: RunPlanReviewOptions["startServer"];
+}
+export const runAnnotate: (o: RunAnnotateOptions) =&gt; Promise&lt;number&gt;;
+```
+Behavior: if `filePath` undefined → `usage: &lt;bin&gt; annotate &lt;file.md&gt;` on stderr, exit 64. Else `readFile(filePath,"utf8")` → `runPlanReview({ plan, mode:"annotate", serverOptions:{indexHtmlGz, agentId}, onStart, onResolved })`. It **blocks** until the reviewer submits; on `decision.kind === "feedback"` it prints `feedback` to **stdout** and returns 0; any other decision returns 1. `onStart` prints `symbiot: annotate &lt;file&gt; at &lt;url&gt;` to stderr. This is the closest existing template for a `draft` subcommand that reads a human file and boots the viewer.
+
+### 3. Hook flow — `apps/claude-code/src/runHook.ts` + `hooks/hooks.json`
+`hooks.json` registers three hooks, all calling `"${CLAUDE_PLUGIN_ROOT}/bin/symbiot"`:
+- `SessionStart` → `prepare` (timeout 120)
+- `PreToolUse` matcher `ExitPlanMode` → `run-hook` (timeout 3600)
+- `PermissionRequest` matcher `ExitPlanMode` → `run-hook` (timeout 3600)
+
+`runHook()` reads JSON from stdin (`HookInput { hook_event_name, tool_name, tool_input:{plan} }`), logs to `~/.symbiot/hook-state/events.log`, extracts plan only when `tool_name === "ExitPlanMode"`. Then branches:
+- **PreToolUse** (`runPreToolUse`): `runPlanReview({ plan, serverOptions:{indexHtmlGz, agentId:"claude-code"}, onStart, onResolved })`. On `decision.kind === "approve"` → `writeApproveMarker(sha256(plan))` to `~/.symbiot/hook-state/last-approve.json` (atomic tmp+rename), then emits `permissionDecision:"allow"` PreToolUse payload (currently a no-op vs upstream bug #50660). Otherwise → `emitBlockDecision(decision.feedback)` (the `{"decision":"block","reason"}` shape). Always returns 0.
+- **PermissionRequest** (`runPermissionRequest`): reads the marker, checks `isFreshFor(marker, sha256(plan), now)` (hash match + `&lt; 60_000ms`); if fresh emits the nested allow payload `{hookSpecificOutput:{hookEventName:"PermissionRequest", decision:{behavior:"allow", updatedPermissions:[{type:"setMode",mode:"acceptEdits",destination:"session"}]}}}`; else writes nothing (falls through to native prompt).
+
+Decision JSON shapes: approve = `permissionDecision` allow (PreToolUse) / nested `decision.behavior:"allow"` (PermissionRequest); deny/request-changes = `{"decision":"block","reason":&lt;feedback&gt;}`. Exported helpers: `markerPath`, `hashPlan` (= `sha256`), `writeApproveMarker`, `readApproveMarker`, `isFreshFor`, `permissionRequestAllowPayload`, `approveMarkerTtlMs`.
+
+### 4. `runPlanReview` and sibling runtime modules
+**`packages/symbiot-agent-runtime/src/runPlanReview.ts`** — the shared spawn→await→decide loop. Exact API:
+```ts
+type ReviewDecision = Awaited&lt;RunningServer["resolved"]&gt;;  // Decision union from viewer
+
+export interface RunPlanReviewOptions {
+  plan: string;
+  mode?: StartServerOptions["mode"];              // "plan" | "annotate", default viewer's "plan"
+  serverOptions?: Omit&lt;StartServerOptions, "plan" | "mode"&gt;;   // indexHtmlGz, agentId, port, decisionFile, cwd, openInBrowser, staticRoot
+  onStart?: (url: string) =&gt; void;
+  onResolved: (decision: ReviewDecision) =&gt; number | Promise&lt;number&gt;;
+  startServer?: typeof defaultStartServer;         // test injection seam
+}
+export const runPlanReview: (o: RunPlanReviewOptions) =&gt; Promise&lt;number&gt;;
+```
+Body: `const server = await startServer({ plan, mode, ...serverOptions }); onStart?.(server.url); const decision = await server.resolved; await server.stop(); return onResolved(decision);`. Persistence to `~/.symbiot` happens **inside** the viewer's `startServer`, NOT here. Reuse/launch of the server: it always launches a fresh `Bun.serve` (no reuse today). It awaits a single `server.resolved` promise (one-shot). Returned value is whatever `onResolved` returns (an exit code).
+
+`runPlanReview.test.ts` stubs `startServer` returning `{ url, meta:{project,slug,version,displayName}, resolved:Promise.resolve(decision), stop }` and asserts: approve/deny/feedback passthrough, async `onResolved` awaited, `onStart` fires with url, `stop()` called before dispatch, and `{plan, mode, ...serverOptions}` forwarding shape.
+
+Sibling modules:
+- **`decision.ts`** — `emitBlockDecision(feedback): Promise&lt;void&gt;` writes `{"decision":"block","reason"}` to stdout (drains backpressure); `emitDecision(decision): Promise&lt;number&gt;` (deny→block, else nothing, always 0).
+- **`hook-input.ts`** — `readHookInput(): Promise&lt;unknown&gt;` (stdin JSON, `{}` on empty/malformed); `flagValue`, `parsePort`, `isNonEmptyString`, `isRecord`, `createStopPlanExtractor({eventName, messageField})`.
+- **`hook-command.ts`** — `resolveHookCommand({importMetaUrl, binName})`: returns `"&lt;binName&gt; run-hook"` in a compiled binary else `bun &lt;abs&gt;/cli.ts run-hook`.
+- **`marker-store.ts`** — `sha256(value)`; `createMarkerStore({dir, ttlMs, fileName?, now?}): MarkerStore` with `isFresh(key,payload)` / `record(key,payload)`, files under `~/.symbiot/hook-state/`.
+- **`annotate.ts`** — see item 2.
+
+Package exports (`package.json`): `.`→runPlanReview, `./cli`, `./annotate`, `./hook-input`, `./decision`, `./config-installer`, `./hook-command`, `./managed-file`, `./marker-store`. A new shared `draft` flow would add a `./draft` (or extend `annotate.ts`) export.
+
+### 5. Plugin packaging + skills
+- **`apps/claude-code/.claude-plugin/plugin.json`** — currently ONLY metadata: `name`, `description`, `version` (0.4.1), `author`, `repository`, `keywords`. NO `commands`, NO `skills`, NO `hooks` key (hooks live in the conventional `apps/claude-code/hooks/hooks.json`). **The symbiot plugin ships ZERO skills today.**
+- **Root `.claude-plugin/marketplace.json`** — one plugin entry `{ name:"symbiot", source:"./apps/claude-code", description }`, owner `awinogradov`.
+- **`.agents/skills/` + `skills-lock.json`** (repo ROOT, not inside the plugin) — these are EXTERNAL dev-tooling skills pulled from GitHub (`shadcn`, `emil-design-eng`), managed by a skills lockfile: `{version:1, skills:{&lt;name&gt;:{source, sourceType:"github", skillPath:"skills/&lt;name&gt;/SKILL.md", computedHash}}}`. They are NOT symbiot's own plugin skills and NOT wired into `plugin.json`/`marketplace.json`.
+- **`user-invocable: false` example**: `.agents/skills/shadcn/SKILL.md` frontmatter (`name`, `description`, `user-invocable: false`, `allowed-tools`). `emil-design-eng/SKILL.md` omits the field entirely (defaults invocable). So the field exists in this repo only on vendored skills.
+- **What making the FIRST user-invocable symbiot skill requires**: there is no existing `skills/` directory in the plugin, no `commands`/`skills` field in `plugin.json`, and `.claude/skills` is empty. So this is greenfield: you must (a) create the skill markdown (e.g. `apps/claude-code/skills/draft/SKILL.md`) with frontmatter carrying `user-invocable: true` (or a `commands/` entry), (b) reference/discover it via the plugin (the plugin loader picks up `skills/` by convention — no current wiring to copy), and (c) `skills-lock.json` is unrelated to plugin-shipped skills — it governs the vendored-from-github tooling skills only, so it does NOT need a new entry for a first-party skill.
+
+### 6. `docs/10-add-agent-integration.md` — the 22-file manifest
+This doc is oriented to adding a **new agent** (`apps/&lt;agent&gt;/`: package.json, vitest/tsconfig, installHook.ts, runHook.ts, runAnnotate.ts, cli.ts, tests, README, plus registering in docs README, root README, `02-architecture.md`). Adding a **subcommand** (not an agent) touches a much smaller subset: the "Shared building blocks" import table (§34–49) is the reference for what to reuse; the relevant rows are `@symbiot/agent-runtime` (`runPlanReview`), `@symbiot/agent-runtime/cli` (`createCli`), and `@symbiot/agent-runtime/annotate` (`runAnnotate` — the pattern to clone for `draft`). You would NOT scaffold a new app, installer, or hook event; you'd add a handler in the existing `apps/claude-code/src/cli.ts` and optionally a new shared `./draft` export. Doc updates would be light (the decision-contract section §109 and the shared-blocks table if a `draft` export is added).
+
+### 7. How the viewer "mode" is set today (agent side)
+`ViewerMode = "plan" | "annotate"` is defined in `apps/viewer/src/shared/apiTypes.ts`. Set points:
+- `packages/symbiot-agent-runtime/src/runPlanReview.ts` — `mode` option forwarded to `startServer`.
+- `packages/symbiot-agent-runtime/src/annotate.ts` — passes `mode:"annotate"`.
+- `apps/claude-code/src/runHook.ts` (`runPreToolUse`) — omits `mode` → defaults to `"plan"` inside `startServer`.
+- `apps/viewer/src/server/startServer.ts` — `mode: options.mode ?? "plan"` placed into the request context; served to client via `GET /api/plan` (`planRoute` returns `{plan, mode, meta}`).
+- `apps/viewer/src/bin.ts` — `parseMode(raw) = raw === "annotate" ? "annotate" : "plan"` from `--mode` flag.
+
+A `draft` feature would either reuse `mode:"annotate"` (human writes a draft, agent reads feedback) or motivate a **third** mode — note `ViewerMode` is a closed 2-value union used in `startServer`, `routes`, `apiTypes`, `bin.ts`, and client (`apiClient`, `SubmittedScreen`, `App`), so adding a mode is a cross-cutting change.
+
+### 8. Version persistence helpers — `apps/viewer/src/server/storage.ts`
+Storage root: `getStorageRoot() = join(process.env.HOME || homedir(), ".symbiot")`. Layout: `~/.symbiot/agents/&lt;agentId&gt;/{history,annotations,drafts,uploads}/&lt;project&gt;/&lt;slug&gt;/`.
+
+Key exported functions:
+- `savePlan(agentId, plan, cwd=process.cwd()): Promise&lt;PlanMeta&gt;` — derives `project`, `slug`, `displayName`, computes next version, atomic-writes `history/&lt;project&gt;/&lt;slug&gt;/00N.md`. Returns `PlanMeta { project, slug, version, displayName }`.
+- `loadPlan(agentId, meta): Promise&lt;string&gt;`; `planFilePath(agentId, meta, version): string`; `listVersions(agentId, meta): Promise&lt;number[]&gt;` (ascending, `[]` if absent).
+- `saveFeedback(agentId, meta, feedback): Promise&lt;{version}&gt;` → `annotations/&lt;project&gt;/&lt;slug&gt;/00N.md`.
+- `saveDraft`/`loadDraft`/`clearDraft` → `drafts/&lt;project&gt;/&lt;slug&gt;/draft.json` (in-progress reviewer annotations, not human drafts).
+- Slug/name derivation: `deriveProjectSlug(cwd) = slugify(basename(cwd))`; `derivePlanSlug(plan) = slugify(firstHeading(plan) ?? "untitled-plan")` (first `#`–`######` heading); `resolveDisplayName(cwd, git?)` = `&lt;repo&gt;` or `&lt;repo&gt; · &lt;branch&gt;` via `git rev-parse --git-common-dir` / `--abbrev-ref HEAD`, fallback `basename(cwd)`.
+- Numbering: `padVersion(n) = String(n).padStart(3,"0")` → `001.md`, `002.md`…; `nextVersionIn(dir)` scans `/^(\d{3})\.md$/` and returns `max+1` (or 1). Atomic write = tmp + rename via local `writeAtomic`.
+- `defaultAgentId = "claude-code"`, `assertValidAgentId` (`/^[a-z0-9][a-z0-9-]*$/`), `migrateLegacyTree()` (one-shot flat→namespaced move, runs every boot inside `initStorage`).
+
+**Revision/diff infra that already exists** (relevant to "reopen the viewer with a diff revision"): the viewer already persists multiple versions per slug and serves `GET /api/plan/versions`, `GET /api/plan/version?n=N`, and `POST /api/plan/vscode-diff {from,to}` (spawns `code --diff`). Client has `VersionBrowser`, `useVersionState`. So a draft→refine→re-review loop where the agent writes `00N+1.md` and the viewer shows a diff between revisions is supported by existing storage/routes; the missing piece is a top-level flow that (a) reads a human-authored draft file, (b) hands it to the agent, (c) persists the refined revision, and (d) reopens the viewer against the new version — none of which exists as a single entrypoint today. `savePlan` is the natural persistence call (each `startServer` boot already appends a new version for the same slug).
+
+**Key files (all absolute):**
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/apps/claude-code/src/cli.ts`
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/apps/claude-code/src/runAnnotate.ts`
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/apps/claude-code/src/runHook.ts`
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/apps/claude-code/hooks/hooks.json`
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/apps/claude-code/bin/symbiot` (shim; passes unknown subcommands through)
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/apps/claude-code/.claude-plugin/plugin.json`
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/.claude-plugin/marketplace.json`
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/skills-lock.json`, `/.agents/skills/shadcn/SKILL.md`
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/packages/symbiot-agent-runtime/src/{runPlanReview,annotate,cli,decision,hook-input,hook-command,marker-store}.ts` (+ `runPlanReview.test.ts`)
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/apps/viewer/src/server/{startServer,storage,routes}.ts`, `/apps/viewer/src/shared/apiTypes.ts`, `/apps/viewer/src/bin.ts`
+- `/Users/tony_vi/.warp/worktrees/symbiot/jackrabbit-dry-lightning/docs/10-add-agent-integration.md`</result>
+<usage><subagent_tokens>69532</subagent_tokens><tool_uses>23</tool_uses><duration_ms>197722</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a96a44cc71daa3fee</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi--warp-worktrees-symbiot-jackrabbit-dry-lightning/03c61c58-a050-4221-b474-083429fd21f8/tasks/a96a44cc71daa3fee.output</output-file>
+<status>completed</status>
+<summary>Agent "Expert review: Pre-mortem" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>{
+  "expertRole": "Pre-mortem Analyst",
+  "score": 85,
+  "verdict": "needs-revision",
+  "findings": [
+    "FAILURE #1 — History fragments on the very first iteration because continuity hangs on a soft H1 convention. The blank seed is '# Untitled draft', and the single most natural first refinement an agent makes is retitling the plan — which changes the slug, forks the history directory ('self-heals into its own history' per step 8), and silently kills the vN-1→vN diff that is the whole point of the loop. A SKILL.md instruction ('WITHOUT changing the H1') is advisory, not enforced; LLM agents will violate it. Early warning: BDD stays green (tests pin the H1) while manual runs never show a diff; history dirs fill with orphan single-version slugs. Mitigation: carry continuity out-of-band — have runDraft/the CLI pass an explicit slug or history-dir (flag or env) echoed in the REVISION marker, so re-boot targets the same history regardless of title; treat H1-derived slug as first-boot default only.",
+    "FAILURE #2 — The first reopen diff is dominated by serializer normalization noise, not user changes. v1 is persisted at boot as raw file/seed markdown, but the 'sent' version is editor.api.markdown.serialize() output — the repo's first-ever serialize path — so the initial predecessor diff compares raw-vs-canonical and shows whitespace/list-marker/wrapping churn the user never typed. Same failure recurs on any @platejs/markdown version bump (golden fixtures are byte-pinned, so the bump breaks CI byte-stability tests AND reformats every open draft). Testing NFR-4 only against fixtures/markdown/elements.md will not catch tables, nested lists, tildes fences, or embedded HTML in free-text drafts. Early warning: 'diff shows everything changed' reports; round-trip test breaks on a dep bump. Mitigation: canonicalize the seed through one deserialize→serialize pass before savePlan at boot so all persisted versions are canonical-form; broaden the round-trip corpus beyond one fixture; pin @platejs/markdown expectations explicitly.",
+    "FAILURE #3 — Autosave lifecycle is unspecified and will resurrect stale edits across the agent loop. POST /api/draft stores an opaque string with no stated key scoping, versioning, or clearing policy. Concrete narrative: user edits (autosave written) → Send → agent refines file → re-boot → hydration precedence between the agent's vN+1 seed and the leftover autosave blob is undefined, so either the agent's refinement is masked by stale local edits or the user's in-flight edits vanish. Compounded by FAILURE #1: if the key includes the slug and the H1 changed, hydration silently misses. Early warning: 'my edits disappeared' / 'agent changes not shown' bug reports that no unit test reproduces. Mitigation: specify in step 9/10 that Send/Approve clears the autosave blob, autosave key includes version N, and boot hydrates autosave only when updatedAt is newer than the seeded version.",
+    "FAILURE #4 — The stdout marker contract creates two sources of truth and a fragile parse. The agent implements from markdown inlined after SYMBIOT_DRAFT_APPROVED on stdout, while the server independently persists 00N.md — six months in, any stdout pollution (dep deprecation warnings, debug logs, or a plan body that itself contains the marker string) corrupts the parse, and the skill's 'write temp file, re-run' step means the file, the stdout body, and the persisted version can silently diverge. 'Other kinds exit 1' also means a plain user cancel/close reads as failure to the skill, inviting retry loops. Early warning: agent implements a plan that doesn't match the latest 00N.md; intermittent skill parse failures. Mitigation: have the marker carry the persisted version's file path (single source of truth) rather than inline markdown, and give cancel/close a distinct non-error marker or exit code the skill handles explicitly."
+  ],
+  "revision": {
+    "changed": "1) Replace H1-derived continuity with an explicit slug/history handle: runDraft passes it to re-boots (flag or env) and includes it in the SYMBIOT_DRAFT_REVISION marker; demote H1-slugging to first-boot default and drop the load-bearing 'keep H1 stable' skill instruction. 2) Add a canonicalize-at-boot step: seed markdown is round-tripped through deserialize→serialize before the initial savePlan so all versions diff canonical-to-canonical; extend NFR-4 tests beyond elements.md (tables, nested lists, HTML, fence variants). 3) Specify autosave lifecycle in steps 9–10: key includes version N, Send/Approve clears the blob, boot hydrates only when autosave updatedAt beats the seed. 4) Change markers to emit the persisted 00N.md path instead of inline markdown, and define a distinct cancel outcome (marker or exit code) the skill treats as non-error.",
+    "rescore": 96
+  }
+}</result>
+<usage><subagent_tokens>15638</subagent_tokens><tool_uses>0</tool_uses><duration_ms>53300</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a8ac0971db9b8adb7</task-id>
+<tool-use-id>toolu_017i5uU3V66QXtvYxxtfvc7o</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi--warp-worktrees-symbiot-jackrabbit-dry-lightning/03c61c58-a050-4221-b474-083429fd21f8/tasks/a8ac0971db9b8adb7.output</output-file>
+<status>completed</status>
+<summary>Agent "Expert review: Tech writer" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>{
+  "expertRole": "Boring Tech Writer",
+  "score": 86,
+  "verdict": "needs-revision",
+  "findings": [
+    "features/README.md taxonomy update is missing. Adding UC5 requires updating BOTH docs/01-product.md and features/README.md (the BDD taxonomy is documented in both), but step 13 lists only 01-product.md while step 12 adds features/uc5-draft-plan/ with no accompanying features/README.md change. The taxonomy docs and the feature tree will drift on day one.",
+    "The stdout marker contract (SYMBIOT_DRAFT_REVISION / SYMBIOT_DRAFT_APPROVED, blank-line separator, exit 0/1 semantics) has no canonical documented home. It is a machine-parseable protocol, yet the plan documents it only inside the /draft skill's instructions and the CLI summary. 03-server-contract.md updates cover only the HTTP surface, and the agent-runtime/apps/claude-code README updates are listed without content. If the skill and CLI drift, there is no spec to arbitrate — the contract needs a normative section (03-server-contract.md or the agent-runtime README) that both the skill and CLI docs reference.",
+    "04-version-history.md is absent from the docs plan despite draft mode directly touching its subject matter: POST /api/draft/send 'persists the edited body as a new version,' and reopen leads with the inline diff overlay. How draft revisions appear in the on-disk version layout and diff editor must be documented there, not just in architecture specials.",
+    "The /draft SKILL.md is the plugin's first user-invocable skill, but the plan specifies only the agent-facing loop (parse marker, preserve H1, re-run). It does not specify the user-facing surface: frontmatter description, when the skill triggers, how the optional [file] argument is passed, or where users learn the skill exists (the apps/claude-code README update is listed but its content is not). For a first-of-its-kind surface, 'the skill' as a step name is under-specified documentation.",
+    "Minor, stacked: (a) 'usageCommands updated' does not state the exact string — the optional argument needs explicit notation (e.g. 'draft [file.md]') consistent with the existing '&lt;install-hook|uninstall-hook|run-hook|annotate &lt;file.md&gt;&gt;' pattern, since this is the only in-terminal documentation; (b) the JSDoc list covers exported symbols but not the CLAUDE.md requirement for module-level JSDoc with usage examples on the new modules (draft.ts, DraftEditor.tsx, kit.ts)."
+  ],
+  "revision": {
+    "changed": "Step 12: add features/README.md taxonomy update alongside the uc5 folder. Step 13: add 04-version-history.md (draft revisions in the on-disk layout and diff editor); designate a canonical home for the stdout marker/exit-code contract (03-server-contract.md CLI section or agent-runtime README) and have SKILL.md and the CLI docs reference it; specify the exact usageCommands string with optional-arg notation for 'draft [file.md]'; specify SKILL.md frontmatter/description and how users discover/invoke the first skill, plus the concrete content of the apps/claude-code README update. Steps 2-5: state that new modules get module-level JSDoc with usage examples, not just per-export JSDoc.",
+    "rescore": 96
+  }
+}</result>
+<usage><subagent_tokens>14080</subagent_tokens><tool_uses>0</tool_uses><duration_ms>34266</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a7b4e022e4d37730b</task-id>
+<tool-use-id>toolu_0196ePoGTeaHMUFBBQRguNww</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-tony-vi--warp-worktrees-symbiot-jackrabbit-dry-lightning/03c61c58-a050-4221-b474-083429fd21f8/tasks/a7b4e022e4d37730b.output</output-file>
+<status>completed</status>
+<summary>Agent "Expert review: Bun engineer" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>{
+  "expertRole": "Principal Bun/NodeJS Engineer",
+  "score": 87,
+  "verdict": "needs-revision",
+  "findings": [
+    "Serializer normalization will pollute the predecessor diff the whole loop depends on. This is the first serialize-back path, and step 4 explicitly canonicalizes first-pass normalization — but each cycle stores the agent's raw markdown at boot and serialize(deserialize(...)) output on Send/Approve. Even a zero-edit Send writes a new 00N.md whose diff vs the boot version is pure normalization noise (list markers, spacing), and every human-edit diff is contaminated by it. The plan needs either canonicalization at boot (savePlan the round-tripped form so all stored versions share one canonical shape) or a byte-equality skip that avoids persisting no-op versions; the round-trip tests as specified verify idempotence but never assert boot-version vs send-version diff cleanliness.",
+    "Draft hydration precedence is unspecified and can silently discard the agent's revision. finalize() clears draft.json only on clean resolution; after a crash/SIGKILL/closed-tab a stale autosave survives under the same project/slug. On the next `symbiot draft &lt;file&gt;` run, step 9 'hydrate on boot in draft mode' would load that stale autosave over the fresh agent-revised file passed on the CLI — the exact artifact the iteration loop just produced. Specify the rule (e.g., CLI file always wins when provided, or compare payload updatedAt against run start / file mtime) and test it.",
+    "Route error handling and resolution ordering for the new mutating endpoints are unspecified. draftSend and approve-with-body do savePlan (EACCES/ENOSPC can throw) before finalize: no 500 path is defined, and it's unclear whether a write failure leaves the one-shot server alive and retryable or kills the run with no decision. Double-submit is also unguarded — two rapid Sends would savePlan twice (two junk versions) before markResolved lands; the handlers should check resolved-state first, then savePlan, then finalize, mirroring the existing late-POST /api/draft 204 no-op semantics, with explicit route tests for write failure and duplicate submit.",
+    "History-forking edge cases around slug derivation undermine the diff chain. A human retitling the H1 mid-draft (only the agent is instructed not to) forks Send into a fresh history dir — predecessor diff silently disappears and the old dir orphans; meanwhile the blank seed '# Untitled draft' makes every untitled draft in a project share one slug, interleaving unrelated drafts' versions in a single history. Minor bundled items: runDraft mapping deny to exit 1 diverges from the viewer bin's deny→2 while the deny/feedback routes remain reachable server-side despite the hidden UI (define behavior), and the stdout marker protocol should specify that only the first marker line is parsed so plan bodies containing the marker text can't confuse the skill."
+  ],
+  "revision": {
+    "changed": "Step 4/8: canonicalize markdown at boot-save (or byte-equality skip before savePlan on Send/Approve) and add a boot-vs-send diff-cleanliness test. Step 9: define hydration precedence (fresh CLI file beats persisted autosave; document the tie-break) with a stale-draft test. Step 8: specify handler ordering (resolved-check → savePlan → finalize), a 500-on-write-failure path that keeps the server retryable, and duplicate-submit no-op tests. Steps 5/7/8: pin deny/feedback behavior in draft mode (exit-code table incl. deny), note H1-retitle forks history in docs/skill, and define marker parsing as first-marker-line-only.",
+    "rescore": 96
+  }
+}</result>
+<usage><subagent_tokens>14665</subagent_tokens><tool_uses>0</tool_uses><duration_ms>72058</duration_ms></usage>
+</task-notification>
+
+---
+
+go ahead and monitor
+
+---
+
+<task-notification>
+<task-id>blmbbq1n8</task-id>
+<summary>Monitor event: "PR #245 review + CI status"</summary>
+<event>state=OPEN decision= fails=none pending=2 comments=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blmbbq1n8</task-id>
+<summary>Monitor event: "PR #245 review + CI status"</summary>
+<event>state=OPEN decision= fails=none pending=1 comments=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blmbbq1n8</task-id>
+<summary>Monitor event: "PR #245 review + CI status"</summary>
+<event>state=OPEN decision= fails=Check pending=0 comments=0
+CHECKS_FAILED:Check</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
