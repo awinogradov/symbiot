@@ -98,8 +98,19 @@ const decoders: DecoderTable = {
  * doesn't carry them. Callers that need to re-attach anchors should pair
  * this output with `dualAnchor.resolveAnchor` against the current Plate
  * value (Insertion anchors on `contextText`; Replacement on `originalText`).
+ *
+ * A tuple whose kind this build does not know is skipped rather than thrown on,
+ * so a share link written by a newer (or older) encoder still opens with the
+ * annotations this build *can* read. Mapping happens before the skip: each
+ * decoder derives its entry id from the tuple's position, so dropping tuples
+ * first would silently renumber every entry after the gap.
  */
 export const decodeAnnotations = (tuples: AnnotationTuple[]): AnnotationEntry[] =>
-  tuples.map((tuple, i) =>
-    (decoders[tuple[0]] as (t: AnnotationTuple, index: number) => AnnotationEntry)(tuple, i)
-  );
+  tuples
+    .map((tuple, i) => {
+      const decode = decoders[tuple[0]] as
+        | ((t: AnnotationTuple, index: number) => AnnotationEntry)
+        | undefined;
+      return decode === undefined ? undefined : decode(tuple, i);
+    })
+    .filter((entry): entry is AnnotationEntry => entry !== undefined);
