@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "e99efe1b0a45",
+  "strategy": "manual-commit",
+  "branch": "issue-246-remove-task-checkbox",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "features/steps/task.steps.ts",
+    "features/uc3-annotate-doc/legacy-task-draft.feature",
+    "packages/symbiot-editor/src/components/ListElement.test.tsx",
+    "packages/symbiot-editor/src/components/ListElement.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e9/9efe1b0a45/0/metadata.json",
+      "transcript": "/e9/9efe1b0a45/0/full.jsonl",
+      "compact_transcript": "/e9/9efe1b0a45/0/transcript.jsonl",
+      "content_hash": "/e9/9efe1b0a45/0/content_hash.txt",
+      "prompt": "/e9/9efe1b0a45/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 391,
+    "cache_creation_tokens": 635632,
+    "cache_read_tokens": 51116890,
+    "output_tokens": 136303,
+    "api_call_count": 194
+  }
+}
