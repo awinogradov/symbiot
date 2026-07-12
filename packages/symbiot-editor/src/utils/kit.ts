@@ -46,6 +46,7 @@ import { VoidImage } from "../components/VoidImage.tsx";
 
 import { CodeSyntaxPlugin } from "./codeSyntax.ts";
 import { DiffPlugin } from "./diffPlugin.ts";
+import { PendingHighlightPlugin } from "./pendingHighlight.ts";
 import { SourceLinesPlugin } from "./sourceLines.ts";
 
 const MarkdownWithGfm = MarkdownPlugin.configure({
@@ -108,8 +109,10 @@ const symbiotBaseKit = [
 
 /**
  * Plate plugin composition for the editable review editor. Appends the
- * annotation-authoring leaf plugins (suggestion / insertion / replacement) and
- * the comment plugin so reviewer marks render alongside markdown.
+ * annotation-authoring leaf plugins (suggestion / insertion / replacement),
+ * the comment plugin so reviewer marks render alongside markdown, and the
+ * pending-highlight decorate that projects the composer's eager highlight
+ * without touching the model (see `pendingHighlight.ts`).
  */
 export const SymbiotEditorKit = [
   ...symbiotBaseKit,
@@ -117,6 +120,7 @@ export const SymbiotEditorKit = [
   InsertionMarkPlugin,
   ReplacementMarkPlugin,
   CommentPlugin.withComponent(CommentLeaf),
+  PendingHighlightPlugin,
 ];
 
 /**

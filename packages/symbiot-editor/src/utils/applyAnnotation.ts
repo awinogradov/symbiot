@@ -1,6 +1,8 @@
+import { TextApi, type TRange } from "platejs";
 import type { PlateEditor } from "platejs/react";
 
 import { type AnnotationKind, prefixOf } from "./annotationKind.ts";
+import { setPendingHighlight, type PendingHighlightKind } from "./pendingHighlight.ts";
 
 export type { AnnotationKind };
 
@@ -8,6 +10,12 @@ export type { AnnotationKind };
 export interface AppliedAnnotation {
   id: string;
   anchorText: string;
+}
+
+/** {@link AppliedAnnotation} plus the selection the pending decoration covers. */
+export interface PendingAppliedAnnotation extends AppliedAnnotation {
+  /** Unhung selection range; {@link materializeAnnotation} writes the marks here on save. */
+  range: TRange;
 }
 
 /**
@@ -39,4 +47,46 @@ export const applyAnnotation = (
   const prefix = prefixOf(kind);
   editor.tf.addMarks({ [prefix]: true, [`${prefix}_${id}`]: true });
   return { id, anchorText };
+};
+
+/**
+ * Begin a composer-backed annotation WITHOUT touching the model: capture the
+ * selection and project the eager highlight as a pending decoration (see
+ * `./pendingHighlight.ts`). Cancelling then only clears view state — the
+ * stored-mark removal that slate-react drops on a blurred read-only editable
+ * under CI load (symbiot#236) never happens. The range is unhung so a
+ * triple-click selection cannot decorate (or later mark) a block boundary the
+ * reviewer never selected.
+ */
+export const capturePendingAnnotation = (
+  editor: PlateEditor,
+  kind: PendingHighlightKind
+): PendingAppliedAnnotation | null => {
+  if (editor.selection === null) return null;
+  const anchorText = editor.api.string(editor.selection);
+  if (anchorText.length === 0) return null;
+  const id = crypto.randomUUID();
+  const range = editor.api.unhangRange(editor.selection);
+  setPendingHighlight(editor, { kind, id, range });
+  return { id, anchorText, range };
+};
+
+/**
+ * Write the stored annotation mark pair at a captured range on composer save,
+ * converting the pending decoration into the persisted Pattern-A wire format
+ * ({@link applyAnnotation} parity — `walkAnnotations` and drift detection see
+ * the same marks either way). Clear the pending decoration BEFORE calling
+ * this: `split: true` rewrites leaf boundaries the stored range points into.
+ */
+export const materializeAnnotation = (
+  editor: PlateEditor,
+  kind: PendingHighlightKind,
+  id: string,
+  range: TRange
+): void => {
+  const prefix = prefixOf(kind);
+  editor.tf.setNodes(
+    { [prefix]: true, [`${prefix}_${id}`]: true },
+    { at: range, match: (node) => TextApi.isText(node), split: true }
+  );
 };

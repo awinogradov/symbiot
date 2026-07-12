@@ -65,9 +65,11 @@ interface ReviewEditorProps {
 /**
  * Read-only Plate editor that renders a markdown plan and lets the reviewer
  * drop anchored Comment / Deletion / Insertion / Replacement marks via a
- * floating selection toolbar. The editor stays `readOnly={true}`; marks are
- * applied programmatically through {@link applyAnnotation} via `editor.tf.*`
- * transforms, which bypass `contenteditable=false`.
+ * floating selection toolbar. The editor stays `readOnly={true}`; saved marks
+ * are applied programmatically via `editor.tf.*` transforms, which bypass
+ * `contenteditable=false`, while a composer's PENDING highlight is projected
+ * as a decoration (see `../utils/pendingHighlight.ts`) so cancelling never
+ * mutates the model (symbiot#236).
  *
  * Insertion authoring shares the Comment composer's UX —
  * {@link AnnotationComposer} switches accent + labels based on `kind`.
@@ -114,9 +116,7 @@ export const ReviewEditor = ({
 
   const { pending, setPending, onComposerSave, onComposerCancel } = useComposerController(
     editor,
-    maps,
-    setters,
-    onChange
+    setters
   );
 
   useTypingGuard(containerRef);

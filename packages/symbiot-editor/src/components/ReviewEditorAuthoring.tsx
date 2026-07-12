@@ -6,17 +6,19 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { flushSync } from "react-dom";
 import type { PlateEditor } from "platejs/react";
 import { type AnnotationComposerPayload } from "@symbiot/ui/components/AnnotationComposer";
 
 import {
   applyAnnotation,
+  capturePendingAnnotation,
   hasValidSelection,
-  type AppliedAnnotation,
+  materializeAnnotation,
+  type PendingAppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
+import { clearPendingHighlight } from "../utils/pendingHighlight.ts";
+import { removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 import { removeTaskToggle } from "../utils/removeTaskToggle.ts";
-import { hasAnnotationMark, removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
 import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
 import { type AnnotationMaps, type PruneSetters } from "./ReviewEditorState.tsx";
@@ -28,9 +30,9 @@ import {
 
 /** Authoring flow currently in flight, waiting for the composer's Save. */
 export type PendingAuthoring =
-  | { kind: "comment"; applied: AppliedAnnotation }
-  | { kind: "insertion"; applied: AppliedAnnotation }
-  | { kind: "replacement"; applied: AppliedAnnotation };
+  | { kind: "comment"; applied: PendingAppliedAnnotation }
+  | { kind: "insertion"; applied: PendingAppliedAnnotation }
+  | { kind: "replacement"; applied: PendingAppliedAnnotation };
 
 /** Save the composer payload into the comment maps. */
 export const saveCommentBody = (
@@ -74,7 +76,7 @@ export const saveReplacementBody = (
   setters.setReplacementOriginalTexts((prev) => new Map(prev).set(id, anchorText));
 };
 
-/** Toolbar button click handlers wired to {@link applyAnnotation}. */
+/** Toolbar button click handlers wired to {@link capturePendingAnnotation} / {@link applyAnnotation}. */
 export interface ToolbarHandlers {
   onCommentClick: () => void;
   onInsertClick: () => void;
@@ -103,7 +105,7 @@ export const useToolbarHandlers = ({
 }: ToolbarHandlerDeps): ToolbarHandlers => {
   const openComposer = useCallback(
     (kind: "comment" | "insertion" | "replacement"): void => {
-      const applied = applyAnnotation(editor, kind);
+      const applied = capturePendingAnnotation(editor, kind);
       if (applied === null) return;
       setPending({ kind, applied });
     },
@@ -301,80 +303,47 @@ export const dispatchComposerSave = (
   saveReplacementBody(setters, id, anchorText, payload);
 };
 
-/**
- * Roll back the eagerly-applied annotation mark when the composer is cancelled.
- * Pattern A applies the mark on open, so every cancel route (button, Escape,
- * overlay) must remove it or the selection stays highlighted with no body. No
- * map pruning is needed: a body is only stored on save, so the cancelled id
- * never entered the annotation maps. Mirrors {@link dispatchComposerSave}.
- */
-export const dispatchComposerCancel = (
-  pending: PendingAuthoring | null,
-  editor: PlateEditor,
-  maps: AnnotationMaps,
-  onChange?: (snapshot: EditorSnapshot) => void
-): void => {
-  if (pending === null) return;
-  removeAnnotationMark(editor, pending.kind, pending.applied.id);
-  onChange?.(snapshotOf(editor, maps));
-};
-
 /** Pending composer state plus its save / cancel handlers. */
 export interface ComposerController {
   /** Authoring flow awaiting the composer's Save, or `null` when the composer is closed. */
   pending: PendingAuthoring | null;
-  /** Opens the composer for a freshly-applied annotation; wired to {@link useToolbarHandlers}. */
+  /** Opens the composer for a freshly-captured annotation; wired to {@link useToolbarHandlers}. */
   setPending: Dispatch<SetStateAction<PendingAuthoring | null>>;
-  /** Persist the composer payload and close. */
+  /** Materialize the stored marks, persist the composer payload, and close. */
   onComposerSave: (payload: AnnotationComposerPayload) => void;
-  /** Close without saving; rolls the eager mark back synchronously in the dismiss event. */
+  /** Close without saving; clears the pending decoration (no model mutation). */
   onComposerCancel: () => void;
 }
 
 /**
- * Temporary diagnostic (symbiot#231): right after the synchronous cancel commit, record whether
- * the model was cleaned vs. what the DOM still shows, plus the focused element, on `window.__diag`.
- * The failing BDD step reads it back. Revert with the step-side instrumentation once confirmed.
- */
-const recordCancelDiag = (editor: PlateEditor, pending: PendingAuthoring): void => {
-  if (typeof document === "undefined") return;
-  const w = window as unknown as { __diag?: unknown[] };
-  const log = (w.__diag ??= []);
-  const active = document.activeElement;
-  log.push({
-    ev: "cancel",
-    id: pending.applied.id,
-    modelClean: !hasAnnotationMark(editor, pending.kind, pending.applied.id),
-    domCount: document.querySelectorAll(`[data-testid="annotation-${pending.kind}"]`).length,
-    activeTag: active ? active.tagName : null,
-  });
-};
-
-/**
  * Own the inline composer's `pending` state and its save / cancel handlers.
  *
- * The eager "Pattern A" mark is rolled back **synchronously inside the cancel
- * event**, before the close commits and Radix's modal focus-restoration runs.
- * A deferred rollback (post-commit effect) races that focus restoration on the
- * overlay-dismiss route under CI load and intermittently leaves the highlight
- * behind (symbiot#231); running it in the handler closes the race.
+ * While pending, the eager highlight never touches the model: it is a
+ * decoration projected by `../utils/pendingHighlight.ts`. Cancel therefore
+ * only clears that decoration — no rollback transform exists to race, undo
+ * history survives, and a mid-compose draft can never persist a body-less
+ * eager mark (that leak seeded the symbiot#236 draft bleed-through flake).
+ * Save clears the decoration first (the split transform rewrites the leaf
+ * boundaries its range points into), then materializes the stored marks via
+ * {@link materializeAnnotation} before persisting the body.
  *
  * Save and cancel are already separate handlers: a save closes the dialog
  * programmatically (`open` → false), which does NOT fire Radix `onOpenChange`,
  * so it never reaches {@link onComposerCancel}; only genuine dismisses (button /
- * Escape / overlay click) do. `savedRef` still guards the rollback so that even
- * if a controlled close were to surface through `onOpenChange`, a just-saved mark
- * is kept; it is cleared whenever a fresh composer opens so a prior save never
- * suppresses the next cancel. `pendingRef` mirrors `pending` so the handler rolls
- * back the CURRENT id even when Radix invokes the callback from a stale render.
- * Extracted (like {@link useRemoveAnnotation}) so `ReviewEditor` stays under the
- * per-function line cap.
+ * Escape / overlay click) do. `savedRef` still guards the cancel path so that
+ * even if a controlled close were to surface through `onOpenChange`, a
+ * just-saved annotation is kept; it is cleared whenever a fresh composer opens
+ * so a prior save never suppresses the next cancel. `pendingRef` mirrors
+ * `pending` so the handlers act on the CURRENT id even when Radix invokes the
+ * callback from a stale render. The unmount cleanup clears any decoration an
+ * abnormal teardown (e.g. unmounting with the composer open) would otherwise
+ * strand on the persistent editor instance. Extracted (like
+ * {@link useRemoveAnnotation}) so `ReviewEditor` stays under the per-function
+ * line cap.
  */
 export const useComposerController = (
   editor: PlateEditor,
-  maps: AnnotationMaps,
-  setters: PruneSetters,
-  onChange?: (snapshot: EditorSnapshot) => void
+  setters: PruneSetters
 ): ComposerController => {
   const [pending, setPending] = useState<PendingAuthoring | null>(null);
   const pendingRef = useRef<PendingAuthoring | null>(null);
@@ -385,15 +354,19 @@ export const useComposerController = (
     if (pending !== null) savedRef.current = false;
   }, [pending]);
 
+  useEffect(() => () => clearPendingHighlight(editor), [editor]);
+
   const onComposerSave = useCallback(
     (payload: AnnotationComposerPayload): void => {
       const { current } = pendingRef;
       if (current === null) return;
+      clearPendingHighlight(editor);
+      materializeAnnotation(editor, current.kind, current.applied.id, current.applied.range);
       dispatchComposerSave(current, payload, setters);
       savedRef.current = true;
       setPending(null);
     },
-    [setters]
+    [editor, setters]
   );
 
   const onComposerCancel = useCallback((): void => {
@@ -401,24 +374,9 @@ export const useComposerController = (
       savedRef.current = false;
       return;
     }
-    const { current } = pendingRef;
-    if (current === null) {
-      setPending(null);
-      return;
-    }
-    // Close the composer and roll the eager mark back in one synchronous commit. A React
-    // re-render/remount does NOT clear the highlight on the blurred overlay-dismiss route
-    // (symbiot#231 __diag: modelClean=true, domCount=1, editor blurred) — slate-react won't
-    // reconcile the cleaned value into the blurred editor's DOM. Replacing the value with a
-    // fresh array forces it to rebuild every leaf from the already-cleaned children.
-    // eslint-disable-next-line @eslint-react/dom-no-flush-sync, n/no-sync -- synchronous commit before Radix focus restoration (symbiot#231)
-    flushSync(() => {
-      setPending(null);
-      dispatchComposerCancel(current, editor, maps, onChange);
-      editor.tf.setValue([...editor.children]);
-    });
-    recordCancelDiag(editor, current);
-  }, [editor, maps, onChange]);
+    clearPendingHighlight(editor);
+    setPending(null);
+  }, [editor]);
 
   return { pending, setPending, onComposerSave, onComposerCancel };
 };
