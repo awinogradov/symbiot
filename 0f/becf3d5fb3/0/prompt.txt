@@ -81,3 +81,12 @@ If this event is something the user would act on now, send a PushNotification. R
 ---
 
 continue
+
+---
+
+<task-notification>
+<task-id>by93xd7ce</task-id>
+<summary>Monitor event: "flake-probe gate run 1 on cf8474a (Before-hook draft isolation)"</summary>
+<event>flake-probe (29207168206, gate run 1 on cf8474a Before-hook isolation) completed: conclusion=success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
