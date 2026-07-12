@@ -28,38 +28,40 @@ describe("ListElement", () => {
     expect(list.querySelector("li")?.textContent).toBe("item one");
   });
 
-  it("renders a read-only checkbox for todo items reflecting checked state", () => {
+  it("renders an open todo item as a plain bullet, with no checkbox", () => {
     const { container } = render(
       <ListElement
         attributes={{ "data-slate-node": "element" }}
-        element={listElement({ listStyleType: "todo", checked: true })}
+        element={listElement({ listStyleType: "todo" })}
       >
-        done task
+        open task
       </ListElement>
     );
     const list = container.firstElementChild as HTMLElement;
     expect(list.tagName).toBe("UL");
     expect(list.getAttribute("data-list-type")).toBe("todo");
-    const checkbox = list.querySelector<HTMLInputElement>('[data-testid="editor-task-checkbox"]');
-    expect(checkbox?.checked).toBe(true);
-    // Non-interactive without `disabled` — Chrome grays out disabled
-    // checkboxes and ignores `accent-color`.
-    expect(checkbox?.disabled).toBe(false);
-    expect(checkbox?.tabIndex).toBe(-1);
-    expect(checkbox?.getAttribute("aria-label")).toBe("Completed task");
-    expect(list.textContent).toContain("done task");
+    // `todo` is not a CSS list-style-type — it must resolve to a real marker,
+    // or the item renders with no bullet at all.
+    expect(list.style.listStyleType).toBe("disc");
+    expect(list.querySelector('[data-testid="editor-task-checkbox"]')).toBeNull();
+    const item = list.querySelector("li") as HTMLElement;
+    expect(item.getAttribute("data-checked")).toBe("false");
+    expect(item.className).not.toContain("line-through");
+    expect(item.textContent).toBe("open task");
   });
 
-  it("renders an unchecked checkbox for open todo items", () => {
+  it("strikes through a done todo item", () => {
     const { container } = render(
-      <ListElement attributes={{}} element={listElement({ listStyleType: "todo" })}>
-        open task
+      <ListElement attributes={{}} element={listElement({ listStyleType: "todo", checked: true })}>
+        done task
       </ListElement>
     );
-    const checkbox = container.querySelector<HTMLInputElement>(
-      '[data-testid="editor-task-checkbox"]'
-    );
-    expect(checkbox?.checked).toBe(false);
+    const list = container.firstElementChild as HTMLElement;
+    expect(list.querySelector('[data-testid="editor-task-checkbox"]')).toBeNull();
+    const item = list.querySelector("li") as HTMLElement;
+    expect(item.getAttribute("data-checked")).toBe("true");
+    expect(item.className).toContain("line-through");
+    expect(item.textContent).toBe("done task");
   });
 
   it("renders an ordered list with start attribute for decimal style", () => {
