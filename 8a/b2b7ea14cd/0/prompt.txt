@@ -55,3 +55,12 @@ If this event is something the user would act on now, send a PushNotification. R
 ---
 
 check
+
+---
+
+<task-notification>
+<task-id>b78xw3yqe</task-id>
+<summary>Monitor event: "flake-probe on 3662515 (marked-leaf fingerprint diag)"</summary>
+<event>flake-probe (29193303335, fingerprint diag 3662515) completed: conclusion=failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
