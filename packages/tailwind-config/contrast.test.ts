@@ -60,6 +60,9 @@ const cases = themes.flatMap((theme) => tokens.map((token) => ({ theme, token })
 const surfacePairs = [
   { foreground: "--foreground", surface: "--topbar" },
   { foreground: "--muted-foreground", surface: "--muted" },
+  // Struck-through done task items (`ListElement`) render muted directly on the
+  // page background, not on a `--muted` surface — gate that pair too.
+  { foreground: "--muted-foreground", surface: "--background" },
   { foreground: "--sidebar-foreground", surface: "--sidebar" },
   { foreground: "--muted-foreground", surface: "--sidebar" },
   // Binding AA constraint for the unified hover: muted row-meta on a hovered

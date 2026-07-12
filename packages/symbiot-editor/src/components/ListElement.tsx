@@ -1,8 +1,7 @@
 import { ULIST_STYLE_TYPES } from "@platejs/list";
+import { cn } from "@symbiot/ui/utils/cn";
 import type { TElement } from "platejs";
-import { use, useCallback, type ReactNode } from "react";
-
-import { TaskToggleContext } from "./TaskToggleContext.ts";
+import type { ReactNode } from "react";
 
 interface ListElementProps {
   attributes: Record<string, unknown>;
@@ -10,14 +9,22 @@ interface ListElementProps {
   element: TElement;
 }
 
-interface TodoListProps {
-  attributes: Record<string, unknown>;
-  children: ReactNode;
-  checked: boolean;
-  element: TElement;
-}
-
 const unorderedStyles = ULIST_STYLE_TYPES as readonly string[];
+
+const todoStyle = "todo";
+
+/**
+ * `todo` (GFM task items) is a Plate list style, not a CSS one. Resolve it to a
+ * real marker exactly once, before both the ordered test and the marker style
+ * read it — splitting the special case across the two would let them drift, and
+ * each half-fix fails silently in its own way: unresolved it fails the unordered
+ * membership test and falls through to decimal `<ol>` numbering, and unmapped it
+ * reaches CSS as an invalid `list-style-type` and renders no marker at all.
+ */
+const listStyleAliases: Record<string, string> = { [todoStyle]: "disc" };
+
+const resolveStyle = (listStyleType: string | undefined): string | undefined =>
+  listStyleType === undefined ? undefined : (listStyleAliases[listStyleType] ?? listStyleType);
 
 const isOrderedStyle = (listStyleType: string | undefined): boolean =>
   listStyleType !== undefined && !unorderedStyles.includes(listStyleType);
@@ -25,56 +32,9 @@ const isOrderedStyle = (listStyleType: string | undefined): boolean =>
 const markerStyle = (listStyleType: string | undefined): React.CSSProperties =>
   listStyleType === undefined ? { margin: 0 } : { listStyleType, margin: 0 };
 
-/**
- * GFM task item: a checkbox marker instead of a CSS marker — `todo` is not a
- * valid `list-style-type`, so without this branch the browser falls back to
- * decimal numbering and the checked state is lost. Never `disabled`: Chrome
- * renders disabled checkboxes gray, ignoring `accent-color`. In the authoring
- * editor a {@link TaskToggleContext} handler makes the checkbox interactive —
- * clicking records the toggle as feedback; in read-only surfaces (the diff
- * view) the context is `null` and the checkbox is inert. The box sits in a
- * `contentEditable={false}` span so Slate never treats it as editable text,
- * and -ml-6 pulls it into the marker gutter (16px box + 8px gap) so item text
- * aligns with the other list kinds.
- */
-const TodoList = ({
-  attributes,
-  children,
-  checked,
-  element,
-}: TodoListProps): React.ReactElement => {
-  const onToggle = use(TaskToggleContext);
-  const interactive = onToggle !== null;
-  const onChange = useCallback((): void => onToggle?.(element), [onToggle, element]);
-  return (
-    <ul
-      {...attributes}
-      data-testid="editor-list"
-      data-list-type="todo"
-      style={{ listStyleType: "none", margin: 0 }}
-      className="[&_li]:my-0"
-    >
-      <li className="flex items-start gap-2">
-        <span contentEditable={false} className="-ml-6 flex h-7 items-center">
-          <input
-            type="checkbox"
-            data-testid="editor-task-checkbox"
-            checked={checked}
-            readOnly={!interactive}
-            tabIndex={interactive ? 0 : -1}
-            aria-label={checked ? "Completed task" : "Open task"}
-            onChange={interactive ? onChange : undefined}
-            className={
-              interactive
-                ? "accent-task-done size-4 cursor-pointer"
-                : "accent-task-done pointer-events-none size-4"
-            }
-          />
-        </span>
-        <span className="min-w-0">{children}</span>
-      </li>
-    </ul>
-  );
+const listType = (listStyleType: string | undefined, ordered: boolean): string => {
+  if (listStyleType === todoStyle) return todoStyle;
+  return ordered ? "ordered" : "unordered";
 };
 
 /**
@@ -88,8 +48,12 @@ const TodoList = ({
  * via `ListPlugin.configure({ render: { belowNodes } })` in `utils/kit.ts`
  * because Plate's list "items" are actually paragraph elements decorated with
  * `listStyleType` — the wrapper renders `belowNodes`, not `withComponent`.
- * GFM task items (`listStyleType: "todo"` + `checked` flag) render via
- * {@link TodoList}.
+ *
+ * GFM task items (`listStyleType: "todo"`) render as ordinary bullets — see
+ * {@link listStyleAliases}. The markdown parser consumes the literal `[ ]` /
+ * `[x]` into the `checked` flag, so a done item would otherwise be
+ * indistinguishable from an open one; it is struck through instead, and carries
+ * `data-checked` so the state stays queryable without a form control.
  */
 export const ListElement = ({
   attributes,
@@ -98,25 +62,26 @@ export const ListElement = ({
 }: ListElementProps): React.ReactElement => {
   const listStyleType = element["listStyleType"] as string | undefined;
   const listStart = element["listStart"] as number | undefined;
-  if (listStyleType === "todo") {
-    return (
-      <TodoList attributes={attributes} checked={element["checked"] === true} element={element}>
-        {children}
-      </TodoList>
-    );
-  }
-  const ordered = isOrderedStyle(listStyleType);
+  const todo = listStyleType === todoStyle;
+  const checked = element["checked"] === true;
+  const resolved = resolveStyle(listStyleType);
+  const ordered = isOrderedStyle(resolved);
   const Tag = ordered ? "ol" : "ul";
   return (
     <Tag
       {...attributes}
       data-testid="editor-list"
-      data-list-type={ordered ? "ordered" : "unordered"}
+      data-list-type={listType(listStyleType, ordered)}
       start={listStart}
-      style={markerStyle(listStyleType)}
+      style={markerStyle(resolved)}
       className="[&_li]:my-0"
     >
-      <li>{children}</li>
+      <li
+        data-checked={todo ? checked : undefined}
+        className={cn(todo && checked && "text-muted-foreground line-through")}
+      >
+        {children}
+      </li>
     </Tag>
   );
 };
