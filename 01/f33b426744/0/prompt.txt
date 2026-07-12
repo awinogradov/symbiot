@@ -38,3 +38,16 @@ continue
 <event>flake-probe (29189651866, scrub shape 774c295) completed: conclusion=failure</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>bcibk66bl</task-id>
+<summary>Monitor event: "flake-probe on 936b4d4 (reason-coded scrub + container fallback)"</summary>
+<event>flake-probe (29191458071, hardened scrub 936b4d4) completed: conclusion=failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
