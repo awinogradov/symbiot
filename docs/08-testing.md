@@ -215,13 +215,18 @@ branch ref twice and require **0 failures** (baseline-red is the pre-fix run his
 as a PR check, so dispatch it explicitly against whatever ref you want to probe — it neither
 gates nor clutters the PR.
 
-**Pattern-A rollback rule (the canonical example).** The review editor applies an annotation
-**mark** eagerly when the composer opens (the highlight shows before a body is typed) and rolls
-it back on cancel. On the **overlay-dismiss** route the editor is blurred (Radix restores focus
-asynchronously), so the rollback **and** the `PlateContent` remount must commit **synchronously**
-inside the cancel handler — `flushSync` in `useComposerController`
-(`packages/symbiot-editor/src/components/ReviewEditorAuthoring.tsx`) — so the cleaned DOM lands
-_before_ focus restoration and can't orphan a stale highlight in the read-only editor (#231).
+**Scenario state isolation (the canonical example, #231→#236).** The overlay-cancel
+"highlight is absent" flake was chased for months as a slate-react rendering bug; it was
+actually **draft bleed-through between scenarios**: drafts persist per worker
+(shared `HOME` + plan slug), `useDraft` debounces saves by 1 s, and a dirty write flushed
+mid-scenario could outlive its superseding clean write when the page closed — the next
+scenario then hydrated a foreign annotation mark that the assertion faithfully counted.
+Two rules came out of it: a per-scenario `Before` hook wipes the worker's drafts directory
+(`features/steps/navigation.steps.ts`) — seeded-draft Givens run after it and survive — and
+the composer's pending highlight is a **decoration**, never a stored mark
+(`packages/symbiot-editor/src/utils/pendingHighlight.ts`), so a mid-compose draft can never
+persist a body-less eager mark. When a CI-only flake resists app-level fixes, check
+fixture/storage isolation first and fingerprint **what** is rendered, not just how much.
 
 ## E2E waiting rules
 
