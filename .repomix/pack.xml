@@ -360,8 +360,8 @@ features/
     hotkeys.feature
     image-attach.feature
     inline-comment.feature
+    legacy-task-draft.feature
     round-trip.feature
-    task-checkbox.feature
   uc5-draft-plan/
     draft-approve.feature
     draft-author.feature
@@ -520,7 +520,6 @@ packages/
         ReviewEditorTypes.tsx
         TableElements.test.tsx
         TableElements.tsx
-        TaskToggleContext.ts
         VoidElements.test.tsx
         VoidElements.tsx
         VoidImage.test.tsx
@@ -529,8 +528,6 @@ packages/
         annotationKind.ts
         applyAnnotation.test.ts
         applyAnnotation.ts
-        applyTaskToggle.test.ts
-        applyTaskToggle.ts
         codeSyntax.ts
         codeTokens.test.ts
         codeTokens.ts
@@ -543,6 +540,8 @@ packages/
         markdownRoundTrip.test.ts
         removeAnnotationMark.test.ts
         removeAnnotationMark.ts
+        removeTaskToggle.test.ts
+        removeTaskToggle.ts
         selectionRect.test.ts
         selectionRect.ts
         shiki.ts
@@ -15907,7 +15906,7 @@ the surfaces are gated as (foreground, surface) pairs — all in
 | `--muted`                       | `oklch(0.978 0.003 247.9)` (`#f6f8fa`) | `oklch(0.278 0.012 248.2)` (`#24292e`) | vs `--muted-foreground`: 7.94 / 5.66 ✓     |
 | `--heading`                     | `oklch(0.278 0.012 248.2)` (`#24292e`) | `oklch(0.857 0.014 248.0)` (`#c9d1d9`) | vs `--background`: 14.67 / 12.27 ✓         |
 | `--inline-code`                 | `oklch(0.48 0.17 277.5)` (`#4b4cba`)   | `oklch(0.802 0.091 278.6)` (`#b1b9f9`) | vs `--background`: 6.92 / 10.06 ✓          |
-| `--task-done`                   | `oklch(0.58 0.157 148.1)` (`#1c923f`)  | `oklch(0.705 0.157 148.1)` (`#4eba65`) | decorative checkbox accent — not gated     |
+| `--task-done`                   | `oklch(0.58 0.157 148.1)` (`#1c923f`)  | `oklch(0.705 0.157 148.1)` (`#4eba65`) | task-annotation accent — not gated         |
 | `--sidebar`                     | `oklch(0.985 0 0)` (`#fafafa`)         | `oklch(0.258 0.013 253.1)` (`#1F242A`) | vs `--sidebar-foreground`: 18.96 / 14.96 ✓ |
 | `--accent` / `--sidebar-accent` | `oklch(0.97 0 0)` (`#f5f5f5`)          | `oklch(0.319 0.017 255.6)` (`#2d333b`) | vs `--muted-foreground`: 7.76 / 4.91 ✓     |
 
@@ -15931,7 +15930,14 @@ secondary/ghost surfaces.
 `--topbar` is registered in `@theme inline` (consumed as `bg-topbar` by the
 TopBar); `--heading` and `--inline-code` are consumed only via `var()` from
 the viewer's `.prose` overrides, so they carry no utility registration;
-`--task-done` is registered as the `accent-task-done` checkbox accent.
+`--task-done` is registered in `@theme inline` and consumed as `text-task-done`,
+the accent on the annotation sidebar's task rows.
+
+Done GFM task items in the plan body are struck through with
+`text-muted-foreground line-through` rather than tinted with `--task-done` — the
+task checkbox that carried the accent was removed in #246, and the strike reads
+as state without a form control. `--muted-foreground` on `--background` is
+gated in `contrast.test.ts` alongside the other text-on-surface pairs.
 
 ## Differentiation from `--destructive`
 
@@ -18835,18 +18841,79 @@ Then("the sidebar total count reads {string}", async ({ page }, expected: string
 <file path="features/steps/task.steps.ts">
 import { expect } from "@playwright/test";
 
-import { Then, When } from "../support/bdd.ts";
+import { Given, Then } from "../support/bdd.ts";
 
-When("I toggle task checkbox {int}", async ({ page }, n: number) => {
-  await page
-    .getByTestId("editor-task-checkbox")
-    .nth(n - 1)
-    .click();
+/**
+ * A draft exactly as an older build persisted it: the reviewer had ticked the
+ * "Open task" checkbox and un-ticked "Completed task", so `applyTaskToggle`
+ * flipped each `checked`, snapshotted the pre-toggle state in `taskOriginal`,
+ * and tagged the item's text with the `task` / `task_<id>` marks the annotation
+ * walker reads. The checkbox is gone, but this shape is frozen on disk for
+ * anyone who used it — the viewer still has to surface both toggles and let the
+ * reviewer clear them. One toggle in each direction, so the sidebar's
+ * "Mark as done" and "Mark as not done" projections are both exercised.
+ */
+const legacyDraft = {
+  value: [
+    { type: "h1", children: [{ text: "Task list" }] },
+    {
+      type: "p",
+      listStyleType: "todo",
+      indent: 1,
+      checked: true,
+      taskOriginal: false,
+      children: [{ text: "Open task", task: true, task_legacy1: true }],
+    },
+    {
+      type: "p",
+      listStyleType: "todo",
+      indent: 1,
+      checked: false,
+      taskOriginal: true,
+      children: [{ text: "Completed task", task: true, task_legacy2: true }],
+    },
+  ],
+  commentBodies: {},
+  globalComments: [],
+  updatedAt: 1_700_000_000_000,
+};
+
+/**
+ * Served from a route intercept rather than POSTed to the viewer: the annotate
+ * viewer is worker-scoped and its draft lives on disk, so a real POST would leak
+ * this document into every annotate scenario that runs after it in the same
+ * worker. Mirrors the interception in `draft.steps.ts`.
+ */
+Given("a draft persisted by an older build carries a task toggle", async ({ page }) => {
+  await page.route("**/api/draft", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(legacyDraft),
+      });
+      return;
+    }
+    // Swallow the autosave POST the removal triggers — keeps the run hermetic.
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
 });
 
 Then("the annotation sidebar shows a task entry {string}", async ({ page }, body: string) => {
   await expect(
     page.locator('[data-testid^="sidebar-entry-"][data-kind="task"]', { hasText: body })
+  ).toHaveCount(1);
+});
+
+Then("the task item {string} is struck through", async ({ page }, text: string) => {
+  await expect(
+    page.locator('[data-testid="editor-list"][data-checked="true"]', { hasText: text })
+  ).toHaveCount(1);
+});
+
+Then("the task item {string} is not struck through", async ({ page }, text: string) => {
+  await expect(
+    page.locator('[data-testid="editor-list"][data-checked="false"]', { hasText: text })
   ).toHaveCount(1);
 });
 </file>
@@ -20747,6 +20814,26 @@ Feature: Annotate mode — the inline comment composer renders the selected text
     Then the comment composer shows "quick brown fox" as a quote
 </file>
 
+<file path="features/uc3-annotate-doc/legacy-task-draft.feature">
+@P1 @UC3
+Feature: Annotate mode — task toggles persisted by an older build
+  The task checkbox was removed, so nothing creates task toggles any more. Drafts
+  saved before that still carry them (a draft persists the raw editor value), so
+  the viewer must still project each toggle into the sidebar, strike the item a
+  toggle marked done, and let the reviewer clear it.
+
+  Scenario: A draft carrying task toggles still projects and removes them
+    Given a draft persisted by an older build carries a task toggle
+    When I open the viewer in annotate mode
+    Then the annotation sidebar shows a task entry "Mark as done"
+    And the annotation sidebar shows a task entry "Mark as not done"
+    And the task item "Open task" is struck through
+    And the task item "Completed task" is not struck through
+    When I remove the annotation on card 1 and confirm
+    Then the task item "Open task" is not struck through
+    And the annotation sidebar shows a task entry "Mark as not done"
+</file>
+
 <file path="features/uc3-annotate-doc/round-trip.feature">
 @P1 @UC3
 Feature: Annotate mode — submit feedback for an arbitrary markdown file
@@ -20763,21 +20850,6 @@ Feature: Annotate mode — submit feedback for an arbitrary markdown file
     And I press Enter in the comment composer
     And I click Request changes
     Then the recorded annotate feedback contains "Should this be a wolf?"
-</file>
-
-<file path="features/uc3-annotate-doc/task-checkbox.feature">
-@P1 @UC3
-Feature: Annotate mode — task checkbox feedback
-  Toggling a GFM task checkbox records it as a task annotation. The sidebar
-  projects the toggle with a "Mark as done" body when the box ends up checked
-  and "Mark as not done" when it ends up unchecked.
-
-  Scenario: Toggling task checkboxes records them in the annotation sidebar
-    Given I open the viewer in annotate mode
-    When I toggle task checkbox 1
-    And I toggle task checkbox 2
-    Then the annotation sidebar shows a task entry "Mark as done"
-    And the annotation sidebar shows a task entry "Mark as not done"
 </file>
 
 <file path="features/uc5-draft-plan/draft-approve.feature">
@@ -24466,6 +24538,7 @@ import { describe, expect, it } from "vitest";
 
 import { decodeAnnotations } from "./decode.ts";
 import type {
+  AnnotationTuple,
   CommentTuple,
   DeletionTuple,
   GlobalCommentTuple,
@@ -24574,6 +24647,19 @@ describe("decodeAnnotations", () => {
     ]);
     expect(out.map((e) => e.id)).toEqual(["c-0", "g-1", "d-2", "i-3", "r-4"]);
   });
+
+  // A share link from a build that knows a kind this one does not must still
+  // open. The unknown tuple sits FIRST on purpose: ids are derived from tuple
+  // position, so an implementation that filtered before mapping would renumber
+  // the comment to `c-0` and still pass with the unknown tuple placed last.
+  it("skips tuple kinds it does not recognize without shifting the ids of the rest", () => {
+    const out = decodeAnnotations([
+      ["Z", "from the future"],
+      ["C", "a", "x"],
+    ] as unknown as AnnotationTuple[]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ kind: "comment", id: "c-1", originalText: "a", body: "x" });
+  });
 });
 </file>
 
@@ -24678,11 +24764,22 @@ const decoders: DecoderTable = {
  * doesn't carry them. Callers that need to re-attach anchors should pair
  * this output with `dualAnchor.resolveAnchor` against the current Plate
  * value (Insertion anchors on `contextText`; Replacement on `originalText`).
+ *
+ * A tuple whose kind this build does not know is skipped rather than thrown on,
+ * so a share link written by a newer (or older) encoder still opens with the
+ * annotations this build *can* read. Mapping happens before the skip: each
+ * decoder derives its entry id from the tuple's position, so dropping tuples
+ * first would silently renumber every entry after the gap.
  */
 export const decodeAnnotations = (tuples: AnnotationTuple[]): AnnotationEntry[] =>
-  tuples.map((tuple, i) =>
-    (decoders[tuple[0]] as (t: AnnotationTuple, index: number) => AnnotationEntry)(tuple, i)
-  );
+  tuples
+    .map((tuple, i) => {
+      const decode = decoders[tuple[0]] as
+        | ((t: AnnotationTuple, index: number) => AnnotationEntry)
+        | undefined;
+      return decode === undefined ? undefined : decode(tuple, i);
+    })
+    .filter((entry): entry is AnnotationEntry => entry !== undefined);
 </file>
 
 <file path="packages/symbiot-annotations/src/dualAnchor.test.ts">
@@ -28526,38 +28623,42 @@ describe("ListElement", () => {
     expect(list.querySelector("li")?.textContent).toBe("item one");
   });
 
-  it("renders a read-only checkbox for todo items reflecting checked state", () => {
+  it("renders an open todo item as a plain bullet, with no checkbox", () => {
     const { container } = render(
       <ListElement
         attributes={{ "data-slate-node": "element" }}
-        element={listElement({ listStyleType: "todo", checked: true })}
+        element={listElement({ listStyleType: "todo" })}
       >
-        done task
+        open task
       </ListElement>
     );
     const list = container.firstElementChild as HTMLElement;
     expect(list.tagName).toBe("UL");
     expect(list.getAttribute("data-list-type")).toBe("todo");
-    const checkbox = list.querySelector<HTMLInputElement>('[data-testid="editor-task-checkbox"]');
-    expect(checkbox?.checked).toBe(true);
-    // Non-interactive without `disabled` — Chrome grays out disabled
-    // checkboxes and ignores `accent-color`.
-    expect(checkbox?.disabled).toBe(false);
-    expect(checkbox?.tabIndex).toBe(-1);
-    expect(checkbox?.getAttribute("aria-label")).toBe("Completed task");
-    expect(list.textContent).toContain("done task");
+    // `todo` is not a CSS list-style-type — it must resolve to a real marker,
+    // or the item renders with no bullet at all.
+    expect(list.style.listStyleType).toBe("disc");
+    expect(list.querySelector('[data-testid="editor-task-checkbox"]')).toBeNull();
+    // `data-checked` rides on the same node as `data-testid` so BDD specs can
+    // select it — the selector gate rejects a bare `li[...]` locator.
+    expect(list.getAttribute("data-checked")).toBe("false");
+    const item = list.querySelector("li") as HTMLElement;
+    expect(item.className).not.toContain("line-through");
+    expect(item.textContent).toBe("open task");
   });
 
-  it("renders an unchecked checkbox for open todo items", () => {
+  it("strikes through a done todo item", () => {
     const { container } = render(
-      <ListElement attributes={{}} element={listElement({ listStyleType: "todo" })}>
-        open task
+      <ListElement attributes={{}} element={listElement({ listStyleType: "todo", checked: true })}>
+        done task
       </ListElement>
     );
-    const checkbox = container.querySelector<HTMLInputElement>(
-      '[data-testid="editor-task-checkbox"]'
-    );
-    expect(checkbox?.checked).toBe(false);
+    const list = container.firstElementChild as HTMLElement;
+    expect(list.querySelector('[data-testid="editor-task-checkbox"]')).toBeNull();
+    expect(list.getAttribute("data-checked")).toBe("true");
+    const item = list.querySelector("li") as HTMLElement;
+    expect(item.className).toContain("line-through");
+    expect(item.textContent).toBe("done task");
   });
 
   it("renders an ordered list with start attribute for decimal style", () => {
@@ -28579,10 +28680,9 @@ describe("ListElement", () => {
 
 <file path="packages/symbiot-editor/src/components/ListElement.tsx">
 import { ULIST_STYLE_TYPES } from "@platejs/list";
+import { cn } from "@symbiot/ui/utils/cn";
 import type { TElement } from "platejs";
-import { use, useCallback, type ReactNode } from "react";
-
-import { TaskToggleContext } from "./TaskToggleContext.ts";
+import type { ReactNode } from "react";
 
 interface ListElementProps {
   attributes: Record<string, unknown>;
@@ -28590,14 +28690,22 @@ interface ListElementProps {
   element: TElement;
 }
 
-interface TodoListProps {
-  attributes: Record<string, unknown>;
-  children: ReactNode;
-  checked: boolean;
-  element: TElement;
-}
-
 const unorderedStyles = ULIST_STYLE_TYPES as readonly string[];
+
+const todoStyle = "todo";
+
+/**
+ * `todo` (GFM task items) is a Plate list style, not a CSS one. Resolve it to a
+ * real marker exactly once, before both the ordered test and the marker style
+ * read it — splitting the special case across the two would let them drift, and
+ * each half-fix fails silently in its own way: unresolved it fails the unordered
+ * membership test and falls through to decimal `<ol>` numbering, and unmapped it
+ * reaches CSS as an invalid `list-style-type` and renders no marker at all.
+ */
+const listStyleAliases: Record<string, string> = { [todoStyle]: "disc" };
+
+const resolveStyle = (listStyleType: string | undefined): string | undefined =>
+  listStyleType === undefined ? undefined : (listStyleAliases[listStyleType] ?? listStyleType);
 
 const isOrderedStyle = (listStyleType: string | undefined): boolean =>
   listStyleType !== undefined && !unorderedStyles.includes(listStyleType);
@@ -28605,56 +28713,9 @@ const isOrderedStyle = (listStyleType: string | undefined): boolean =>
 const markerStyle = (listStyleType: string | undefined): React.CSSProperties =>
   listStyleType === undefined ? { margin: 0 } : { listStyleType, margin: 0 };
 
-/**
- * GFM task item: a checkbox marker instead of a CSS marker — `todo` is not a
- * valid `list-style-type`, so without this branch the browser falls back to
- * decimal numbering and the checked state is lost. Never `disabled`: Chrome
- * renders disabled checkboxes gray, ignoring `accent-color`. In the authoring
- * editor a {@link TaskToggleContext} handler makes the checkbox interactive —
- * clicking records the toggle as feedback; in read-only surfaces (the diff
- * view) the context is `null` and the checkbox is inert. The box sits in a
- * `contentEditable={false}` span so Slate never treats it as editable text,
- * and -ml-6 pulls it into the marker gutter (16px box + 8px gap) so item text
- * aligns with the other list kinds.
- */
-const TodoList = ({
-  attributes,
-  children,
-  checked,
-  element,
-}: TodoListProps): React.ReactElement => {
-  const onToggle = use(TaskToggleContext);
-  const interactive = onToggle !== null;
-  const onChange = useCallback((): void => onToggle?.(element), [onToggle, element]);
-  return (
-    <ul
-      {...attributes}
-      data-testid="editor-list"
-      data-list-type="todo"
-      style={{ listStyleType: "none", margin: 0 }}
-      className="[&_li]:my-0"
-    >
-      <li className="flex items-start gap-2">
-        <span contentEditable={false} className="-ml-6 flex h-7 items-center">
-          <input
-            type="checkbox"
-            data-testid="editor-task-checkbox"
-            checked={checked}
-            readOnly={!interactive}
-            tabIndex={interactive ? 0 : -1}
-            aria-label={checked ? "Completed task" : "Open task"}
-            onChange={interactive ? onChange : undefined}
-            className={
-              interactive
-                ? "accent-task-done size-4 cursor-pointer"
-                : "accent-task-done pointer-events-none size-4"
-            }
-          />
-        </span>
-        <span className="min-w-0">{children}</span>
-      </li>
-    </ul>
-  );
+const listType = (listStyleType: string | undefined, ordered: boolean): string => {
+  if (listStyleType === todoStyle) return todoStyle;
+  return ordered ? "ordered" : "unordered";
 };
 
 /**
@@ -28668,8 +28729,12 @@ const TodoList = ({
  * via `ListPlugin.configure({ render: { belowNodes } })` in `utils/kit.ts`
  * because Plate's list "items" are actually paragraph elements decorated with
  * `listStyleType` — the wrapper renders `belowNodes`, not `withComponent`.
- * GFM task items (`listStyleType: "todo"` + `checked` flag) render via
- * {@link TodoList}.
+ *
+ * GFM task items (`listStyleType: "todo"`) render as ordinary bullets — see
+ * {@link listStyleAliases}. The markdown parser consumes the literal `[ ]` /
+ * `[x]` into the `checked` flag, so a done item would otherwise be
+ * indistinguishable from an open one; it is struck through instead, and carries
+ * `data-checked` so the state stays queryable without a form control.
  */
 export const ListElement = ({
   attributes,
@@ -28678,25 +28743,22 @@ export const ListElement = ({
 }: ListElementProps): React.ReactElement => {
   const listStyleType = element["listStyleType"] as string | undefined;
   const listStart = element["listStart"] as number | undefined;
-  if (listStyleType === "todo") {
-    return (
-      <TodoList attributes={attributes} checked={element["checked"] === true} element={element}>
-        {children}
-      </TodoList>
-    );
-  }
-  const ordered = isOrderedStyle(listStyleType);
+  const todo = listStyleType === todoStyle;
+  const checked = element["checked"] === true;
+  const resolved = resolveStyle(listStyleType);
+  const ordered = isOrderedStyle(resolved);
   const Tag = ordered ? "ol" : "ul";
   return (
     <Tag
       {...attributes}
       data-testid="editor-list"
-      data-list-type={ordered ? "ordered" : "unordered"}
+      data-list-type={listType(listStyleType, ordered)}
+      data-checked={todo ? checked : undefined}
       start={listStart}
-      style={markerStyle(listStyleType)}
+      style={markerStyle(resolved)}
       className="[&_li]:my-0"
     >
-      <li>{children}</li>
+      <li className={cn(todo && checked && "text-muted-foreground line-through")}>{children}</li>
     </Tag>
   );
 };
@@ -28836,12 +28898,10 @@ import {
   useComposerController,
   useReadyHandle,
   useRemoveAnnotation,
-  useTaskToggle,
   useToolbarHandlers,
   useUpdateAnnotation,
 } from "./ReviewEditorAuthoring.tsx";
 import { snapshotOf } from "./ReviewEditorPrune.tsx";
-import { TaskToggleContext } from "./TaskToggleContext.ts";
 import { useAnnotationState } from "./ReviewEditorState.tsx";
 import { ToolbarButtons } from "./ReviewEditorToolbar.tsx";
 import {
@@ -28970,25 +29030,21 @@ export const ReviewEditor = ({
 
   useReadyHandle(editor, maps, onRemoveAnnotation, onUpdateAnnotation, triggerAnnotation, onReady);
 
-  const onToggleTask = useTaskToggle(editor, maps, onChange);
-
   return (
     <div
       ref={containerRef}
       data-testid="editor-root"
       className="prose prose-neutral dark:prose-invert relative mx-auto max-w-3xl"
     >
-      <TaskToggleContext value={onToggleTask}>
-        <Plate editor={editor}>
-          <PlateContent readOnly className="outline-none" />
-          <ToolbarButtons
-            onComment={onCommentClick}
-            onInsert={onInsertClick}
-            onReplace={onReplaceClick}
-            onDelete={onDeleteClick}
-          />
-        </Plate>
-      </TaskToggleContext>
+      <Plate editor={editor}>
+        <PlateContent readOnly className="outline-none" />
+        <ToolbarButtons
+          onComment={onCommentClick}
+          onInsert={onInsertClick}
+          onReplace={onReplaceClick}
+          onDelete={onDeleteClick}
+        />
+      </Plate>
       <AnnotationComposer
         kind={pending?.kind ?? "comment"}
         open={pending !== null}
@@ -29502,7 +29558,7 @@ import {
   hasValidSelection,
   type AppliedAnnotation,
 } from "../utils/applyAnnotation.ts";
-import { applyTaskToggle, removeTaskToggle } from "../utils/applyTaskToggle.ts";
+import { removeTaskToggle } from "../utils/removeTaskToggle.ts";
 import { hasAnnotationMark, removeAnnotationMark } from "../utils/removeAnnotationMark.ts";
 
 import { pruneRemovedAnnotation, snapshotOf } from "./ReviewEditorPrune.tsx";
@@ -29751,24 +29807,6 @@ export const useRemoveAnnotation = (
       onChange?.(snapshotOf(editor, next));
     },
     [editor, maps, onChange, setters]
-  );
-
-/**
- * Memoized task-checkbox toggle handler for {@link TaskToggleContext}. Applies
- * the toggle to the editor value (see `applyTaskToggle`) and re-emits the
- * snapshot so the host persists the new `checked` + `task_<id>` marks.
- */
-export const useTaskToggle = (
-  editor: PlateEditor,
-  maps: AnnotationMaps,
-  onChange?: (snapshot: EditorSnapshot) => void
-): ((element: unknown) => void) =>
-  useCallback(
-    (element) => {
-      applyTaskToggle(editor, element);
-      onChange?.(snapshotOf(editor, maps));
-    },
-    [editor, maps, onChange]
   );
 
 /**
@@ -30678,18 +30716,6 @@ export const TableCellHeaderElement = ({
 );
 </file>
 
-<file path="packages/symbiot-editor/src/components/TaskToggleContext.ts">
-import { createContext } from "react";
-
-/**
- * Toggle handler for GFM task checkboxes, provided by the authoring
- * `ReviewEditor` and consumed by `ListElement`. `null` in read-only surfaces
- * (the historical `DiffEditor`), where checkboxes stay non-interactive. The
- * argument is the Plate list element the clicked checkbox belongs to.
- */
-export const TaskToggleContext = createContext<((element: unknown) => void) | null>(null);
-</file>
-
 <file path="packages/symbiot-editor/src/components/VoidElements.test.tsx">
 // @vitest-environment happy-dom
 import { render } from "@testing-library/react";
@@ -30963,245 +30989,6 @@ export const applyAnnotation = (
   const prefix = prefixOf(kind);
   editor.tf.addMarks({ [prefix]: true, [`${prefix}_${id}`]: true });
   return { id, anchorText };
-};
-</file>
-
-<file path="packages/symbiot-editor/src/utils/applyTaskToggle.test.ts">
-import { createSlateEditor } from "platejs";
-import { describe, expect, it } from "vitest";
-
-import { applyTaskToggle, removeTaskToggle } from "./applyTaskToggle.ts";
-import { SymbiotEditorKit } from "./kit.ts";
-
-type Node = Record<string, unknown> & { children?: Node[] };
-
-const asNode = (value: unknown): Node => value as Node;
-
-const createEditor = (
-  value: NonNullable<Parameters<typeof createSlateEditor>[0]>["value"]
-): ReturnType<typeof createSlateEditor> => createSlateEditor({ plugins: SymbiotEditorKit, value });
-
-const firstItem = (editor: ReturnType<typeof createSlateEditor>): Node =>
-  asNode(editor.children[0]);
-
-const firstLeaf = (editor: ReturnType<typeof createSlateEditor>): Node =>
-  asNode(firstItem(editor).children?.[0]);
-
-/** Read back the `task_<id>` mark id a text leaf carries, mirroring the source. */
-const taskMarkId = (leaf: Node): string | null => {
-  const key = Object.keys(leaf).find((k) => k.startsWith("task_") && leaf[k] === true);
-  return key === undefined ? null : key.slice("task_".length);
-};
-
-describe("applyTaskToggle", () => {
-  it("checks the item and snapshots its original state on first toggle", () => {
-    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
-    applyTaskToggle(editor, editor.children[0]);
-    expect(firstItem(editor).checked).toBe(true);
-    expect(firstItem(editor).taskOriginal).toBe(false);
-    expect(firstLeaf(editor).task).toBe(true);
-    expect(taskMarkId(firstLeaf(editor))).not.toBeNull();
-  });
-
-  it("removes the marks and feedback when toggled back to the original", () => {
-    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
-    applyTaskToggle(editor, editor.children[0]);
-    applyTaskToggle(editor, editor.children[0]);
-    expect(firstItem(editor).checked).toBe(false);
-    expect(firstItem(editor).taskOriginal).not.toBe(true);
-    expect(firstLeaf(editor).task).toBeUndefined();
-    expect(taskMarkId(firstLeaf(editor))).toBeNull();
-  });
-
-  it("only flips checked when a marked item already sits at its original state", () => {
-    const editor = createEditor([
-      {
-        type: "p",
-        checked: false,
-        taskOriginal: false,
-        children: [{ text: "task", task: true, task_abc: true }],
-      },
-    ]);
-    applyTaskToggle(editor, editor.children[0]);
-    expect(firstItem(editor).checked).toBe(true);
-    expect(firstLeaf(editor).task).toBe(true);
-    expect(taskMarkId(firstLeaf(editor))).toBe("abc");
-  });
-
-  it("ignores an element that is not in the editor tree", () => {
-    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
-    applyTaskToggle(editor, { type: "p", checked: false, children: [{ text: "orphan" }] });
-    expect(firstItem(editor).checked).toBe(false);
-  });
-
-  it("ignores a target that is a text leaf rather than an element", () => {
-    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
-    applyTaskToggle(editor, firstItem(editor).children?.[0]);
-    expect(firstItem(editor).checked).toBe(false);
-  });
-});
-
-describe("removeTaskToggle", () => {
-  it("drops the marks and restores the pre-toggle checked state", () => {
-    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
-    applyTaskToggle(editor, editor.children[0]);
-    const id = taskMarkId(firstLeaf(editor));
-    expect(id).not.toBeNull();
-    removeTaskToggle(editor, id as string);
-    expect(firstItem(editor).checked).toBe(false);
-    expect(firstItem(editor).taskOriginal).not.toBe(true);
-    expect(firstLeaf(editor).task).toBeUndefined();
-  });
-
-  it("ignores a task id that no item carries", () => {
-    const editor = createEditor([{ type: "p", checked: false, children: [{ text: "task" }] }]);
-    removeTaskToggle(editor, "missing");
-    expect(firstItem(editor).checked).toBe(false);
-  });
-});
-</file>
-
-<file path="packages/symbiot-editor/src/utils/applyTaskToggle.ts">
-import type { PlateEditor } from "platejs/react";
-
-interface TextLeaf {
-  text: string;
-  [mark: string]: unknown;
-}
-
-interface ElementNode {
-  children: unknown[];
-  [prop: string]: unknown;
-}
-
-const isTextLeaf = (node: unknown): node is TextLeaf =>
-  typeof (node as { text?: unknown }).text === "string";
-
-const isElement = (node: unknown): node is ElementNode =>
-  Array.isArray((node as { children?: unknown }).children);
-
-/** Reference-search the value for `target`, returning its Slate path or null. */
-const findElementPath = (
-  nodes: readonly unknown[],
-  target: unknown,
-  base: number[]
-): number[] | null => {
-  for (const [index, node] of nodes.entries()) {
-    const here = [...base, index];
-    if (node === target) return here;
-    if (!isElement(node)) continue;
-    const found = findElementPath(node.children, target, here);
-    if (found !== null) return found;
-  }
-  return null;
-};
-
-/** Collect the path of every text leaf descending from `path`. */
-const collectTextLeafPaths = (node: unknown, path: number[], out: number[][]): void => {
-  if (isTextLeaf(node)) {
-    out.push(path);
-    return;
-  }
-  if (isElement(node)) {
-    for (const [index, child] of node.children.entries()) {
-      collectTextLeafPaths(child, [...path, index], out);
-    }
-  }
-};
-
-const taskIdOfLeaf = (leaf: TextLeaf): string | null => {
-  const key = Object.keys(leaf).find((k) => k.startsWith("task_") && leaf[k] === true);
-  return key === undefined ? null : key.slice("task_".length);
-};
-
-/** First `task_<id>` mark id carried by any text leaf under `node`, or null. */
-const findTaskId = (node: unknown): string | null => {
-  if (isTextLeaf(node)) return taskIdOfLeaf(node);
-  if (!isElement(node)) return null;
-  for (const child of node.children) {
-    const found = findTaskId(child);
-    if (found !== null) return found;
-  }
-  return null;
-};
-
-const setLeafMarks = (
-  editor: PlateEditor,
-  itemPath: number[],
-  node: unknown,
-  marks: object
-): void => {
-  const leaves: number[][] = [];
-  collectTextLeafPaths(node, itemPath, leaves);
-  for (const at of leaves) editor.tf.setNodes(marks, { at });
-};
-
-const unsetLeafMarks = (
-  editor: PlateEditor,
-  itemPath: number[],
-  node: unknown,
-  keys: string[]
-): void => {
-  const leaves: number[][] = [];
-  collectTextLeafPaths(node, itemPath, leaves);
-  for (const at of leaves) editor.tf.unsetNodes(keys, { at });
-};
-
-/**
- * Toggle a GFM task checkbox as reviewer feedback (the plan is annotate-only,
- * so the toggle is recorded, not written back to source). Flips the item's
- * `checked` and tags its text with `task` / `task_<id>` marks the walker reads.
- * `taskOriginal` snapshots the pre-toggle state so toggling back to the
- * original removes the marks and the feedback entirely.
- */
-export const applyTaskToggle = (editor: PlateEditor, element: unknown): void => {
-  const itemPath = findElementPath(editor.children, element, []);
-  if (itemPath === null || !isElement(element)) return;
-  const current = element["checked"] === true;
-  const newChecked = !current;
-  const existingId = findTaskId(element);
-
-  if (existingId === null) {
-    const id = crypto.randomUUID();
-    editor.tf.setNodes({ checked: newChecked, taskOriginal: current }, { at: itemPath });
-    setLeafMarks(editor, itemPath, element, { task: true, [`task_${id}`]: true });
-    return;
-  }
-
-  const original = element["taskOriginal"] === true;
-  if (newChecked === original) {
-    unsetLeafMarks(editor, itemPath, element, ["task", `task_${existingId}`]);
-    editor.tf.setNodes({ checked: newChecked, taskOriginal: null }, { at: itemPath });
-    return;
-  }
-  editor.tf.setNodes({ checked: newChecked }, { at: itemPath });
-};
-
-/** First top-level block carrying a `task_<id>` mark, with its index, or null. */
-const findTaskItem = (
-  children: readonly unknown[],
-  id: string
-): { node: ElementNode; index: number } | null => {
-  for (const [index, node] of children.entries()) {
-    if (isElement(node) && findTaskId(node) === id) return { node, index };
-  }
-  return null;
-};
-
-/**
- * Remove a task toggle (sidebar "remove"): drop the `task` / `task_<id>` marks
- * and restore the item's `checked` to its pre-toggle `taskOriginal`, mirroring
- * the toggle-back-to-original branch of {@link applyTaskToggle}.
- */
-export const removeTaskToggle = (editor: PlateEditor, id: string): void => {
-  const match = findTaskItem(editor.children, id);
-  if (match === null) return;
-  const itemPath = [match.index];
-  unsetLeafMarks(editor, itemPath, match.node, ["task", `task_${id}`]);
-  editor.tf.setNodes(
-    { checked: match.node["taskOriginal"] === true, taskOriginal: null },
-    { at: itemPath }
-  );
 };
 </file>
 
@@ -32379,6 +32166,184 @@ export const hasAnnotationMark = (
   const matches: { leaf: TextLeaf; path: number[] }[] = [];
   collectMatchingPaths(editor.children, idKey, [], matches);
   return matches.length > 0;
+};
+</file>
+
+<file path="packages/symbiot-editor/src/utils/removeTaskToggle.test.ts">
+import { createSlateEditor } from "platejs";
+import { describe, expect, it } from "vitest";
+
+import { SymbiotEditorKit } from "./kit.ts";
+import { removeTaskToggle } from "./removeTaskToggle.ts";
+
+type Node = Record<string, unknown> & { children?: Node[] };
+
+type EditorValue = NonNullable<Parameters<typeof createSlateEditor>[0]>["value"];
+
+const asNode = (value: unknown): Node => value as Node;
+
+const createEditor = (value: EditorValue): ReturnType<typeof createSlateEditor> =>
+  createSlateEditor({ plugins: SymbiotEditorKit, value });
+
+const firstItem = (editor: ReturnType<typeof createSlateEditor>): Node =>
+  asNode(editor.children[0]);
+
+const firstLeaf = (editor: ReturnType<typeof createSlateEditor>): Node =>
+  asNode(firstItem(editor).children?.[0]);
+
+/** Read back the `task_<id>` mark id a text leaf carries, mirroring the source. */
+const taskMarkId = (leaf: Node): string | null => {
+  const key = Object.keys(leaf).find((k) => k.startsWith("task_") && leaf[k] === true);
+  return key === undefined ? null : key.slice("task_".length);
+};
+
+/**
+ * A task toggle exactly as `applyTaskToggle` wrote it before #246 removed the
+ * checkbox: `checked` flipped, `taskOriginal` snapshotting the pre-toggle state,
+ * and the item's text tagged `task` + `task_<id>`.
+ *
+ * This literal is now the ONLY specification of that shape — `applyTaskToggle`
+ * is gone, but drafts persisted by earlier builds are frozen in this format
+ * (`useReviewState` saves the raw Plate value). Do not "tidy" a field away
+ * because nothing writes it any more: drop `taskOriginal` or the bare `task`
+ * mark here and `removeTaskToggle` will silently no-op against real saved
+ * drafts while this test stays green.
+ */
+const legacyToggledDraft = (id: string): EditorValue => [
+  {
+    type: "p",
+    listStyleType: "todo",
+    checked: true,
+    taskOriginal: false,
+    children: [{ text: "task", task: true, [`task_${id}`]: true }],
+  },
+];
+
+describe("removeTaskToggle", () => {
+  it("drops the marks and restores the pre-toggle checked state", () => {
+    const editor = createEditor(legacyToggledDraft("abc"));
+    removeTaskToggle(editor, "abc");
+    expect(firstItem(editor).checked).toBe(false);
+    expect(firstItem(editor).taskOriginal).not.toBe(true);
+    expect(firstLeaf(editor).task).toBeUndefined();
+    expect(taskMarkId(firstLeaf(editor))).toBeNull();
+  });
+
+  it("restores a checked original rather than forcing the item open", () => {
+    const editor = createEditor([
+      {
+        type: "p",
+        listStyleType: "todo",
+        checked: false,
+        taskOriginal: true,
+        children: [{ text: "task", task: true, task_abc: true }],
+      },
+    ]);
+    removeTaskToggle(editor, "abc");
+    expect(firstItem(editor).checked).toBe(true);
+    expect(firstLeaf(editor).task).toBeUndefined();
+  });
+
+  it("ignores a task id that no item carries", () => {
+    const editor = createEditor(legacyToggledDraft("abc"));
+    removeTaskToggle(editor, "missing");
+    expect(firstItem(editor).checked).toBe(true);
+    expect(taskMarkId(firstLeaf(editor))).toBe("abc");
+  });
+});
+</file>
+
+<file path="packages/symbiot-editor/src/utils/removeTaskToggle.ts">
+import type { PlateEditor } from "platejs/react";
+
+interface TextLeaf {
+  text: string;
+  [mark: string]: unknown;
+}
+
+interface ElementNode {
+  children: unknown[];
+  [prop: string]: unknown;
+}
+
+const isTextLeaf = (node: unknown): node is TextLeaf =>
+  typeof (node as { text?: unknown }).text === "string";
+
+const isElement = (node: unknown): node is ElementNode =>
+  Array.isArray((node as { children?: unknown }).children);
+
+/** Collect the path of every text leaf descending from `path`. */
+const collectTextLeafPaths = (node: unknown, path: number[], out: number[][]): void => {
+  if (isTextLeaf(node)) {
+    out.push(path);
+    return;
+  }
+  if (isElement(node)) {
+    for (const [index, child] of node.children.entries()) {
+      collectTextLeafPaths(child, [...path, index], out);
+    }
+  }
+};
+
+const taskIdOfLeaf = (leaf: TextLeaf): string | null => {
+  const key = Object.keys(leaf).find((k) => k.startsWith("task_") && leaf[k] === true);
+  return key === undefined ? null : key.slice("task_".length);
+};
+
+/** First `task_<id>` mark id carried by any text leaf under `node`, or null. */
+const findTaskId = (node: unknown): string | null => {
+  if (isTextLeaf(node)) return taskIdOfLeaf(node);
+  if (!isElement(node)) return null;
+  for (const child of node.children) {
+    const found = findTaskId(child);
+    if (found !== null) return found;
+  }
+  return null;
+};
+
+const unsetLeafMarks = (
+  editor: PlateEditor,
+  itemPath: number[],
+  node: unknown,
+  keys: string[]
+): void => {
+  const leaves: number[][] = [];
+  collectTextLeafPaths(node, itemPath, leaves);
+  for (const at of leaves) editor.tf.unsetNodes(keys, { at });
+};
+
+/** First top-level block carrying a `task_<id>` mark, with its index, or null. */
+const findTaskItem = (
+  children: readonly unknown[],
+  id: string
+): { node: ElementNode; index: number } | null => {
+  for (const [index, node] of children.entries()) {
+    if (isElement(node) && findTaskId(node) === id) return { node, index };
+  }
+  return null;
+};
+
+/**
+ * Remove a task toggle (the sidebar's "remove" action): drop the `task` /
+ * `task_<id>` marks and restore the item's `checked` to its pre-toggle
+ * `taskOriginal`.
+ *
+ * Nothing creates task toggles any more — the checkbox that produced them was
+ * removed in #246. This is the read-back path for drafts persisted before that:
+ * `useReviewState` saves the raw Plate value, so a reviewer who toggled a
+ * checkbox on an earlier build still carries `checked` / `taskOriginal` /
+ * `task_<id>` in their saved draft, still gets a task row projected into the
+ * sidebar, and still needs a way to clear it.
+ */
+export const removeTaskToggle = (editor: PlateEditor, id: string): void => {
+  const match = findTaskItem(editor.children, id);
+  if (match === null) return;
+  const itemPath = [match.index];
+  unsetLeafMarks(editor, itemPath, match.node, ["task", `task_${id}`]);
+  editor.tf.setNodes(
+    { checked: match.node["taskOriginal"] === true, taskOriginal: null },
+    { at: itemPath }
+  );
 };
 </file>
 
@@ -37964,6 +37929,9 @@ const cases = themes.flatMap((theme) => tokens.map((token) => ({ theme, token })
 const surfacePairs = [
   { foreground: "--foreground", surface: "--topbar" },
   { foreground: "--muted-foreground", surface: "--muted" },
+  // Struck-through done task items (`ListElement`) render muted directly on the
+  // page background, not on a `--muted` surface — gate that pair too.
+  { foreground: "--muted-foreground", surface: "--background" },
   { foreground: "--sidebar-foreground", surface: "--sidebar" },
   { foreground: "--muted-foreground", surface: "--sidebar" },
   // Binding AA constraint for the unified hover: muted row-meta on a hovered
