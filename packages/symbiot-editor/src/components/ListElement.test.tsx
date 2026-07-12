@@ -44,8 +44,10 @@ describe("ListElement", () => {
     // or the item renders with no bullet at all.
     expect(list.style.listStyleType).toBe("disc");
     expect(list.querySelector('[data-testid="editor-task-checkbox"]')).toBeNull();
+    // `data-checked` rides on the same node as `data-testid` so BDD specs can
+    // select it — the selector gate rejects a bare `li[...]` locator.
+    expect(list.getAttribute("data-checked")).toBe("false");
     const item = list.querySelector("li") as HTMLElement;
-    expect(item.getAttribute("data-checked")).toBe("false");
     expect(item.className).not.toContain("line-through");
     expect(item.textContent).toBe("open task");
   });
@@ -58,8 +60,8 @@ describe("ListElement", () => {
     );
     const list = container.firstElementChild as HTMLElement;
     expect(list.querySelector('[data-testid="editor-task-checkbox"]')).toBeNull();
+    expect(list.getAttribute("data-checked")).toBe("true");
     const item = list.querySelector("li") as HTMLElement;
-    expect(item.getAttribute("data-checked")).toBe("true");
     expect(item.className).toContain("line-through");
     expect(item.textContent).toBe("done task");
   });
