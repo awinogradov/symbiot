@@ -72,16 +72,12 @@ export const ListElement = ({
       {...attributes}
       data-testid="editor-list"
       data-list-type={listType(listStyleType, ordered)}
+      data-checked={todo ? checked : undefined}
       start={listStart}
       style={markerStyle(resolved)}
       className="[&_li]:my-0"
     >
-      <li
-        data-checked={todo ? checked : undefined}
-        className={cn(todo && checked && "text-muted-foreground line-through")}
-      >
-        {children}
-      </li>
+      <li className={cn(todo && checked && "text-muted-foreground line-through")}>{children}</li>
     </Tag>
   );
 };
