@@ -4,6 +4,7 @@ import { createSlateEditor } from "platejs";
 import { describe, expect, it, vi } from "vitest";
 
 import { SymbiotEditorKit } from "../utils/kit.ts";
+import { decoratePendingHighlight, setPendingHighlight } from "../utils/pendingHighlight.ts";
 
 import { emptyMaps, stubEditor, stubSetters } from "./_reviewEditorTestHelpers.ts";
 import { type AnnotationMaps } from "./ReviewEditorState.tsx";
@@ -20,12 +21,22 @@ import {
 } from "./ReviewEditorAuthoring.tsx";
 
 const applyAnnotationMock = vi.fn();
+const capturePendingAnnotationMock = vi.fn();
 const hasValidSelectionMock = vi.fn();
 
-vi.mock("../utils/applyAnnotation.ts", () => ({
+// Keep materializeAnnotation real so composer-controller tests observe live
+// children mutations; the toolbar-facing entry points stay mocked.
+vi.mock("../utils/applyAnnotation.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/applyAnnotation.ts")>()),
   applyAnnotation: (...args: unknown[]) => applyAnnotationMock(...args),
+  capturePendingAnnotation: (...args: unknown[]) => capturePendingAnnotationMock(...args),
   hasValidSelection: (...args: unknown[]) => hasValidSelectionMock(...args),
 }));
+
+const sampleRange = {
+  anchor: { path: [0, 0], offset: 0 },
+  focus: { path: [0, 0], offset: 5 },
+};
 
 interface SaverCase {
   name: string;
@@ -90,7 +101,10 @@ describe("dispatchComposerSave", () => {
     "$kind routes to $name and does not touch unrelated kind setters",
     ({ kind, bodySetter }) => {
       const setters = stubSetters();
-      const pending: PendingAuthoring = { kind, applied: { id: "x", anchorText: "a" } };
+      const pending: PendingAuthoring = {
+        kind,
+        applied: { id: "x", anchorText: "a", range: sampleRange },
+      };
       dispatchComposerSave(pending, { body: "b", images: [] }, setters);
       expect(setters[bodySetter]).toHaveBeenCalledTimes(1);
       const otherBodySetters = saverCases.filter((c) => c.kind !== kind).map((c) => c.bodySetter);
@@ -100,21 +114,25 @@ describe("dispatchComposerSave", () => {
 });
 
 describe("useToolbarHandlers", () => {
-  it("comment/insert/replace clicks call applyAnnotation and set the pending authoring slot", () => {
+  it("comment/insert/replace clicks capture the pending annotation and set the authoring slot", () => {
     const setters = stubSetters();
     const setPending = vi.fn();
     const editor = stubEditor();
-    applyAnnotationMock.mockReturnValue({ id: "a1", anchorText: "anchor" });
+    capturePendingAnnotationMock.mockReturnValue({
+      id: "a1",
+      anchorText: "anchor",
+      range: sampleRange,
+    });
     const { result } = renderHook(() =>
       useToolbarHandlers({ editor, maps: emptyMaps(), setters, setPending })
     );
     act(() => {
       result.current.onCommentClick();
     });
-    expect(applyAnnotationMock).toHaveBeenCalledWith(editor, "comment");
+    expect(capturePendingAnnotationMock).toHaveBeenCalledWith(editor, "comment");
     expect(setPending).toHaveBeenCalledWith({
       kind: "comment",
-      applied: { id: "a1", anchorText: "anchor" },
+      applied: { id: "a1", anchorText: "anchor", range: sampleRange },
     });
 
     setPending.mockClear();
@@ -123,7 +141,7 @@ describe("useToolbarHandlers", () => {
     });
     expect(setPending).toHaveBeenCalledWith({
       kind: "insertion",
-      applied: { id: "a1", anchorText: "anchor" },
+      applied: { id: "a1", anchorText: "anchor", range: sampleRange },
     });
 
     setPending.mockClear();
@@ -132,14 +150,14 @@ describe("useToolbarHandlers", () => {
     });
     expect(setPending).toHaveBeenCalledWith({
       kind: "replacement",
-      applied: { id: "a1", anchorText: "anchor" },
+      applied: { id: "a1", anchorText: "anchor", range: sampleRange },
     });
   });
 
-  it("comment/insert/replace handlers are no-ops when applyAnnotation returns null (no valid selection)", () => {
+  it("comment/insert/replace handlers are no-ops when capture returns null (no valid selection)", () => {
     const setters = stubSetters();
     const setPending = vi.fn();
-    applyAnnotationMock.mockReturnValue(null);
+    capturePendingAnnotationMock.mockReturnValue(null);
     const { result } = renderHook(() =>
       useToolbarHandlers({
         editor: stubEditor(),
@@ -195,7 +213,8 @@ describe("useToolbarHandlers", () => {
   it("triggerAnnotation dispatches each kind to the matching click handler", () => {
     const setters = stubSetters();
     const setPending = vi.fn();
-    applyAnnotationMock.mockReturnValue({ id: "x", anchorText: "y" });
+    capturePendingAnnotationMock.mockReturnValue({ id: "x", anchorText: "y", range: sampleRange });
+    applyAnnotationMock.mockReturnValue({ id: "d", anchorText: "y" });
     const { result } = renderHook(() =>
       useToolbarHandlers({
         editor: stubEditor(),
@@ -217,22 +236,45 @@ describe("useToolbarHandlers", () => {
 });
 
 describe("useComposerController", () => {
-  // A real Slate editor (not the stub) so removeAnnotationMark's `editor.tf.unsetNodes`
-  // actually runs; two eager comment marks in separate paragraphs (no adjacent-leaf
-  // merge) so a per-id rollback is observable at a stable path.
+  // A real Slate editor (not the stub) so materializeAnnotation's split
+  // transform and the pending-decoration store operate on live children.
   const seededEditor = (): ReturnType<typeof createSlateEditor> =>
     createSlateEditor({
       plugins: SymbiotEditorKit,
       value: [
-        { type: "p", children: [{ text: "alpha", comment: true, comment_a: true }] },
-        { type: "p", children: [{ text: "bravo", comment: true, comment_b: true }] },
+        { type: "p", children: [{ text: "alpha" }] },
+        { type: "p", children: [{ text: "bravo" }] },
       ],
     });
 
-  const pending = (id: string): PendingAuthoring => ({
-    kind: "comment",
-    applied: { id, anchorText: id },
+  const rangeAt = (block: number): typeof sampleRange => ({
+    anchor: { path: [block, 0], offset: 0 },
+    focus: { path: [block, 0], offset: 5 },
   });
+
+  const pending = (id: string, block = 0): PendingAuthoring => ({
+    kind: "comment",
+    applied: { id, anchorText: id, range: rangeAt(block) },
+  });
+
+  /** Open the composer the way the toolbar does: decoration store + pending state. */
+  const openPending = (
+    editor: ReturnType<typeof createSlateEditor>,
+    controller: { setPending: (p: PendingAuthoring) => void },
+    id: string,
+    block = 0
+  ): void => {
+    setPendingHighlight(editor, { kind: "comment", id, range: rangeAt(block) });
+    controller.setPending(pending(id, block));
+  };
+
+  const decorations = (
+    editor: ReturnType<typeof createSlateEditor>,
+    block: number
+  ): ReturnType<typeof decoratePendingHighlight> => {
+    const path = [block, 0];
+    return decoratePendingHighlight(editor, [editor.api.node(path)![0], path]);
+  };
 
   const marks = (editor: ReturnType<typeof createSlateEditor>, path: number[]): Set<string> => {
     let node: unknown = { children: editor.children };
@@ -240,38 +282,39 @@ describe("useComposerController", () => {
     return new Set(Object.keys(node as Record<string, unknown>));
   };
 
-  it("rolls back the eager mark when the composer closes without a save", () => {
+  it("cancel clears the pending decoration and never touches the model", () => {
     const editor = seededEditor();
-    const maps = emptyMaps();
     const setters = stubSetters();
-    const { result } = renderHook(() => useComposerController(editor, maps, setters));
+    const { result } = renderHook(() => useComposerController(editor, setters));
     act(() => {
-      result.current.setPending(pending("a"));
+      openPending(editor, result.current, "a");
     });
-    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+    expect(decorations(editor, 0)).toHaveLength(1);
+    const before = structuredClone(editor.children);
 
     act(() => {
       result.current.onComposerCancel();
     });
-    // Cancel rolls the eager comment mark off the leaf and replaces the value, so the cleaned
-    // children survive the rebuild (symbiot#231).
+    // The eager highlight was only ever a decoration (symbiot#236): clearing it is a pure
+    // view-state change, so the children are byte-identical and nothing needs reconciling.
+    expect(decorations(editor, 0)).toBeUndefined();
+    expect(editor.children).toEqual(before);
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(false);
-    expect(marks(editor, [0, 0]).has("comment")).toBe(false);
   });
 
-  it("keeps the eager mark and writes the body when the composer is saved", () => {
+  it("save materializes the stored mark, clears the decoration, and writes the body", () => {
     const editor = seededEditor();
-    const maps = emptyMaps();
     const setters = stubSetters();
-    const { result } = renderHook(() => useComposerController(editor, maps, setters));
+    const { result } = renderHook(() => useComposerController(editor, setters));
     act(() => {
-      result.current.setPending(pending("a"));
+      openPending(editor, result.current, "a");
     });
     act(() => {
       result.current.onComposerSave({ body: "note", images: [] });
     });
-    // A save must NOT trigger the cancel rollback — the highlight stays.
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+    expect(marks(editor, [0, 0]).has("comment")).toBe(true);
+    expect(decorations(editor, 0)).toBeUndefined();
     expect(setters.setBodies).toHaveBeenCalledTimes(1);
     // The body is persisted under the open annotation's id — run the state updater
     // to confirm the payload is routed to "a" (not a mis-routed or empty write).
@@ -283,50 +326,49 @@ describe("useComposerController", () => {
   it("is a no-op when save fires with no composer open", () => {
     const editor = seededEditor();
     const setters = stubSetters();
-    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    const { result } = renderHook(() => useComposerController(editor, setters));
     act(() => {
       result.current.onComposerSave({ body: "stray", images: [] });
     });
-    // No pending → nothing persisted and both eager marks stay untouched.
     expect(setters.setBodies).not.toHaveBeenCalled();
-    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+    expect(marks(editor, [0, 0]).has("comment")).toBe(false);
   });
 
-  it("rolls back the right id after a prior save (savedRef resets per cycle)", () => {
+  it("cancels the right id after a prior save (savedRef resets per cycle)", () => {
     const editor = seededEditor();
-    const maps = emptyMaps();
     const setters = stubSetters();
-    const { result } = renderHook(() => useComposerController(editor, maps, setters));
-    // Cycle 1: open + save "a" — savedRef suppresses rollback for this cycle only.
+    const { result } = renderHook(() => useComposerController(editor, setters));
+    // Cycle 1: open + save "a" — savedRef suppresses the cancel path for this cycle only.
     act(() => {
-      result.current.setPending(pending("a"));
+      openPending(editor, result.current, "a");
     });
     act(() => {
       result.current.onComposerSave({ body: "kept", images: [] });
     });
-    // Cycle 2: open + cancel "b" — rollback must fire again, for "b" only.
+    // Cycle 2: open + cancel "b" — the cancel must clear again, for "b" only.
     act(() => {
-      result.current.setPending(pending("b"));
+      openPending(editor, result.current, "b", 1);
     });
     act(() => {
       result.current.onComposerCancel();
     });
     expect(marks(editor, [0, 0]).has("comment_a")).toBe(true); // saved highlight survives
-    expect(marks(editor, [1, 0]).has("comment_b")).toBe(false); // cancelled highlight rolled back
+    expect(marks(editor, [1, 0]).has("comment_b")).toBe(false); // cancelled one never landed
+    expect(decorations(editor, 1)).toBeUndefined();
   });
 
-  it("suppresses the rollback when a save closed the composer (savedRef guard)", () => {
+  it("suppresses the cancel path when a save closed the composer (savedRef guard)", () => {
     const editor = seededEditor();
     const setters = stubSetters();
-    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    const { result } = renderHook(() => useComposerController(editor, setters));
     act(() => {
-      result.current.setPending(pending("a"));
+      openPending(editor, result.current, "a");
     });
     act(() => {
       result.current.onComposerSave({ body: "kept", images: [] });
     });
     // A stray cancel right after a save (e.g. a controlled close surfacing through Radix
-    // `onOpenChange`) must take the `savedRef` branch and NOT roll back the just-saved mark.
+    // `onOpenChange`) must take the `savedRef` branch and NOT disturb the just-saved mark.
     act(() => {
       result.current.onComposerCancel();
     });
@@ -336,11 +378,26 @@ describe("useComposerController", () => {
   it("is a no-op when cancel fires with no composer open", () => {
     const editor = seededEditor();
     const setters = stubSetters();
-    const { result } = renderHook(() => useComposerController(editor, emptyMaps(), setters));
+    const { result } = renderHook(() => useComposerController(editor, setters));
+    const before = structuredClone(editor.children);
     act(() => {
       result.current.onComposerCancel();
     });
-    expect(marks(editor, [0, 0]).has("comment_a")).toBe(true);
+    expect(editor.children).toEqual(before);
+  });
+
+  it("clears a stranded decoration when the controller unmounts mid-compose", () => {
+    const editor = seededEditor();
+    const setters = stubSetters();
+    const { result, unmount } = renderHook(() => useComposerController(editor, setters));
+    act(() => {
+      openPending(editor, result.current, "a");
+    });
+    expect(decorations(editor, 0)).toHaveLength(1);
+    unmount();
+    // Abnormal teardown (no save, no cancel) must not strand a phantom highlight
+    // on the persistent editor instance.
+    expect(decorations(editor, 0)).toBeUndefined();
   });
 });
 
