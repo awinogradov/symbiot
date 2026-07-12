@@ -144,6 +144,18 @@ obsolete, delete the bullet rather than hedging it.
   `@platejs/floating-toolbar`. Plate's FloatingToolbar doesn't fire on
   `contenteditable=false` content (Pattern A is read-only). Swap to Plate's
   once it ships read-only support.
+- **The composer's pending highlight is a decoration, never a stored mark.**
+  `capturePendingAnnotation` captures the unhung selection and
+  `PendingHighlightPlugin` (`utils/pendingHighlight.ts`) projects the eager
+  highlight as decoration ranges; the stored mark pair lands in
+  `editor.children` only on save (`materializeAnnotation`). Cancel clears the
+  pending store and calls `editor.api.redecorate()` — a pure view-state
+  change, so no rollback transform exists to race, undo history survives a
+  cancel, and a mid-compose draft can never persist a body-less eager mark
+  (`snapshotOf` captures `editor.children`; under the old stored-mark flow
+  that leak seeded the #236 draft bleed-through flake). Saved annotations
+  keep the stored-mark wire format for `walkAnnotations`, the share codec,
+  and drift detection.
 - **`aboveNodes` render hooks return `children` for unchanged nodes, not
   `undefined`.** Returning `undefined` causes Plate to drop the element
   entirely from the rendered tree (the only thing rendered is the wrapper,
