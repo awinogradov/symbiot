@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { decodeAnnotations } from "./decode.ts";
 import type {
+  AnnotationTuple,
   CommentTuple,
   DeletionTuple,
   GlobalCommentTuple,
@@ -109,5 +110,18 @@ describe("decodeAnnotations", () => {
       ["R", "old", "new"],
     ]);
     expect(out.map((e) => e.id)).toEqual(["c-0", "g-1", "d-2", "i-3", "r-4"]);
+  });
+
+  // A share link from a build that knows a kind this one does not must still
+  // open. The unknown tuple sits FIRST on purpose: ids are derived from tuple
+  // position, so an implementation that filtered before mapping would renumber
+  // the comment to `c-0` and still pass with the unknown tuple placed last.
+  it("skips tuple kinds it does not recognize without shifting the ids of the rest", () => {
+    const out = decodeAnnotations([
+      ["Z", "from the future"],
+      ["C", "a", "x"],
+    ] as unknown as AnnotationTuple[]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ kind: "comment", id: "c-1", originalText: "a", body: "x" });
   });
 });
