@@ -46,7 +46,7 @@ the surfaces are gated as (foreground, surface) pairs — all in
 | `--muted`                       | `oklch(0.978 0.003 247.9)` (`#f6f8fa`) | `oklch(0.278 0.012 248.2)` (`#24292e`) | vs `--muted-foreground`: 7.94 / 5.66 ✓     |
 | `--heading`                     | `oklch(0.278 0.012 248.2)` (`#24292e`) | `oklch(0.857 0.014 248.0)` (`#c9d1d9`) | vs `--background`: 14.67 / 12.27 ✓         |
 | `--inline-code`                 | `oklch(0.48 0.17 277.5)` (`#4b4cba`)   | `oklch(0.802 0.091 278.6)` (`#b1b9f9`) | vs `--background`: 6.92 / 10.06 ✓          |
-| `--task-done`                   | `oklch(0.58 0.157 148.1)` (`#1c923f`)  | `oklch(0.705 0.157 148.1)` (`#4eba65`) | decorative checkbox accent — not gated     |
+| `--task-done`                   | `oklch(0.58 0.157 148.1)` (`#1c923f`)  | `oklch(0.705 0.157 148.1)` (`#4eba65`) | task-annotation accent — not gated         |
 | `--sidebar`                     | `oklch(0.985 0 0)` (`#fafafa`)         | `oklch(0.258 0.013 253.1)` (`#1F242A`) | vs `--sidebar-foreground`: 18.96 / 14.96 ✓ |
 | `--accent` / `--sidebar-accent` | `oklch(0.97 0 0)` (`#f5f5f5`)          | `oklch(0.319 0.017 255.6)` (`#2d333b`) | vs `--muted-foreground`: 7.76 / 4.91 ✓     |
 
@@ -70,7 +70,14 @@ secondary/ghost surfaces.
 `--topbar` is registered in `@theme inline` (consumed as `bg-topbar` by the
 TopBar); `--heading` and `--inline-code` are consumed only via `var()` from
 the viewer's `.prose` overrides, so they carry no utility registration;
-`--task-done` is registered as the `accent-task-done` checkbox accent.
+`--task-done` is registered in `@theme inline` and consumed as `text-task-done`,
+the accent on the annotation sidebar's task rows.
+
+Done GFM task items in the plan body are struck through with
+`text-muted-foreground line-through` rather than tinted with `--task-done` — the
+task checkbox that carried the accent was removed in #246, and the strike reads
+as state without a form control. `--muted-foreground` on `--background` is
+gated in `contrast.test.ts` alongside the other text-on-surface pairs.
 
 ## Differentiation from `--destructive`
 
