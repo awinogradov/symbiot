@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "8ab2b7ea14cd",
+  "strategy": "manual-commit",
+  "branch": "issue-236-overlay-cancel-defer",
+  "checkpoints_count": 2,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/8a/b2b7ea14cd/0/metadata.json",
+      "transcript": "/8a/b2b7ea14cd/0/full.jsonl",
+      "compact_transcript": "/8a/b2b7ea14cd/0/transcript.jsonl",
+      "content_hash": "/8a/b2b7ea14cd/0/content_hash.txt",
+      "prompt": "/8a/b2b7ea14cd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9715,
+    "cache_creation_tokens": 1203060,
+    "cache_read_tokens": 75676219,
+    "output_tokens": 236982,
+    "api_call_count": 225
+  }
+}

@@ -1,0 +1,57 @@
+check
+
+---
+
+check
+
+---
+
+<task-notification>
+<task-id>bsvrga04v</task-id>
+<summary>Monitor event: "flake-probe run 1 (29158059083) on issue-236-overlay-cancel-defer"</summary>
+<event>flake-probe run 1 (29158059083) completed: conclusion=failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>b5ytgkuxd</task-id>
+<summary>Monitor event: "flake-probe on 49f2905 (decoration + chunking off)"</summary>
+<event>flake-probe run (29165548945, chunking-off shape) completed: conclusion=failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>bkd05b6f8</task-id>
+<summary>Monitor event: "flake-probe on 774c295 (decoration + scrub + fiber diag)"</summary>
+<event>flake-probe (29189651866, scrub shape 774c295) completed: conclusion=failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>bcibk66bl</task-id>
+<summary>Monitor event: "flake-probe on 936b4d4 (reason-coded scrub + container fallback)"</summary>
+<event>flake-probe (29191458071, hardened scrub 936b4d4) completed: conclusion=failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+check
