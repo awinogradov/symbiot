@@ -29,3 +29,12 @@ If this event is something the user would act on now, send a PushNotification. R
 ---
 
 continue
+
+---
+
+<task-notification>
+<task-id>bkd05b6f8</task-id>
+<summary>Monitor event: "flake-probe on 774c295 (decoration + scrub + fiber diag)"</summary>
+<event>flake-probe (29189651866, scrub shape 774c295) completed: conclusion=failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
