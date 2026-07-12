@@ -100,6 +100,9 @@ apps/
       VERSION
     hooks/
       hooks.json
+    skills/
+      draft/
+        SKILL.md
     src/
       cli.ts
       embeddedFile.d.ts
@@ -107,6 +110,8 @@ apps/
       installHook.test.ts
       installHook.ts
       runAnnotate.ts
+      runDraft.test.ts
+      runDraft.ts
       runHook.test.ts
       runHook.ts
       shim.test.ts
@@ -189,6 +194,8 @@ apps/
           App.tsx
           DebugBar.tsx
           DiffMount.tsx
+          DraftMount.tsx
+          DraftScreen.tsx
           EditAnnotationComposer.tsx
           EditorErrorBoundary.tsx
           EditorMount.tsx
@@ -201,12 +208,17 @@ apps/
           useDocumentTitle.test.ts
           useDocumentTitle.ts
           useDraft.ts
+          useDraftBody.test.ts
+          useDraftBody.ts
+          useDraftSubmit.test.ts
+          useDraftSubmit.ts
           useLoadedPlan.ts
           useReviewEdit.ts
           useReviewHotkeys.ts
           useReviewState.test.ts
           useReviewState.ts
           useReviewSubmit.ts
+          useVersionState.test.ts
           useVersionState.ts
         libs/
           apiClient.ts
@@ -287,6 +299,7 @@ features/
     debugBar.steps.ts
     deletion.steps.ts
     draft.steps.ts
+    draftMode.steps.ts
     driftDetection.steps.ts
     edit.steps.ts
     feedback.steps.ts
@@ -349,6 +362,10 @@ features/
     inline-comment.feature
     round-trip.feature
     task-checkbox.feature
+  uc5-draft-plan/
+    draft-approve.feature
+    draft-author.feature
+    draft-iterate.feature
   opencode-harness.ts
   README.md
 fixtures/
@@ -383,6 +400,9 @@ fixtures/
     replacement.md
     task.md
   markdown/
+    draft-autosave-seed.md
+    draft-seed-revised.md
+    draft-seed.md
     elements-revised.md
     elements.md
     no-heading.md
@@ -421,6 +441,8 @@ packages/
       config-installer.ts
       decision.test.ts
       decision.ts
+      draft.test.ts
+      draft.ts
       hook-command.test.ts
       hook-command.ts
       hook-input.test.ts
@@ -472,6 +494,8 @@ packages/
         DiffLeaf.render.test.tsx
         DiffLeaf.test.ts
         DiffLeaf.tsx
+        DraftEditor.test.tsx
+        DraftEditor.tsx
         FloatingToolbar.test.tsx
         FloatingToolbar.tsx
         HeadingElement.test.tsx
@@ -516,6 +540,7 @@ packages/
         editPrefill.ts
         kit.test.ts
         kit.ts
+        markdownRoundTrip.test.ts
         removeAnnotationMark.test.ts
         removeAnnotationMark.ts
         selectionRect.test.ts
@@ -4741,6 +4766,49 @@ v0.4.1
 }
 </file>
 
+<file path="apps/claude-code/skills/draft/SKILL.md">
+---
+name: draft
+description: Author a plan draft in the symbiot viewer and iterate with the agent until approval. Use when the user wants to write or co-author a plan themselves before any code is written. Optional argument - a markdown file to seed the draft (e.g. /draft notes/plan.md); omit it to start from a blank document.
+---
+
+# Draft a plan in the viewer
+
+The user writes a plan in an editable symbiot viewer; you refine each revision they send; on Approve you implement the agreed plan. The viewer session is one-shot — every iteration is one CLI run that blocks until the user acts. The normative marker and exit-code contract lives in [docs/03-server-contract.md](../../../../docs/03-server-contract.md) (section "Draft loop contract").
+
+## Loop
+
+1. Run the draft CLI via Bash. Pass the user's file argument when one was given, otherwise no file (blank draft):
+
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/bin/symbiot draft [file.md]
+   ```
+
+   The command blocks while the user writes in the viewer — run it in the background if available, otherwise use the maximum Bash timeout. Do not treat a long-running command as a failure.
+
+2. When it exits, parse **only the first line of stdout that starts with `SYMBIOT_DRAFT_`** — plan bodies can legally contain the marker words, so never scan beyond the first marker line:
+   - `SYMBIOT_DRAFT_REVISION <path>` (exit 0) — the user sent you a revision. The second stdout line echoes the exact re-run form including `--slug <slug>`; keep that slug.
+   - `SYMBIOT_DRAFT_APPROVED <path>` (exit 0) — the plan is agreed. Go to step 5.
+   - `SYMBIOT_DRAFT_CANCELLED` (exit 2) — the user closed the review without an outcome. Stop without error; do not retry.
+
+3. On a revision: read the markdown at `<path>` (a persisted version file under `~/.symbiot` — never edit it in place), refine it, and write the refined markdown to a NEW file (e.g. under the session scratchpad). Keep the document's H1 unchanged as hygiene — continuity is carried by `--slug`, but a stable title keeps the history readable.
+
+4. Re-run with the refined file and the slug from step 2, then go back to step 2:
+
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/bin/symbiot draft <refined.md> --slug <slug>
+   ```
+
+   The viewer reopens leading with the inline diff between the previous revision and yours; the user clicks "Back to editing" to continue writing, sends another revision, or approves.
+
+5. On approval: read the markdown at the approved `<path>` — that file IS the agreed plan. Implement it step by step, exactly as written. Do not re-plan or expand its scope.
+
+## Notes
+
+- Never run raw `symbiot-viewer` or POST to the viewer's HTTP API yourself — the CLI owns the session lifecycle.
+- Exit code 1 means an unexpected resolution (not part of the draft contract); surface it to the user instead of retrying.
+</file>
+
 <file path="apps/claude-code/src/cli.ts">
 #!/usr/bin/env bun
 /**
@@ -4750,6 +4818,7 @@ v0.4.1
  *  - `uninstall-hook` — remove every symbiot entry from ~/.claude/settings.json
  *  - `run-hook`       — handler invoked by Claude Code on ExitPlanMode (reads stdin)
  *  - `annotate <file>`— launch the viewer in annotate mode against a markdown file
+ *  - `draft [file]`   — launch the viewer in the edit-first draft mode (blank or seeded)
  *
  * Exit codes: 0 on success, 1 on unhandled error, 64 on usage error.
  */
@@ -4757,11 +4826,13 @@ import { createCli } from "@symbiot/agent-runtime/cli";
 
 import { installHook, uninstallHook } from "./installHook.ts";
 import { runAnnotate } from "./runAnnotate.ts";
+import { runDraft } from "./runDraft.ts";
 import { runHook } from "./runHook.ts";
 
 createCli({
   binName: "symbiot",
-  usageCommands: "<install-hook|uninstall-hook|run-hook|annotate <file.md>>",
+  usageCommands:
+    "<install-hook|uninstall-hook|run-hook|annotate <file.md>|draft [file.md] [--slug <slug>]>",
   handlers: {
     "install-hook": async () => {
       const { path, command } = await installHook();
@@ -4781,6 +4852,7 @@ createCli({
     },
     "run-hook": () => runHook(),
     annotate: (argv) => runAnnotate(argv[0]),
+    draft: (argv) => runDraft(argv),
   },
 }).run(process.argv.slice(2));
 </file>
@@ -5066,6 +5138,56 @@ import viewerHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type:
 export const runAnnotate = (filePath: string | undefined): Promise<number> =>
   runAnnotateShared({
     filePath,
+    binName: "symbiot",
+    agentId: "claude-code",
+    indexHtmlGz: viewerHtmlGz,
+  });
+</file>
+
+<file path="apps/claude-code/src/runDraft.test.ts">
+import { describe, expect, it, vi } from "vitest";
+
+const { runDraftShared } = vi.hoisted(() => ({
+  runDraftShared: vi.fn(async () => 0),
+}));
+
+vi.mock("@symbiot/agent-runtime/draft", () => ({ runDraft: runDraftShared }));
+vi.mock("@symbiot/viewer/dist/embed/index.html.gz", () => ({
+  default: "/embed/index.html.gz",
+}));
+
+const { runDraft } = await import("./runDraft.ts");
+
+describe("runDraft binding", () => {
+  it("forwards argv under the claude-code namespace with the embedded viewer bundle", async () => {
+    const code = await runDraft(["file.md", "--slug", "pinned"]);
+    expect(code).toBe(0);
+    expect(runDraftShared).toHaveBeenCalledWith({
+      argv: ["file.md", "--slug", "pinned"],
+      binName: "symbiot",
+      agentId: "claude-code",
+      indexHtmlGz: "/embed/index.html.gz",
+    });
+  });
+});
+</file>
+
+<file path="apps/claude-code/src/runDraft.ts">
+/**
+ * `symbiot draft [file.md] [--slug <slug>]` — boot the viewer in the edit-first
+ * draft mode under the `claude-code` storage namespace via the shared
+ * {@link runDraftShared}. Blocks until the author sends the draft to the agent
+ * or approves it, then emits the marker line the `/draft` skill parses. Marker
+ * and exit-code contract: `docs/03-server-contract.md`.
+ */
+import { runDraft as runDraftShared } from "@symbiot/agent-runtime/draft";
+// Bun's compile mode embeds this file into the binary; the import resolves to
+// a `$bunfs/…` virtual path at runtime that fs APIs read transparently.
+import viewerHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" };
+
+export const runDraft = (argv: string[]): Promise<number> =>
+  runDraftShared({
+    argv,
     binName: "symbiot",
     agentId: "claude-code",
     indexHtmlGz: viewerHtmlGz,
@@ -5385,7 +5507,9 @@ const runPreToolUse = (plan: string): Promise<number> => {
         await logEvent({ event: "PreToolUse", planHash, emitted: "allow" });
         return 0;
       }
-      await emitBlockDecision(decision.feedback);
+      // A `draft` decision is draft-mode-only and unreachable from the plan
+      // review this hook drives; degrade it to an empty-reason block.
+      await emitBlockDecision("feedback" in decision ? decision.feedback : "");
       await logEvent({ event: "PreToolUse", planHash, emitted: "block" });
       return 0;
     },
@@ -5708,6 +5832,28 @@ the plan-mode flow:
 ```sh
 bin/symbiot annotate path/to/document.md
 ```
+
+### Draft mode (`/draft` skill · `symbiot draft`)
+
+The inverse, human-initiated flow (UC5): you write the plan, the agent
+refines it. In Claude Code, invoke the plugin's `/draft` skill — optionally
+with a markdown file to seed from (`/draft notes/plan.md`) — and the viewer
+opens with an **editable** document. "Send to agent" hands your revision to
+the agent, which refines it and re-opens the viewer leading with the inline
+diff; "Approve" ends the loop and the agent implements the agreed plan.
+
+The CLI form:
+
+```sh
+bin/symbiot draft                        # blank draft
+bin/symbiot draft path/to/seed.md        # seeded draft
+bin/symbiot draft refined.md --slug s    # agent re-run: same version history
+```
+
+The blocking command reports its outcome as a single marker line on stdout
+(`SYMBIOT_DRAFT_REVISION <path>` / `SYMBIOT_DRAFT_APPROVED <path>` /
+`SYMBIOT_DRAFT_CANCELLED`). The normative marker and exit-code contract lives
+in [`docs/03-server-contract.md` § Draft loop contract](../../docs/03-server-contract.md#draft-loop-contract).
 
 ## Local development
 
@@ -8377,7 +8523,9 @@ const persistIfFeedback = async (
   generation: number,
   decision: Decision | null
 ): Promise<void> => {
-  if (decision === null || decision.kind === "approve") return;
+  // A `draft` decision is draft-mode-only and unreachable from this plan-mode
+  // review; only deny/feedback resolutions carry feedback to persist.
+  if (decision === null || !("feedback" in decision)) return;
   if (reviewGenerations.get(sessionID) !== generation) return;
   await writePendingFeedback(sessionID, decision.feedback);
 };
@@ -9139,6 +9287,222 @@ export const DiffMount = ({
 );
 </file>
 
+<file path="apps/viewer/src/client/components/DraftMount.tsx">
+import { DraftEditor, type DraftEditorHandle } from "@symbiot/editor/components/DraftEditor";
+
+/** Props for the editable draft-authoring surface. */
+interface DraftMountProps {
+  /** Markdown the editor boots from — autosaved body when one applies, else the boot plan. */
+  markdown: string;
+  /** Boot version — folded into the editor key so a new session forces a fresh Plate instance. */
+  version: number;
+  /** Receives the imperative handle (serialize-back) once Plate is constructed. */
+  onReady: (handle: DraftEditorHandle) => void;
+  /** Fires on every editor change; the host debounces autosave off it. */
+  onChange: () => void;
+}
+
+/**
+ * Editable draft-mode counterpart of `EditorMount`: mounts the free-text
+ * `DraftEditor` keyed by boot version so Plate's initial value is baked in on
+ * mount (per-render-mode editors are re-keyed, never value-swapped).
+ */
+export const DraftMount = ({
+  markdown,
+  version,
+  onReady,
+  onChange,
+}: DraftMountProps): React.ReactElement => (
+  <DraftEditor key={`draft-${version}`} markdown={markdown} onReady={onReady} onChange={onChange} />
+);
+</file>
+
+<file path="apps/viewer/src/client/components/DraftScreen.tsx">
+import { Suspense, lazy, useCallback, useRef, useState, type CSSProperties } from "react";
+import { AnnotationSidebar } from "@symbiot/ui/components/AnnotationSidebar";
+import { SidebarInset } from "@symbiot/ui/components/SidebarChrome";
+import { SidebarProvider } from "@symbiot/ui/components/SidebarProvider";
+import { TopBar } from "@symbiot/ui/components/TopBar";
+import { type DraftEditorHandle } from "@symbiot/editor/components/DraftEditor";
+
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
+import { useDraftBody } from "../hooks/useDraftBody.ts";
+import { useDraftSubmit } from "../hooks/useDraftSubmit.ts";
+import { useVersionState } from "../hooks/useVersionState.ts";
+import { type PlanResponse } from "../../shared/apiTypes.ts";
+
+import { EditorErrorBoundary } from "./EditorErrorBoundary.tsx";
+import { LoadingFallback } from "./LoadingFallback.tsx";
+import { SubmittedScreen } from "./SubmittedScreen.tsx";
+
+// Same lazy-chunk rationale as ReviewScreen: keep Plate off the first paint.
+const DraftMount = lazy(() => import("./DraftMount.tsx").then((m) => ({ default: m.DraftMount })));
+const DiffMount = lazy(() => import("./DiffMount.tsx").then((m) => ({ default: m.DiffMount })));
+
+const noop = (): void => undefined;
+
+/** Derived pane-routing flags for the draft session. */
+interface DraftFlags {
+  isHistorical: boolean;
+  inCompareOverlay: boolean;
+  inDiffMode: boolean;
+  canCompareWithPredecessor: boolean;
+}
+
+const deriveDraftFlags = (
+  version: ReturnType<typeof useVersionState>,
+  bootVersion: number
+): DraftFlags => {
+  const isHistorical = version.activeVersion !== bootVersion;
+  const canCompareWithPredecessor = !isHistorical && version.previousVersion !== null;
+  const inCompareOverlay = canCompareWithPredecessor && version.compareWithPredecessor;
+  const showsDiff = isHistorical || inCompareOverlay;
+  return {
+    isHistorical,
+    inCompareOverlay,
+    inDiffMode: showsDiff && version.previousPlan !== null,
+    canCompareWithPredecessor,
+  };
+};
+
+/** Pane selector: read-only revision diff, or the editable draft surface. */
+interface DraftPaneProps {
+  showsDiff: boolean;
+  version: ReturnType<typeof useVersionState>;
+  markdown: string;
+  bootVersion: number;
+  onReady: (handle: DraftEditorHandle) => void;
+  onChange: () => void;
+}
+
+const DraftPane = ({
+  showsDiff,
+  version,
+  markdown,
+  bootVersion,
+  onReady,
+  onChange,
+}: DraftPaneProps): React.ReactElement => {
+  if (showsDiff) {
+    if (version.previousPlan === null && version.previousVersion !== null) {
+      return (
+        <div
+          data-testid="historical-loading"
+          className="text-muted-foreground prose prose-neutral dark:prose-invert mx-auto max-w-3xl text-sm"
+        >
+          Loading version diff…
+        </div>
+      );
+    }
+    return (
+      <DiffMount
+        current={version.activePlan}
+        previous={version.previousPlan ?? version.activePlan}
+        currentVersion={version.activeVersion}
+        previousVersion={version.previousVersion}
+        mode={version.diffMode}
+      />
+    );
+  }
+  return (
+    <DraftMount markdown={markdown} version={bootVersion} onReady={onReady} onChange={onChange} />
+  );
+};
+
+/** Props for the edit-first draft surface. */
+interface DraftScreenProps {
+  /** Boot-version plan markdown + meta (mode is `draft`). */
+  plan: PlanResponse;
+}
+
+/**
+ * Send/Approve are disabled until the editable surface delivers its
+ * serialize-back handle — they have nothing to submit before that.
+ */
+const isTopBarBusy = (
+  phase: ReturnType<typeof useDraftSubmit>["phase"],
+  editorHandle: DraftEditorHandle | null
+): boolean => phase === "submitting" || editorHandle === null;
+
+/**
+ * Edit-first authoring surface for `draft` mode: the author types plan
+ * markdown directly (no annotation tools, no review hotkeys), autosaves per
+ * boot version, and resolves the session via "Send to agent" or "Approve".
+ * When the boot version has a predecessor, the session leads with the
+ * revision's inline diff (auto-compare) and "Back to editing" returns here.
+ */
+export const DraftScreen = ({ plan }: DraftScreenProps): React.ReactElement => {
+  const { loaded, isLoading, save, cancel } = useDraftBody(plan.meta.version);
+  const version = useVersionState(plan, { autoCompareOnBoot: true });
+  const [editorHandle, setEditorHandle] = useState<DraftEditorHandle | null>(null);
+  const handleRef = useRef<DraftEditorHandle | null>(null);
+  useDocumentTitle(plan.meta.displayName, plan.plan);
+  const { phase, outcome, onSend, onApprove } = useDraftSubmit({
+    editorHandle,
+    cancelDraft: cancel,
+  });
+
+  const onReady = useCallback((handle: DraftEditorHandle): void => {
+    handleRef.current = handle;
+    setEditorHandle(handle);
+  }, []);
+
+  const onEditorChange = useCallback((): void => {
+    save(() => handleRef.current?.getMarkdown() ?? "");
+  }, [save]);
+
+  if (isLoading) return <LoadingFallback label="Loading draft…" />;
+  if (phase === "done") return <SubmittedScreen mode="draft" draftOutcome={outcome} />;
+
+  const flags = deriveDraftFlags(version, plan.meta.version);
+
+  return (
+    <SidebarProvider defaultOpen style={{ "--sidebar-width": "20rem" } as CSSProperties}>
+      <SidebarInset className="flex h-svh flex-col">
+        <TopBar
+          onApprove={onApprove}
+          onDeny={noop}
+          onSend={onSend}
+          projectName={plan.meta.displayName}
+          busy={isTopBarBusy(phase, editorHandle)}
+          mode="draft"
+        />
+        <div className="flex-1 overflow-auto p-15">
+          <EditorErrorBoundary>
+            <Suspense fallback={<LoadingFallback label="Loading editor…" />}>
+              <DraftPane
+                showsDiff={flags.isHistorical || flags.inCompareOverlay}
+                version={version}
+                markdown={loaded ?? plan.plan}
+                bootVersion={plan.meta.version}
+                onReady={onReady}
+                onChange={onEditorChange}
+              />
+            </Suspense>
+          </EditorErrorBoundary>
+        </div>
+      </SidebarInset>
+      <AnnotationSidebar
+        entries={[]}
+        onFocus={noop}
+        onRemove={noop}
+        onEdit={noop}
+        onClearAll={noop}
+        versions={version.versions}
+        activeVersion={version.activeVersion}
+        onSelectVersion={version.onSelectVersion}
+        showDiffToggle={flags.inDiffMode}
+        diffMode={version.diffMode}
+        onDiffModeChange={version.onDiffModeChange}
+        canCompareWithPredecessor={flags.canCompareWithPredecessor}
+        comparingWithPredecessor={version.compareWithPredecessor}
+        onToggleCompare={version.onToggleCompare}
+      />
+    </SidebarProvider>
+  );
+};
+</file>
+
 <file path="apps/viewer/src/client/components/EditAnnotationComposer.tsx">
 import {
   AnnotationComposer,
@@ -9428,6 +9792,7 @@ export const LoadingFallback = ({ label }: LoadingFallbackProps): React.ReactEle
 import { useDraft } from "../hooks/useDraft.ts";
 import { type PlanResponse } from "../../shared/apiTypes.ts";
 
+import { DraftScreen } from "./DraftScreen.tsx";
 import { LoadingFallback } from "./LoadingFallback.tsx";
 import { ReviewScreen } from "./ReviewScreen.tsx";
 
@@ -9437,12 +9802,21 @@ interface PlanLoadedProps {
   plan: PlanResponse;
 }
 
-/** Gates `<ReviewScreen>` on the first `GET /api/draft` response. */
-export const PlanLoaded = ({ plan }: PlanLoadedProps): React.ReactElement => {
+/** Gates `<ReviewScreen>` on the first `GET /api/draft` response (annotation-shaped payload). */
+const ReviewLoaded = ({ plan }: PlanLoadedProps): React.ReactElement => {
   const { loaded: draft, isLoading, save, cancel } = useDraft();
   if (isLoading) return <LoadingFallback label="Loading draft…" />;
   return <ReviewScreen plan={plan} draft={draft} saveDraft={save} cancelDraft={cancel} />;
 };
+
+/**
+ * Routes by viewer mode: `draft` gets the edit-first surface (which owns its
+ * own markdown-shaped autosave), everything else the review surface. The
+ * branch sits ABOVE the draft hooks because the two modes parse the persisted
+ * `/api/draft` body with different schemas.
+ */
+export const PlanLoaded = ({ plan }: PlanLoadedProps): React.ReactElement =>
+  plan.mode === "draft" ? <DraftScreen plan={plan} /> : <ReviewLoaded plan={plan} />;
 </file>
 
 <file path="apps/viewer/src/client/components/ReviewScreen.tsx">
@@ -9727,18 +10101,29 @@ import { type ViewerMode } from "../../shared/apiTypes.ts";
 interface SubmittedScreenProps {
   /** Viewer mode — drives whether the heading reads "feedback submitted" or "sent to the agent". */
   mode: ViewerMode;
+  /** Draft mode only: distinguishes a sent revision from an approved plan. */
+  draftOutcome?: "sent" | "approved";
 }
 
-const headingFor = (mode: ViewerMode): string =>
-  mode === "annotate" ? "Feedback submitted." : "Sent to the agent.";
+const headingFor = (mode: ViewerMode, draftOutcome?: "sent" | "approved"): string => {
+  if (mode === "draft") {
+    return draftOutcome === "approved"
+      ? "Plan approved — handed to the agent."
+      : "Draft sent to the agent.";
+  }
+  return mode === "annotate" ? "Feedback submitted." : "Sent to the agent.";
+};
 
 /** Final screen shown after the reviewer's decision has been posted. */
-export const SubmittedScreen = ({ mode }: SubmittedScreenProps): React.ReactElement => (
+export const SubmittedScreen = ({
+  mode,
+  draftOutcome,
+}: SubmittedScreenProps): React.ReactElement => (
   <div data-testid="submitted-screen" className="flex h-full items-center justify-center p-8">
     <Card className="w-full max-w-md">
       <CardHeader className="items-center text-center">
         <CheckCircle2 className="text-primary size-10" />
-        <CardTitle className="text-lg">{headingFor(mode)}</CardTitle>
+        <CardTitle className="text-lg">{headingFor(mode, draftOutcome)}</CardTitle>
         <CardDescription>You can close this window.</CardDescription>
       </CardHeader>
       <CardContent />
@@ -9956,6 +10341,315 @@ export const useDraft = (): DraftHook => {
   );
 
   return { loaded, isLoading, save, cancel };
+};
+</file>
+
+<file path="apps/viewer/src/client/hooks/useDraftBody.test.ts">
+// @vitest-environment happy-dom
+import { renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { getDraftBody, putDraftBody } = vi.hoisted(() => ({
+  getDraftBody: vi.fn(),
+  putDraftBody: vi.fn(async () => undefined),
+}));
+
+vi.mock("../libs/apiClient.ts", () => ({ getDraftBody, putDraftBody }));
+
+const { useDraftBody } = await import("./useDraftBody.ts");
+
+beforeEach(() => {
+  getDraftBody.mockClear();
+  putDraftBody.mockClear();
+});
+
+describe("useDraftBody hydration", () => {
+  it("hydrates the autosaved markdown when its version matches the boot version", async () => {
+    getDraftBody.mockResolvedValueOnce({ markdown: "# Typed", version: 3, updatedAt: 1 });
+    const { result } = renderHook(() => useDraftBody(3));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.loaded).toBe("# Typed");
+  });
+
+  it("ignores a stale blob persisted against an older boot version", async () => {
+    getDraftBody.mockResolvedValueOnce({ markdown: "# Stale", version: 2, updatedAt: 1 });
+    const { result } = renderHook(() => useDraftBody(3));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.loaded).toBeNull();
+  });
+
+  it("treats an absent payload as no draft", async () => {
+    getDraftBody.mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useDraftBody(3));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.loaded).toBeNull();
+  });
+});
+
+describe("useDraftBody save", () => {
+  it("debounces, serializes once at flush time, and stamps the boot version", async () => {
+    vi.useFakeTimers();
+    try {
+      getDraftBody.mockResolvedValueOnce(null);
+      const { result } = renderHook(() => useDraftBody(5));
+      const getMarkdown = vi.fn(() => "# Flushed");
+      result.current.save(getMarkdown);
+      result.current.save(getMarkdown);
+      expect(putDraftBody).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1_000);
+      expect(getMarkdown).toHaveBeenCalledTimes(1);
+      expect(putDraftBody).toHaveBeenCalledWith(
+        expect.objectContaining({ markdown: "# Flushed", version: 5 })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancel drops the pending save and disables future ones", () => {
+    vi.useFakeTimers();
+    try {
+      getDraftBody.mockResolvedValueOnce(null);
+      const { result } = renderHook(() => useDraftBody(5));
+      result.current.save(() => "# Pending");
+      result.current.cancel();
+      vi.advanceTimersByTime(1_000);
+      result.current.save(() => "# After cancel");
+      vi.advanceTimersByTime(1_000);
+      expect(putDraftBody).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+</file>
+
+<file path="apps/viewer/src/client/hooks/useDraftBody.ts">
+/**
+ * Draft-mode autosave: persists the typed markdown via `/api/draft` so an
+ * accidental tab close within a live session loses nothing.
+ *
+ * Hydration precedence: the payload is applied only when its `version` equals
+ * the boot version. Every viewer boot bumps the version, so a stale blob from
+ * a crashed prior run can never mask the fresh CLI seed — across runs the CLI
+ * file always wins; within a session a reload restores the typed text.
+ */
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { getDraftBody, putDraftBody } from "../libs/apiClient.ts";
+
+import { useCancelledFetch } from "./useCancelledFetch.ts";
+
+/** Surface returned by {@link useDraftBody}. */
+export interface DraftBodyHook {
+  /** Autosaved markdown for THIS boot version, or null when none applies. */
+  loaded: string | null;
+  /** True until the first `GET /api/draft` resolves. */
+  isLoading: boolean;
+  /**
+   * Debounced auto-save — pass a lazy getter so serialization runs once per
+   * flush, not on every keystroke.
+   */
+  save: (getMarkdown: () => string) => void;
+  /** Cancel any pending debounced save AND disable future saves (call at submit start). */
+  cancel: () => void;
+}
+
+const debounceMs = 1_000;
+
+export const useDraftBody = (bootVersion: number): DraftBodyHook => {
+  const [loaded, setLoaded] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const disabledRef = useRef(false);
+
+  useCancelledFetch(
+    getDraftBody,
+    (payload) => {
+      setLoaded(payload !== null && payload.version === bootVersion ? payload.markdown : null);
+      setIsLoading(false);
+    },
+    (error) => {
+      console.error("failed to load draft body", error);
+      setIsLoading(false);
+    },
+    []
+  );
+
+  const save = useCallback(
+    (getMarkdown: () => string): void => {
+      if (disabledRef.current) return;
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        if (disabledRef.current) return;
+        void putDraftBody({
+          markdown: getMarkdown(),
+          version: bootVersion,
+          updatedAt: Date.now(),
+        }).catch((error: unknown) => {
+          console.error("failed to save draft body", error);
+        });
+      }, debounceMs);
+    },
+    [bootVersion]
+  );
+
+  const cancel = useCallback((): void => {
+    disabledRef.current = true;
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    },
+    []
+  );
+
+  return { loaded, isLoading, save, cancel };
+};
+</file>
+
+<file path="apps/viewer/src/client/hooks/useDraftSubmit.test.ts">
+// @vitest-environment happy-dom
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { postDraftSend, postApprove, deleteDraft } = vi.hoisted(() => ({
+  postDraftSend: vi.fn(async () => undefined),
+  postApprove: vi.fn(async () => undefined),
+  deleteDraft: vi.fn(async () => undefined),
+}));
+
+vi.mock("../libs/apiClient.ts", () => ({ postDraftSend, postApprove, deleteDraft }));
+
+const { useDraftSubmit } = await import("./useDraftSubmit.ts");
+
+const handle = { getMarkdown: () => "# Draft body\n" };
+
+beforeEach(() => {
+  postDraftSend.mockClear();
+  postDraftSend.mockResolvedValue(undefined);
+  postApprove.mockClear();
+  deleteDraft.mockClear();
+  vi.spyOn(window, "close")
+    .mockImplementation(() => undefined)
+    .mockClear();
+});
+
+describe("useDraftSubmit", () => {
+  it("onSend serializes once, posts the draft, and lands on done/sent", async () => {
+    const cancelDraft = vi.fn();
+    const { result } = renderHook(() => useDraftSubmit({ editorHandle: handle, cancelDraft }));
+    await act(() => result.current.onSend());
+    expect(cancelDraft).toHaveBeenCalledOnce();
+    expect(postDraftSend).toHaveBeenCalledWith("# Draft body\n");
+    expect(deleteDraft).toHaveBeenCalledOnce();
+    expect(result.current.phase).toBe("done");
+    expect(result.current.outcome).toBe("sent");
+  });
+
+  it("onApprove posts the final markdown and lands on done/approved", async () => {
+    const { result } = renderHook(() =>
+      useDraftSubmit({ editorHandle: handle, cancelDraft: vi.fn() })
+    );
+    await act(() => result.current.onApprove());
+    expect(postApprove).toHaveBeenCalledWith("# Draft body\n");
+    expect(result.current.phase).toBe("done");
+    expect(result.current.outcome).toBe("approved");
+  });
+
+  it("a failed decision POST resets phase to ready instead of stranding submitting", async () => {
+    postDraftSend.mockRejectedValueOnce(new Error("500 write-failed"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { result } = renderHook(() =>
+      useDraftSubmit({ editorHandle: handle, cancelDraft: vi.fn() })
+    );
+    await act(() => result.current.onSend());
+    expect(result.current.phase).toBe("ready");
+    expect(deleteDraft).not.toHaveBeenCalled();
+    expect(window.close).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op without an editor handle", async () => {
+    const { result } = renderHook(() =>
+      useDraftSubmit({ editorHandle: null, cancelDraft: vi.fn() })
+    );
+    await act(() => result.current.onSend());
+    expect(postDraftSend).not.toHaveBeenCalled();
+    expect(result.current.phase).toBe("ready");
+  });
+});
+</file>
+
+<file path="apps/viewer/src/client/hooks/useDraftSubmit.ts">
+/**
+ * Draft-mode submission flow: "Send to agent" persists the edited body as the
+ * next version and resolves the session with a `draft` decision; "Approve"
+ * persists it and resolves `approve` — both serialize the Plate value to
+ * markdown once, at submit time. Sequence mirrors the review submit hook:
+ * `cancelDraft → POST decision → DELETE draft → phase "done" → window.close`.
+ */
+import { useCallback, useState } from "react";
+import { type DraftEditorHandle } from "@symbiot/editor/components/DraftEditor";
+
+import { deleteDraft, postApprove, postDraftSend } from "../libs/apiClient.ts";
+
+import { type Phase } from "./useReviewSubmit.ts";
+
+/** Which draft outcome was submitted — drives the confirmation heading. */
+export type DraftOutcome = "sent" | "approved";
+
+/** Inputs the draft submission hook needs from the surrounding session. */
+export interface DraftSubmitProps {
+  editorHandle: DraftEditorHandle | null;
+  /** Stop the auto-save loop *before* the explicit DELETE so a queued POST can't resurrect the draft. */
+  cancelDraft: () => void;
+}
+
+/** Phase signal, submitted outcome, and the two actions the `<TopBar>` wires up. */
+export interface DraftSubmit {
+  phase: Phase;
+  outcome: DraftOutcome;
+  onSend: () => Promise<void>;
+  onApprove: () => Promise<void>;
+}
+
+export const useDraftSubmit = ({ editorHandle, cancelDraft }: DraftSubmitProps): DraftSubmit => {
+  const [phase, setPhase] = useState<Phase>("ready");
+  const [outcome, setOutcome] = useState<DraftOutcome>("sent");
+
+  const submit = useCallback(
+    async (kind: DraftOutcome): Promise<void> => {
+      if (editorHandle === null) return;
+      setPhase("submitting");
+      cancelDraft();
+      const markdown = editorHandle.getMarkdown();
+      try {
+        await (kind === "sent" ? postDraftSend(markdown) : postApprove(markdown));
+      } catch (error) {
+        // A failed decision POST (e.g. 500 write failure) must not strand the
+        // UI in "submitting" — the server did not resolve, so re-enable the
+        // actions and let the author retry.
+        console.error("draft submit failed", error);
+        setPhase("ready");
+        return;
+      }
+      await deleteDraft().catch(() => undefined);
+      setOutcome(kind);
+      setPhase("done");
+      window.close();
+    },
+    [cancelDraft, editorHandle]
+  );
+
+  const onSend = useCallback(() => submit("sent"), [submit]);
+  const onApprove = useCallback(() => submit("approved"), [submit]);
+
+  return { phase, outcome, onSend, onApprove };
 };
 </file>
 
@@ -10668,6 +11362,63 @@ export const useReviewSubmit = ({
 };
 </file>
 
+<file path="apps/viewer/src/client/hooks/useVersionState.test.ts">
+// @vitest-environment happy-dom
+import { renderHook, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import type { PlanResponse } from "../../shared/apiTypes.ts";
+
+const { fetchPlanVersions, fetchPlanVersion } = vi.hoisted(() => ({
+  fetchPlanVersions: vi.fn(),
+  fetchPlanVersion: vi.fn(),
+}));
+
+vi.mock("../libs/apiClient.ts", () => ({ fetchPlanVersions, fetchPlanVersion }));
+
+const { useVersionState } = await import("./useVersionState.ts");
+
+const planAt = (version: number, mode: PlanResponse["mode"]): PlanResponse => ({
+  plan: "# Boot\n",
+  mode,
+  meta: { project: "proj", slug: "plan", version, displayName: "proj" },
+});
+
+describe("useVersionState autoCompareOnBoot", () => {
+  it("leads with the predecessor-diff overlay when a predecessor exists", async () => {
+    fetchPlanVersions.mockResolvedValue({ versions: [1, 2], current: 2 });
+    fetchPlanVersion.mockResolvedValue({
+      plan: "# Prev\n",
+      meta: { project: "proj", slug: "plan", version: 1, displayName: "proj" },
+    });
+    const { result } = renderHook(() =>
+      useVersionState(planAt(2, "draft"), { autoCompareOnBoot: true })
+    );
+    await waitFor(() => expect(result.current.compareWithPredecessor).toBe(true));
+  });
+
+  it("stays in editing mode when the boot version has no predecessor", async () => {
+    fetchPlanVersions.mockResolvedValue({ versions: [1], current: 1 });
+    const { result } = renderHook(() =>
+      useVersionState(planAt(1, "draft"), { autoCompareOnBoot: true })
+    );
+    await waitFor(() => expect(result.current.versions).toEqual([1]));
+    expect(result.current.compareWithPredecessor).toBe(false);
+  });
+
+  it("never auto-compares without the option (plan/annotate modes unchanged)", async () => {
+    fetchPlanVersions.mockResolvedValue({ versions: [1, 2], current: 2 });
+    fetchPlanVersion.mockResolvedValue({
+      plan: "# Prev\n",
+      meta: { project: "proj", slug: "plan", version: 1, displayName: "proj" },
+    });
+    const { result } = renderHook(() => useVersionState(planAt(2, "plan")));
+    await waitFor(() => expect(result.current.versions).toEqual([1, 2]));
+    expect(result.current.compareWithPredecessor).toBe(false);
+  });
+});
+</file>
+
 <file path="apps/viewer/src/client/hooks/useVersionState.ts">
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffMode } from "@symbiot/editor/components/DiffEditor";
@@ -10729,6 +11480,16 @@ const findPredecessorInIndex = (
   return versions[idx - 1] ?? null;
 };
 
+/** Optional behavior switches for {@link useVersionState}. */
+export interface VersionStateOptions {
+  /**
+   * Start with the predecessor-diff overlay ON when the boot version has a
+   * predecessor. Draft mode passes true so a re-opened revision leads with the
+   * vN-1 → vN inline diff ("Back to editing" exits it).
+   */
+  autoCompareOnBoot?: boolean;
+}
+
 /**
  * Loads the on-disk version history for the active plan and lets the reviewer
  * switch which version the editor renders. The initial `activePlan` mirrors
@@ -10737,7 +11498,10 @@ const findPredecessorInIndex = (
  * `activeVersion` changes so the diff editor has both sides available.
  *
  */
-export const useVersionState = (plan: PlanResponse): VersionState => {
+export const useVersionState = (
+  plan: PlanResponse,
+  options: VersionStateOptions = {}
+): VersionState => {
   const [versions, setVersions] = useState<number[]>([plan.meta.version]);
   const [activeVersion, setActiveVersion] = useState<number>(plan.meta.version);
   const [activePlan, setActivePlan] = useState<string>(plan.plan);
@@ -10748,11 +11512,20 @@ export const useVersionState = (plan: PlanResponse): VersionState => {
   const [diffMode, setDiffMode] = useState<DiffMode>(readDiffMode);
   const [compareWithPredecessor, setCompareWithPredecessor] = useState(false);
 
+  const autoCompareOnBoot = options.autoCompareOnBoot === true;
   useCancelledFetch(
     fetchPlanVersions,
-    (res) => setVersions(res.versions.length > 0 ? res.versions : [plan.meta.version]),
+    (res) => {
+      const list = res.versions.length > 0 ? res.versions : [plan.meta.version];
+      setVersions(list);
+      // Draft mode leads with the revision diff: flip the overlay on once the
+      // fetched history proves a predecessor of the boot version exists.
+      if (autoCompareOnBoot && list.some((v) => v < plan.meta.version)) {
+        setCompareWithPredecessor(true);
+      }
+    },
     null,
-    [plan.meta.version]
+    [plan.meta.version, autoCompareOnBoot]
   );
 
   const latestActiveRequestRef = useRef(0);
@@ -10842,6 +11615,7 @@ import { z } from "zod";
 
 import { apiRoutes, type ApiRouteId } from "../../shared/apiRoutes.ts";
 import type {
+  DraftBodyPayload,
   DraftPayload,
   PlanResponse,
   PlanVersionResponse,
@@ -10857,7 +11631,7 @@ const planMetaSchema = z.object({
 
 const planResponseSchema = z.object({
   plan: z.string(),
-  mode: z.enum(["plan", "annotate"]),
+  mode: z.enum(["plan", "annotate", "draft"]),
   meta: planMetaSchema,
 }) satisfies z.ZodType<PlanResponse>;
 
@@ -10931,8 +11705,17 @@ export const fetchPlanVersion = (version: number): Promise<PlanVersionResponse> 
     query: { n: String(version) },
   });
 
-/** Approve the plan. Server records the decision and shuts down. */
-export const postApprove = (): Promise<void> => request("approve", { schema: null });
+/**
+ * Approve the plan. Server records the decision and shuts down. Draft mode
+ * passes the edited `markdown` so the final body is persisted as a version and
+ * its path travels in the decision; plan mode omits it.
+ */
+export const postApprove = (markdown?: string): Promise<void> =>
+  request("approve", { schema: null, ...(markdown === undefined ? {} : { body: { markdown } }) });
+
+/** Draft mode's "Send to agent": persist the edited body as the next version and resolve the session. */
+export const postDraftSend = (markdown: string): Promise<void> =>
+  request("draftSend", { schema: null, body: { markdown } });
 
 /** Deny the plan (plan mode). Reviewer's free-text feedback travels in the body. */
 export const postDeny = (feedback: string): Promise<void> =>
@@ -10952,6 +11735,25 @@ export const putDraft = (draft: DraftPayload): Promise<void> =>
 
 /** Remove the persisted draft for this plan. Idempotent on the server. */
 export const deleteDraft = (): Promise<void> => request("draftDelete", { schema: null });
+
+const draftBodyPayloadSchema = z.object({
+  markdown: z.string(),
+  version: z.number().int(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<DraftBodyPayload>;
+
+/**
+ * Load the draft-mode autosave payload, or null when absent. A payload that
+ * fails the draft-body schema (e.g. an annotation draft persisted under the
+ * same slug by a review session) also resolves null — draft mode never
+ * hydrates review-shaped state.
+ */
+export const getDraftBody = (): Promise<DraftBodyPayload | null> =>
+  request("draftGet", { schema: draftBodyPayloadSchema.nullable() }).catch(() => null);
+
+/** Persist the draft-mode autosave payload. Debounced by the caller. */
+export const putDraftBody = (payload: DraftBodyPayload): Promise<void> =>
+  request("draftPut", { schema: null, body: payload });
 </file>
 
 <file path="apps/viewer/src/client/utils/documentTitle.test.ts">
@@ -11353,7 +12155,7 @@ export type ContractAssertions = [
  */
 
 /** Mirrors `ViewerMode` in `../../shared/apiTypes.ts`. */
-export type ViewerModeSnapshot = "plan" | "annotate";
+export type ViewerModeSnapshot = "plan" | "annotate" | "draft";
 
 /** Mirrors `PlanMeta` in `../../shared/apiTypes.ts`. */
 export interface PlanMetaSnapshot {
@@ -11365,9 +12167,10 @@ export interface PlanMetaSnapshot {
 
 /** Mirrors `Decision` in `../routes.ts`. */
 export type DecisionSnapshot =
-  | { kind: "approve" }
+  | { kind: "approve"; path?: string }
   | { kind: "deny"; feedback: string }
-  | { kind: "feedback"; feedback: string };
+  | { kind: "feedback"; feedback: string }
+  | { kind: "draft"; path: string; version: number };
 
 /** Mirrors `StartServerOptions` in `../startServer.ts`. */
 export interface StartServerOptionsSnapshot {
@@ -11379,6 +12182,7 @@ export interface StartServerOptionsSnapshot {
   decisionFile?: string | null;
   port?: number | null;
   mode?: ViewerModeSnapshot;
+  slug?: string;
   agentId?: string;
 }
 
@@ -11836,6 +12640,103 @@ describe("GET /api/image", () => {
   });
 });
 
+describe("POST /api/draft/send", () => {
+  const jsonInit = (body: unknown): RequestInit => ({
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const historyDirFor = (slugName: string): string =>
+    join(homeRoot, ".symbiot", "agents", "claude-code", "history", project, slugName);
+
+  it("persists the body as the next version and resolves a draft decision", async () => {
+    const dir = historyDirFor("draft-send");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "001.md"), "v1");
+    await writeFile(join(dir, "002.md"), "boot plan");
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("draft-send", { resolve });
+    const res = await send("POST", "/api/draft/send", routeCtx, jsonInit({ markdown: "# Edited" }));
+    expect(res?.status).toBe(204);
+    const expectedPath = join(dir, "003.md");
+    expect(await readFile(expectedPath, "utf8")).toBe("# Edited");
+    expect(resolve).toHaveBeenCalledWith({ kind: "draft", path: expectedPath, version: 3 });
+  });
+
+  it("reuses the boot version without writing when the body is byte-identical", async () => {
+    const dir = historyDirFor("draft-send-noop");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "002.md"), "boot plan");
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("draft-send-noop", { resolve });
+    const res = await send(
+      "POST",
+      "/api/draft/send",
+      routeCtx,
+      jsonInit({ markdown: "boot plan" })
+    );
+    expect(res?.status).toBe(204);
+    expect(resolve).toHaveBeenCalledWith({ kind: "draft", path: join(dir, "002.md"), version: 2 });
+    await expect(readFile(join(dir, "003.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("returns 400 on a missing or empty markdown body", async () => {
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("draft-send-bad", { resolve });
+    expect((await send("POST", "/api/draft/send", routeCtx))?.status).toBe(400);
+    expect(
+      (await send("POST", "/api/draft/send", routeCtx, jsonInit({ markdown: "  " })))?.status
+    ).toBe(400);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 without resolving when the version write fails (server stays retryable)", async () => {
+    // A FILE occupying the slug's history-directory path makes writeAtomic's
+    // mkdir fail — the persistence error path, without mocking storage.
+    await mkdir(join(homeRoot, ".symbiot", "agents", "claude-code", "history", project), {
+      recursive: true,
+    });
+    await writeFile(historyDirFor("draft-send-fail"), "not a directory");
+    const resolve = vi.fn();
+    const markResolved = vi.fn();
+    const routeCtx = ctxFor("draft-send-fail", { resolve, markResolved });
+    const res = await send("POST", "/api/draft/send", routeCtx, jsonInit({ markdown: "# Edited" }));
+    expect(res?.status).toBe(500);
+    expect(await res?.json()).toMatchObject({ reason: "write-failed" });
+    expect(resolve).not.toHaveBeenCalled();
+    expect(markResolved).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/approve with a draft body", () => {
+  it("returns 400 when markdown is present but empty (never a silent path-less approve)", async () => {
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("appr-empty", { resolve });
+    const res = await send("POST", "/api/approve", routeCtx, {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markdown: "   " }),
+    });
+    expect(res?.status).toBe(400);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("persists the body and resolves approve with the persisted path", async () => {
+    const dir = join(homeRoot, ".symbiot", "agents", "claude-code", "history", project, "appr-md");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "002.md"), "boot plan");
+    const resolve = vi.fn();
+    const routeCtx = ctxFor("appr-md", { resolve });
+    const res = await send("POST", "/api/approve", routeCtx, {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markdown: "# Final" }),
+    });
+    expect(res?.status).toBe(204);
+    const expectedPath = join(dir, "003.md");
+    expect(await readFile(expectedPath, "utf8")).toBe("# Final");
+    expect(resolve).toHaveBeenCalledWith({ kind: "approve", path: expectedPath });
+  });
+});
+
 describe("GET /api/plan/versions", () => {
   it("lists persisted version numbers and the current version", async () => {
     const routeCtx = ctxFor("versions");
@@ -11866,6 +12767,7 @@ import {
   planFilePath,
   saveDraft,
   saveFeedback,
+  saveRevision,
   saveUpload,
   uploadPath,
   agentUploadsRoot,
@@ -11878,11 +12780,17 @@ import {
   mintUuidFilename,
 } from "./uploadSecurity.ts";
 
-/** Outcome of the reviewer's interaction with a plan. */
+/**
+ * Outcome of the reviewer's interaction with a plan. `draft` is draft mode's
+ * "Send to agent": `path`/`version` locate the persisted revision the coding
+ * agent reads next. An approve issued from draft mode carries the `path` of
+ * the final persisted body; plan-mode approves omit it.
+ */
 export type Decision =
-  | { kind: "approve" }
+  | { kind: "approve"; path?: string }
   | { kind: "deny"; feedback: string }
-  | { kind: "feedback"; feedback: string };
+  | { kind: "feedback"; feedback: string }
+  | { kind: "draft"; path: string; version: number };
 
 interface RouteContext {
   plan: string;
@@ -12040,8 +12948,74 @@ const finalize = async (ctx: RouteContext, decision: Decision): Promise<void> =>
   ctx.resolve(decision);
 };
 
-const approveRoute = async (ctx: RouteContext): Promise<Response> => {
-  await finalize(ctx, { kind: "approve" });
+/**
+ * Persist an edited document body as the next plan version under the session's
+ * `{project, slug}` (never re-derived — session meta owns continuity). A body
+ * byte-identical to the boot plan reuses the boot version instead of writing a
+ * no-op revision. A write failure (EACCES/ENOSPC) returns a 500 Response
+ * WITHOUT resolving the session, so the one-shot server stays retryable.
+ */
+const persistRevision = async (
+  ctx: RouteContext,
+  markdown: string
+): Promise<{ version: number; path: string } | Response> => {
+  if (markdown === ctx.plan) {
+    return {
+      version: ctx.meta.version,
+      path: planFilePath(ctx.agentId, ctx.meta, ctx.meta.version),
+    };
+  }
+  try {
+    return await saveRevision(ctx.agentId, ctx.meta, markdown);
+  } catch (error) {
+    return jsonResponse({ reason: "write-failed", message: errorMessage(error) }, 500);
+  }
+};
+
+/**
+ * A `markdown` key that is present but empty/whitespace is distinguished from
+ * an absent body: draft-mode clients always send the field, so an emptied
+ * document must 400 (matching `draftSendRoute`) instead of silently degrading
+ * an Approve into a path-less plan-mode approve.
+ */
+type MarkdownBody =
+  | { kind: "absent" }
+  | { kind: "invalid" }
+  | { kind: "present"; markdown: string };
+
+const parseMarkdownBody = async (req: Request): Promise<MarkdownBody> => {
+  const body = (await req.json().catch(() => null)) as { markdown?: unknown } | null;
+  if (body === null || !("markdown" in body)) return { kind: "absent" };
+  const { markdown } = body;
+  return typeof markdown === "string" && markdown.trim().length > 0
+    ? { kind: "present", markdown }
+    : { kind: "invalid" };
+};
+
+// NOTE: approve/deny/feedback/draft-send stay repeatable after resolution
+// (no isResolved guard): the BDD harness drives many scenarios against one
+// keep-alive viewer, and the production one-shot flow stops the server after
+// the first resolution anyway. Double-click protection lives client-side
+// (the `busy` phase disables the actions).
+const approveRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  const body = await parseMarkdownBody(req);
+  if (body.kind === "invalid") return badRequest("missing markdown");
+  if (body.kind === "absent") {
+    await finalize(ctx, { kind: "approve" });
+    return new Response(null, { status: 204 });
+  }
+  const persisted = await persistRevision(ctx, body.markdown);
+  if (persisted instanceof Response) return persisted;
+  await finalize(ctx, { kind: "approve", path: persisted.path });
+  return new Response(null, { status: 204 });
+};
+
+const draftSendRoute = async (req: Request, ctx: RouteContext): Promise<Response> => {
+  const body = await parseMarkdownBody(req);
+  if (body.kind !== "present") return badRequest("missing markdown");
+  const persisted = await persistRevision(ctx, body.markdown);
+  if (persisted instanceof Response) return persisted;
+  await finalize(ctx, { kind: "draft", path: persisted.path, version: persisted.version });
   return new Response(null, { status: 204 });
 };
 
@@ -12192,12 +13166,13 @@ const routes: Record<string, Handler> = {
   [routeKey("planVersions")]: (_req, ctx) => planVersionsRoute(ctx),
   [routeKey("planVersion")]: (req, ctx) => planVersionRoute(req, ctx),
   [routeKey("planVscodeDiff")]: (req, ctx) => planVscodeDiffRoute(req, ctx),
-  [routeKey("approve")]: (_req, ctx) => approveRoute(ctx),
+  [routeKey("approve")]: (req, ctx) => approveRoute(req, ctx),
   [routeKey("deny")]: (req, ctx) => denyRoute(req, ctx),
   [routeKey("feedback")]: (req, ctx) => feedbackRoute(req, ctx),
   [routeKey("draftGet")]: (_req, ctx) => draftGetRoute(ctx),
   [routeKey("draftPut")]: (req, ctx) => draftPostRoute(req, ctx),
   [routeKey("draftDelete")]: (_req, ctx) => draftDeleteRoute(ctx),
+  [routeKey("draftSend")]: (req, ctx) => draftSendRoute(req, ctx),
   [routeKey("upload")]: (req, ctx) => uploadRoute(req, ctx),
   [routeKey("image")]: (req, ctx) => imageRoute(req, ctx),
 };
@@ -12257,8 +13232,13 @@ export interface StartServerOptions {
   decisionFile?: string | null;
   /** Bind to this port instead of an OS-assigned one. */
   port?: number | null;
-  /** Viewer mode: 'plan' (Approve/Deny) or 'annotate' (Submit feedback). Defaults to 'plan'. */
+  /** Viewer mode: 'plan' (Approve/Deny), 'annotate' (Submit feedback), or 'draft' (edit-first authoring). Defaults to 'plan'. */
   mode?: ViewerMode;
+  /**
+   * Overrides the H1-derived plan slug for the boot version. Draft mode passes
+   * it (`--slug`) so a retitled draft keeps its version history and diffs.
+   */
+  slug?: string;
   /**
    * Per-agent storage namespace under `~/.symbiot/agents/<agentId>/`. Defaults
    * to `"claude-code"` so single-agent installs and the bare CLI keep working;
@@ -12308,7 +13288,7 @@ const initStorage = async (
 ): Promise<{ agentId: string; meta: PlanMeta }> => {
   const agentId = options.agentId ?? defaultAgentId;
   await migrateLegacyTree();
-  const meta = await savePlan(agentId, options.plan, options.cwd);
+  const meta = await savePlan(agentId, options.plan, options.cwd, options.slug);
   return { agentId, meta };
 };
 
@@ -12502,6 +13482,7 @@ const {
   resolveDisplayName,
   saveDraft,
   savePlan,
+  saveRevision,
 } = await import("./storage.ts");
 
 /** Point storage at a throwaway HOME so each test owns an isolated `~/.symbiot`. */
@@ -12529,6 +13510,56 @@ describe("listVersions", () => {
     await writeFile(join(planDir, "1.md"), "single-digit");
 
     expect(await listVersions("claude-code", { project, slug })).toEqual([1, 2, 10]);
+  });
+});
+
+describe("savePlan slug override", () => {
+  it("rejects a slug that is not a plain path-safe token", async () => {
+    await freshHome();
+    for (const bad of ["../../../escape", "a/b", ".hidden", "UPPER", ""]) {
+      await expect(savePlan("claude-code", "# Plan\n", "/tmp/proj", bad)).rejects.toThrow(
+        /invalid slug/
+      );
+    }
+  });
+
+  it("persists under the explicit slug instead of the H1-derived one", async () => {
+    const home = await freshHome();
+    const meta = await savePlan(
+      "claude-code",
+      "# Some Retitled Plan\n\nbody\n",
+      "/tmp/proj",
+      "pinned-slug"
+    );
+    expect(meta.slug).toBe("pinned-slug");
+    const file = join(
+      home,
+      ".symbiot",
+      "agents",
+      "claude-code",
+      "history",
+      "proj",
+      "pinned-slug",
+      "001.md"
+    );
+    expect(await readFile(file, "utf8")).toContain("# Some Retitled Plan");
+  });
+});
+
+describe("saveRevision", () => {
+  it("appends the next version under the session meta and returns its path", async () => {
+    const home = await freshHome();
+    const dir = join(home, ".symbiot", "agents", "claude-code", "history", "proj", "rev");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "001.md"), "v1");
+    const result = await saveRevision(
+      "claude-code",
+      { project: "proj", slug: "rev" },
+      "# Revised\n"
+    );
+    expect(result.version).toBe(2);
+    expect(result.path).toBe(join(dir, "002.md"));
+    expect(await readFile(result.path, "utf8")).toBe("# Revised\n");
   });
 });
 
@@ -12720,6 +13751,16 @@ const agentIdRe = /^[a-z0-9][a-z0-9-]*$/;
  */
 export const assertValidAgentId = (agentId: string): void => {
   if (!agentIdRe.test(agentId)) throw new Error(`invalid agentId: ${JSON.stringify(agentId)}`);
+};
+
+/**
+ * Guard an explicit slug override (draft mode's `--slug`). The H1-derived
+ * default is slugified, but an override would reach `join()`-built paths
+ * verbatim — reject anything that is not a plain slug so it can never escape
+ * the `history/` namespace.
+ */
+export const assertValidSlug = (slug: string): void => {
+  if (!agentIdRe.test(slug)) throw new Error(`invalid slug: ${JSON.stringify(slug)}`);
 };
 
 const agentDir = (agentId: string): string => {
@@ -12920,18 +13961,41 @@ const nextVersionIn = async (dir: string): Promise<number> => {
  * Persist a fresh plan version under
  * ~/.symbiot/agents/{agentId}/history/{project}/{slug}/00N.md.
  * Atomic-write semantics (write to .tmp + rename).
+ *
+ * `slug` overrides the H1-derived plan slug. Draft mode passes it (`--slug`)
+ * so iteration continuity never hangs on the document title staying stable —
+ * a retitled draft keeps appending to the same history directory.
  */
 export const savePlan = async (
   agentId: string,
   plan: string,
-  cwd: string = process.cwd()
+  cwd: string = process.cwd(),
+  slug?: string
 ): Promise<PlanMeta> => {
+  if (slug !== undefined) assertValidSlug(slug);
   const project = deriveProjectSlug(cwd);
-  const slug = derivePlanSlug(plan);
+  const planSlug = slug ?? derivePlanSlug(plan);
   const displayName = resolveDisplayName(cwd);
-  const version = await nextVersionIn(planDir(agentId, project, slug));
-  await writeAtomic(planFile(agentId, project, slug, version), plan);
-  return { project, slug, version, displayName };
+  const version = await nextVersionIn(planDir(agentId, project, planSlug));
+  await writeAtomic(planFile(agentId, project, planSlug, version), plan);
+  return { project, slug: planSlug, version, displayName };
+};
+
+/**
+ * Append the next plan version under an existing session's `{project, slug}`
+ * without re-deriving either (draft mode's "Send to agent" persistence — the
+ * session meta, not the document's current H1, owns continuity). Returns the
+ * persisted version number and its absolute on-disk path.
+ */
+export const saveRevision = async (
+  agentId: string,
+  meta: Pick<PlanMeta, "project" | "slug">,
+  plan: string
+): Promise<{ version: number; path: string }> => {
+  const version = await nextVersionIn(planDir(agentId, meta.project, meta.slug));
+  const path = planFile(agentId, meta.project, meta.slug, version);
+  await writeAtomic(path, plan);
+  return { version, path };
 };
 
 export const loadPlan = async (agentId: string, meta: PlanMeta): Promise<string> =>
@@ -13123,6 +14187,12 @@ export const apiRoutes = {
   draftGet: { method: "GET", path: "/api/draft" },
   draftPut: { method: "POST", path: "/api/draft" },
   draftDelete: { method: "DELETE", path: "/api/draft" },
+  /**
+   * Draft mode's "Send to agent": persists the edited document body as the
+   * next plan version and resolves the session with a `draft` decision, so the
+   * blocking CLI hands the revision path to the coding agent.
+   */
+  draftSend: { method: "POST", path: "/api/draft/send" },
   upload: { method: "POST", path: "/api/upload" },
   image: { method: "GET", path: "/api/image" },
 } as const satisfies Record<string, ApiRoute>;
@@ -13154,8 +14224,11 @@ export interface PlanMeta {
   displayName: string;
 }
 
-/** Operating mode of the viewer. `plan` = Approve/Deny; `annotate` = Submit feedback. */
-export type ViewerMode = "plan" | "annotate";
+/**
+ * Operating mode of the viewer. `plan` = Approve/Deny; `annotate` = Submit
+ * feedback; `draft` = edit-first authoring (Send to agent / Approve).
+ */
+export type ViewerMode = "plan" | "annotate" | "draft";
 
 /** Response payload of `GET /api/plan`. */
 export interface PlanResponse {
@@ -13174,6 +14247,19 @@ export interface PlanVersionsResponse {
 export interface PlanVersionResponse {
   plan: string;
   meta: PlanMeta;
+}
+
+/**
+ * Draft-mode autosave payload stored via the same `/api/draft` endpoint (the
+ * server treats the body as an opaque string; the shape is client-enforced).
+ * `version` pins the payload to the boot version it was typed against —
+ * hydration ignores any other version, so a stale blob from a crashed prior
+ * run can never mask a fresh agent revision.
+ */
+export interface DraftBodyPayload {
+  markdown: string;
+  version: number;
+  updatedAt: number;
 }
 
 /**
@@ -13209,7 +14295,7 @@ export interface DraftPayload {
 import { readFile } from "node:fs/promises";
 
 import type { ViewerMode } from "./shared/apiTypes.ts";
-import { startServer, type RunningServer } from "./server/startServer.ts";
+import { startServer, type Decision, type RunningServer } from "./server/startServer.ts";
 
 interface CliArgs {
   planPath: string | null;
@@ -13231,7 +14317,8 @@ const parsePort = (raw: string | null): number | null => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-const parseMode = (raw: string | null): ViewerMode => (raw === "annotate" ? "annotate" : "plan");
+const parseMode = (raw: string | null): ViewerMode =>
+  raw === "annotate" || raw === "draft" ? raw : "plan";
 
 const parseArgs = (argv: string[]): CliArgs => ({
   planPath: flagValue(argv, "--plan"),
@@ -13254,14 +14341,13 @@ const readPlan = async (planPath: string | null): Promise<string> => {
   return readStdin();
 };
 
-const printDecision = (
-  decision:
-    | { kind: "approve" }
-    | { kind: "deny"; feedback: string }
-    | { kind: "feedback"; feedback: string }
-): void => {
+const printDecision = (decision: Decision): void => {
   if (decision.kind === "approve") {
     process.stdout.write("APPROVED\n");
+    return;
+  }
+  if (decision.kind === "draft") {
+    process.stdout.write(`DRAFT\n${decision.path}\n`);
     return;
   }
   if (decision.kind === "feedback") {
@@ -13271,11 +14357,7 @@ const printDecision = (
   process.stdout.write(`DENIED\n${decision.feedback}\n`);
 };
 
-const exitCodeFor = (kind: "approve" | "deny" | "feedback"): number => {
-  if (kind === "approve") return 0;
-  if (kind === "feedback") return 0;
-  return 2;
-};
+const exitCodeFor = (kind: Decision["kind"]): number => (kind === "deny" ? 2 : 0);
 
 const runOneShot = async (server: RunningServer): Promise<void> => {
   const decision = await server.resolved;
@@ -13886,12 +14968,13 @@ Core flows:
 - **UC2.** Agent revises a plan → viewer shows an inline diff between version N-1 and N → developer reviews the delta.
 - **UC3.** Developer annotates an arbitrary markdown document (`annotate` mode) and routes feedback back to the agent.
 - **UC4.** Developer shares an annotated plan; a teammate imports it, adds annotations, shares back.
+- **UC5.** Developer authors a plan in the edit-first `draft` mode (`/draft` skill or `symbiot draft`), iterates with the agent through versioned revisions with inline diffs, and approves to hand the agreed plan to the agent to implement.
 
 The persona (`P1`–`P3`), use-case (`UC1`–`UC4`), and `NFR-*` IDs above are **stable anchors**: the Playwright-BDD suite mirrors this taxonomy — feature files are grouped into `features/uc<n>-*/` and `features/nfr-*/` folders and tagged `@P<n>`/`@UC<n>`/`@NFR-<n>`, so per-persona coverage gaps are visible at the directory level (see [`features/README.md`](../features/README.md)). UC4 has no scenarios yet — that gap is intentional and tracked separately.
 
 ## Product principles
 
-1. **Read-first, edit-on-intent.** The default surface is a clean rendered document. Annotation tools appear on selection; they never clutter the reading experience.
+1. **Read-first, edit-on-intent.** The default surface is a clean rendered document. Annotation tools appear on selection; they never clutter the reading experience. The edit-first `draft` mode (UC5) coexists with this principle rather than diluting it: it is opt-in, entered only by an explicit user command (`/draft` / `symbiot draft`), and the read-first review/annotate surfaces are untouched by it.
 2. **Annotations are document data.** Every annotation is a node or mark in the Plate value, not an overlay keyed by character offset.
 3. **Markdown is the boundary.** Input is markdown, export is markdown, the wire format the agent sees is markdown. The Plate value is an internal representation only.
 4. **The model survives versions.** Annotations are anchored by Plate path _and_ an `originalText` text-quote fallback, so a re-rendered or diffed plan keeps annotations meaningful.
@@ -14007,20 +15090,21 @@ dependencies — it only knows about the tuple model and the Plate value shape
 `/api/*` endpoint. Both the Bun dispatch table and the client `apiClient` key
 into the same registry, so route paths and methods never drift.
 
-| Method | Path                    | Purpose                                      |
-| ------ | ----------------------- | -------------------------------------------- |
-| GET    | `/api/plan`             | Plan markdown + viewer mode for the session. |
-| GET    | `/api/plan/versions`    | Every persisted version + the current one.   |
-| GET    | `/api/plan/version?n=N` | Markdown of a specific version.              |
-| POST   | `/api/plan/vscode-diff` | Spawn `code --diff <from> <to>` on the host. |
-| POST   | `/api/approve`          | Reviewer approved the plan.                  |
-| POST   | `/api/deny`             | Reviewer denied with free-text feedback.     |
-| POST   | `/api/feedback`         | Annotate-mode reviewer submitted feedback.   |
-| GET    | `/api/draft`            | Resume an in-progress draft.                 |
-| POST   | `/api/draft`            | Persist the draft (debounced).               |
-| DELETE | `/api/draft`            | Clear the draft.                             |
-| POST   | `/api/upload`           | Upload an image to the plan's uploads dir.   |
-| GET    | `/api/image`            | Read back an uploaded image by UUID.         |
+| Method | Path                    | Purpose                                                                   |
+| ------ | ----------------------- | ------------------------------------------------------------------------- |
+| GET    | `/api/plan`             | Plan markdown + viewer mode for the session.                              |
+| GET    | `/api/plan/versions`    | Every persisted version + the current one.                                |
+| GET    | `/api/plan/version?n=N` | Markdown of a specific version.                                           |
+| POST   | `/api/plan/vscode-diff` | Spawn `code --diff <from> <to>` on the host.                              |
+| POST   | `/api/approve`          | Reviewer approved the plan (draft mode: body carries the final markdown). |
+| POST   | `/api/deny`             | Reviewer denied with free-text feedback.                                  |
+| POST   | `/api/feedback`         | Annotate-mode reviewer submitted feedback.                                |
+| GET    | `/api/draft`            | Resume an in-progress draft.                                              |
+| POST   | `/api/draft`            | Persist the draft (debounced).                                            |
+| DELETE | `/api/draft`            | Clear the draft.                                                          |
+| POST   | `/api/draft/send`       | Draft mode: persist the edited body as the next version + resolve.        |
+| POST   | `/api/upload`           | Upload an image to the plan's uploads dir.                                |
+| GET    | `/api/image`            | Read back an uploaded image by UUID.                                      |
 
 ## Architectural specials
 
@@ -14140,6 +15224,42 @@ obsolete, delete the bullet rather than hedging it.
   the existing maps-change snapshot effect rather than an explicit
   `onChange`. The edit is a no-op when the id is unknown, so a stale edit
   can never resurrect a removed annotation.
+
+### Draft mode (UC5)
+
+- **The iteration loop lives in the agent, not the server.** The viewer stays
+  one-shot: each `symbiot draft` invocation is one boot → one decision.
+  "Send to agent" persists the edited body as the next `00N.md` and resolves
+  `{ kind: "draft", path, version }`; the agent refines the file and re-runs
+  the CLI with the emitted `--slug`. `runPlanReview` is reused unchanged by a
+  thin `runDraft` wrapper (`@symbiot/agent-runtime/draft`). No polling, no
+  long-lived server, no `/api/*` lifecycle change.
+- **Decision routes stay repeatable after resolution.** approve / deny /
+  feedback / draft-send deliberately re-run `finalize` on every call (no
+  "already resolved" guard): the BDD harness drives many scenarios against
+  one `--keep-alive` viewer, and the production one-shot flow stops the
+  server after the first resolution anyway. Double-submit protection is
+  client-side (the `busy` phase disables the actions; in draft mode they
+  also stay disabled until the editor delivers its serialize-back handle).
+- **Slug continuity is explicit, not H1-derived.** `savePlan` accepts a slug
+  override (threaded from `StartServerOptions.slug` / the CLI `--slug` flag)
+  and mid-session revisions persist via `saveRevision` under the session's
+  `{project, slug}`. A retitled draft therefore cannot fork its version
+  history; H1-derived slugging remains the first-boot default only.
+- **Serializer normalization is invisible in the diff by construction.** The
+  draft editor's `getMarkdown()` is the repo's only Plate→markdown serialize
+  path; the version diff compares deserialized Plate values, not markdown
+  bytes, so canonical-form churn can never show up as phantom changes —
+  pinned by `packages/symbiot-editor/src/utils/markdownRoundTrip.test.ts`
+  (semantic losslessness + idempotency + zero diff ops). A byte-identical
+  Send also skips the version write entirely.
+- **Two draft shapes ride one `/api/draft` endpoint.** The server stores the
+  autosave body opaquely; review mode persists the annotation `DraftPayload`,
+  draft mode a markdown `DraftBodyPayload { markdown, version, updatedAt }`.
+  The mode branch in `PlanLoaded` sits ABOVE the draft hooks so each surface
+  parses with its own schema, and draft hydration applies only when the
+  payload's `version` equals the boot version (a stale blob from a crashed
+  run never masks a fresh CLI seed).
 
 ### Hook semantics
 
@@ -14372,10 +15492,11 @@ Agent exits plan mode
 
 ## Modes
 
-The viewer runs in one of two modes, surfaced as the `mode` field on `GET /api/plan`:
+The viewer runs in one of three modes, surfaced as the `mode` field on `GET /api/plan`:
 
 - **`plan`** — agent-driven plan review. The plan content is the live agent plan; the reviewer Approves or Denies.
 - **`annotate`** — arbitrary markdown annotation. The reviewer submits feedback; there is no Approve/Deny gate.
+- **`draft`** — human-initiated, edit-first authoring. The document body itself is editable (free text, no annotation tools); the author "Sends to agent" (persist revision + resolve) or Approves. See [Draft loop contract](#draft-loop-contract).
 
 ## Endpoints
 
@@ -14392,11 +15513,11 @@ The viewer runs in one of two modes, surfaced as the `mode` field on `GET /api/p
 
 ### Approve / deny / feedback
 
-| Method | Path            | Purpose                                                                            |
-| ------ | --------------- | ---------------------------------------------------------------------------------- |
-| POST   | `/api/approve`  | `plan` mode only — resolves the agent's plan-mode wait with "approved".            |
-| POST   | `/api/deny`     | `plan` mode only — resolves with "denied" + the serialized feedback markdown body. |
-| POST   | `/api/feedback` | `annotate` mode only — submits the serialized feedback markdown body to the agent. |
+| Method | Path            | Purpose                                                                                                                                                                       |
+| ------ | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/approve`  | Resolves the wait with "approved". Draft mode sends `{ markdown }` in the body: the final body is persisted as a version first and its path travels in the decision (`path`). |
+| POST   | `/api/deny`     | `plan` mode only — resolves with "denied" + the serialized feedback markdown body.                                                                                            |
+| POST   | `/api/feedback` | `annotate` mode only — submits the serialized feedback markdown body to the agent.                                                                                            |
 
 The feedback body in all three is the markdown produced by [`packages/symbiot-annotations`](../packages/symbiot-annotations/README.md). Its byte-level format is held constant by the golden fixtures under [`fixtures/golden/`](../fixtures/golden/README.md).
 
@@ -14409,6 +15530,31 @@ The feedback body in all three is the markdown produced by [`packages/symbiot-an
 | DELETE | `/api/draft` | Clears the persisted draft.                                                            |
 
 Drafts persist the reviewer's in-progress annotations across viewer restarts. Optional fields on `DraftPayload` accommodate drafts persisted by older viewer versions — the walker tolerates missing drift signals and falls back gracefully.
+
+In `draft` mode the same endpoint autosaves a markdown-shaped payload instead (`DraftBodyPayload { markdown, version, updatedAt }`); the server stores the body opaquely, so the shape is client-enforced. Hydration applies the payload only when its `version` matches the boot version — a stale blob from a crashed prior run never masks a fresh CLI seed.
+
+| Method | Path              | Purpose                                                                                                                                                                      |
+| ------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/draft/send` | `draft` mode's "Send to agent": persists `{ markdown }` as the next plan version under the session's `{project, slug}` and resolves with `{ kind: "draft", path, version }`. |
+
+`/api/draft/send` skips the write when the body is byte-identical to the boot plan (the boot version's path is reused), returns `400` on a missing/empty `markdown`, and returns `500` without resolving on a write failure so the session stays retryable.
+
+## Draft loop contract
+
+The normative contract between the `draft` CLI subcommand and the coding agent (the `/draft` skill and per-app READMEs reference this section rather than restating it). Each `symbiot draft [file.md] [--slug <slug>]` invocation is one viewer session → one outcome, emitted as a single machine-parseable marker line on stdout. The persisted `00N.md` file is the single source of truth — no markdown body travels over stdout.
+
+| Marker line                     | Meaning                                         | Exit code |
+| ------------------------------- | ----------------------------------------------- | --------- |
+| `SYMBIOT_DRAFT_REVISION <path>` | The author sent a revision; read it at `<path>` | 0         |
+| `SYMBIOT_DRAFT_APPROVED <path>` | The plan at `<path>` is agreed — implement it   | 0         |
+| `SYMBIOT_DRAFT_CANCELLED`       | The review resolved without a draft outcome     | 2         |
+| _(no marker)_                   | Unexpected resolution                           | 1         |
+
+Parse rules:
+
+- Parse **only the first stdout line that starts with `SYMBIOT_DRAFT_`** — plan bodies can legally contain the marker words.
+- A `SYMBIOT_DRAFT_REVISION` line is followed by a second line echoing the exact re-run form including `--slug <slug>`. The slug carries iteration continuity: re-running with it lands the refined revision in the same version history, so the viewer leads with the vN-1 → vN inline diff. Never edit the emitted `<path>` (a persisted version) in place — write the refined markdown to a new file and re-run.
+- A blank invocation (no file) seeds `# Untitled draft` under a generated unique slug so two untitled drafts never interleave.
 
 ### Image upload
 
@@ -14458,7 +15604,17 @@ Every viewer boot writes the plan as a fresh version under:
 - Writes are atomic (write to `.tmp` + `rename`).
 
 Storage helpers: `apps/viewer/src/server/storage.ts`. The relevant exports
-are `savePlan`, `loadPlan`, and `listVersions(meta)`.
+are `savePlan`, `loadPlan`, `saveRevision`, and `listVersions(meta)`.
+
+Draft mode (UC5) writes into the same layout: each `symbiot draft` boot
+persists its seed as the next `00N.md`, and "Send to agent" / a draft-mode
+Approve appends the edited body via `saveRevision` under the **session's**
+`{project, slug}` — never re-derived mid-session. Iteration continuity is
+carried by an explicit `--slug` handle (which `savePlan` accepts as an
+override), so a retitled draft cannot fork its history; the H1-derived slug
+remains the first-boot default. A re-opened revision therefore always has a
+predecessor in the same directory, and the draft session leads with the
+inline diff below (auto-compare on boot).
 
 ## Endpoints
 
@@ -15868,6 +17024,7 @@ from the actual subpath (never a barrel):
 | `@symbiot/agent-runtime`                  | `runPlanReview` — the spawn → await → decide loop                                  | all                      |
 | `@symbiot/agent-runtime/cli`              | `createCli` — dispatcher shell (usage/exit-64, error→exit-1)                       | all                      |
 | `@symbiot/agent-runtime/annotate`         | `runAnnotate` — the shared `annotate <file.md>` flow                               | all                      |
+| `@symbiot/agent-runtime/draft`            | `runDraft` — the shared `draft [file.md] [--slug]` flow + marker constants         | claude-code              |
 | `@symbiot/agent-runtime/hook-input`       | `readHookInput`, `flagValue`, `parsePort`, `createStopPlanExtractor`               | stdin hooks              |
 | `@symbiot/agent-runtime/decision`         | `emitBlockDecision`, `emitDecision` — the `{"decision":"block","reason"}` contract | stdin hooks              |
 | `@symbiot/agent-runtime/config-installer` | `createConfigHookInstaller` — merge a hook into a shared JSON settings file        | codex/gemini/claude-code |
@@ -17014,6 +18171,101 @@ Then("a draft was POSTed at least once", async ({ page }) => {
 });
 </file>
 
+<file path="features/steps/draftMode.steps.ts">
+import { readFile } from "node:fs/promises";
+
+import { expect } from "@playwright/test";
+
+import { Given, Then, When } from "../support/bdd.ts";
+import { resetDecisionFile, waitForDecision } from "../support/fixtures.ts";
+
+Given("I open the draft viewer", async ({ page, draftUrl }) => {
+  await page.goto(draftUrl);
+});
+
+Given("I open the draft iterate viewer", async ({ page, draftIterateUrl }) => {
+  await page.goto(draftIterateUrl);
+});
+
+Given("I open the draft autosave viewer", async ({ page, draftAutosaveUrl }) => {
+  await page.goto(draftAutosaveUrl);
+});
+
+When("the draft body autosave has flushed", async ({ page }) => {
+  // useDraftBody debounces 1s before POSTing the markdown body; wait for the
+  // server's 2xx so the persisted state is guaranteed before the reload.
+  await page.waitForResponse(
+    (res) => res.url().includes("/api/draft") && res.request().method() === "POST" && res.ok(),
+    { timeout: 5_000 }
+  );
+});
+
+When("I reload the draft viewer page", async ({ page }) => {
+  await page.reload();
+  await page.getByTestId("draft-editor-root").waitFor({ state: "visible" });
+});
+
+Then("the draft editor is visible", async ({ page }) => {
+  await page.getByTestId("draft-editor-root").waitFor({ state: "visible" });
+});
+
+Then("the draft top bar offers Send to agent and Approve", async ({ page }) => {
+  await page.getByTestId("send-to-agent").waitFor({ state: "visible" });
+  await page.getByTestId("top-bar-approve").waitFor({ state: "visible" });
+});
+
+Then("the annotation toolbar is not available", async ({ page }) => {
+  await expect(page.getByTestId("toolbar-comment")).toHaveCount(0);
+});
+
+When("I type {string} into the draft editor", async ({ page }, text: string) => {
+  await page.getByTestId("draft-editor-root").getByTestId("editor-paragraph").first().click();
+  await page.keyboard.type(text);
+});
+
+Then("the draft editor contains {string}", async ({ page }, text: string) => {
+  await expect(page.getByTestId("draft-editor-root")).toContainText(text);
+});
+
+When("I send the draft to the agent", async ({ page, draftDecisionFile }) => {
+  await resetDecisionFile(draftDecisionFile);
+  await page.getByTestId("send-to-agent").click();
+});
+
+When("I approve the draft", async ({ page, draftDecisionFile }) => {
+  await resetDecisionFile(draftDecisionFile);
+  await page.getByTestId("top-bar-approve").click();
+});
+
+Then(
+  "a draft decision is recorded pointing at a persisted revision",
+  async ({ draftDecisionFile }) => {
+    const decision = await waitForDecision(draftDecisionFile);
+    expect(decision.kind).toBe("draft");
+    if (decision.path === undefined) throw new Error("draft decision carries no path");
+    expect(await readFile(decision.path, "utf8")).toContain("# Draft seed plan");
+  }
+);
+
+Then(
+  "an approve decision is recorded pointing at the persisted plan",
+  async ({ draftDecisionFile }) => {
+    const decision = await waitForDecision(draftDecisionFile);
+    expect(decision.kind).toBe("approve");
+    if (decision.path === undefined) throw new Error("approve decision carries no path");
+    expect(await readFile(decision.path, "utf8")).toContain("# Draft seed plan");
+  }
+);
+
+Then("the submitted screen confirms the draft was sent", async ({ page }) => {
+  await expect(page.getByTestId("submitted-screen")).toContainText("Draft sent to the agent.");
+});
+
+Then("the submitted screen confirms the plan was approved", async ({ page }) => {
+  await expect(page.getByTestId("submitted-screen")).toContainText("Plan approved");
+});
+</file>
+
 <file path="features/steps/driftDetection.steps.ts">
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -17853,9 +19105,13 @@ interface CoverageFixture {
 interface ViewerUrlFixtures {
   annotateUrl: string;
   noHeadingUrl: string;
+  draftUrl: string;
+  draftIterateUrl: string;
+  draftAutosaveUrl: string;
   symbiotHome: string;
   planDecisionFile: string;
   annotateDecisionFile: string;
+  draftDecisionFile: string;
 }
 
 interface CodexHookFixture {
@@ -17908,6 +19164,15 @@ export const test = base.extend<
   noHeadingUrl: async ({ viewers }, provide) => {
     await provide(viewers.noHeadingUrl);
   },
+  draftUrl: async ({ viewers }, provide) => {
+    await provide(viewers.draftUrl);
+  },
+  draftIterateUrl: async ({ viewers }, provide) => {
+    await provide(viewers.draftIterateUrl);
+  },
+  draftAutosaveUrl: async ({ viewers }, provide) => {
+    await provide(viewers.draftAutosaveUrl);
+  },
   symbiotHome: async ({ viewers }, provide) => {
     await provide(viewers.home);
   },
@@ -17916,6 +19181,9 @@ export const test = base.extend<
   },
   annotateDecisionFile: async ({ viewers }, provide) => {
     await provide(viewers.annotateDecisionFile);
+  },
+  draftDecisionFile: async ({ viewers }, provide) => {
+    await provide(viewers.draftDecisionFile);
   },
   autoCoverage: [
     async ({ page, browserName }, use, testInfo) => {
@@ -18098,8 +19366,12 @@ import { expect } from "@playwright/test";
 
 /** Decision payload written by the viewer routes when `--decision-file` is set. */
 export interface DecisionRecord {
-  kind: "approve" | "deny" | "feedback";
+  kind: "approve" | "deny" | "feedback" | "draft";
   feedback?: string;
+  /** Absolute path of the persisted plan body (draft decisions; draft-mode approves). */
+  path?: string;
+  /** Persisted version number (draft decisions). */
+  version?: number;
   at?: number;
 }
 
@@ -18503,6 +19775,12 @@ import { repoRoot } from "./world.ts";
 const planPath = join(repoRoot, "fixtures", "markdown", "elements.md");
 /** Headingless plan booted by the no-heading viewer so the no-H1 document-title fallback is exercised. */
 const noHeadingPlanPath = join(repoRoot, "fixtures", "markdown", "no-heading.md");
+/** Seed booted by the draft-mode viewer (fresh slug, no predecessor → editable surface). */
+const draftSeedPath = join(repoRoot, "fixtures", "markdown", "draft-seed.md");
+/** Revision of the draft seed (same H1 → same slug) booted by the draft-iterate viewer AFTER the draft viewer, so it lands with a predecessor and leads with the inline diff. */
+const draftSeedRevisedPath = join(repoRoot, "fixtures", "markdown", "draft-seed-revised.md");
+/** Unique-H1 seed for the autosave-reload scenario — its own slug, no predecessor, and no scenario ever resolves this session, so autosave stays writable. */
+const draftAutosaveSeedPath = join(repoRoot, "fixtures", "markdown", "draft-autosave-seed.md");
 /** Viewer CLI entrypoint spawned once per mode, per worker. */
 const viewerBin = join(repoRoot, "apps", "viewer", "src", "bin.ts");
 /** Prefix for each worker's throwaway `HOME` under the OS temp dir; teardown removes its own dir. */
@@ -18521,12 +19799,20 @@ export interface ViewerInstances {
   annotateUrl: string;
   /** Headingless-plan viewer for the document-title no-H1 fallback. */
   noHeadingUrl: string;
+  /** Draft-mode viewer booted on a fresh slug (editable surface, no predecessor). */
+  draftUrl: string;
+  /** Draft-mode viewer booted as a revision of the draft seed (predecessor exists → leads with the diff). */
+  draftIterateUrl: string;
+  /** Draft-mode viewer reserved for the autosave-reload scenario (never resolved). */
+  draftAutosaveUrl: string;
   /** This worker's isolated `HOME`; `~/.symbiot` state lives under here. */
   home: string;
   /** Where the plan-mode viewer writes each Approve/Deny decision. */
   planDecisionFile: string;
   /** Where the annotate-mode viewer writes each Submit-feedback decision. */
   annotateDecisionFile: string;
+  /** Where the draft-mode viewer writes each Send-to-agent/Approve decision. */
+  draftDecisionFile: string;
 }
 
 /** A worker's running viewers plus the teardown that kills them and removes its `HOME`. */
@@ -18599,7 +19885,7 @@ const killViewer = (child: ChildProcess): Promise<void> => {
 const spawnViewer = async (
   home: string,
   plan: string,
-  mode: "plan" | "annotate",
+  mode: "plan" | "annotate" | "draft",
   decisionFile: string | null,
   label: string
 ): Promise<SpawnedViewer> => {
@@ -18651,6 +19937,7 @@ export const startWorkerViewers = async (): Promise<WorkerViewers> => {
 
     const planDecisionFile = join(home, "last-decision.json");
     const annotateDecisionFile = join(home, "annotate-decision.json");
+    const draftDecisionFile = join(home, "draft-decision.json");
 
     const plan = await spawnViewer(home, planPath, "plan", planDecisionFile, "plan");
     started.push(plan.child);
@@ -18664,15 +19951,40 @@ export const startWorkerViewers = async (): Promise<WorkerViewers> => {
     started.push(annotate.child);
     const noHeading = await spawnViewer(home, noHeadingPlanPath, "plan", null, "no-heading");
     started.push(noHeading.child);
+    // Order matters: the draft viewer boots the seed as 001.md of its slug, then
+    // the draft-iterate viewer boots the same-H1 revision as 002.md — giving the
+    // iterate session a predecessor so it leads with the inline diff.
+    const draft = await spawnViewer(home, draftSeedPath, "draft", draftDecisionFile, "draft");
+    started.push(draft.child);
+    const draftIterate = await spawnViewer(
+      home,
+      draftSeedRevisedPath,
+      "draft",
+      null,
+      "draft-iterate"
+    );
+    started.push(draftIterate.child);
+    const draftAutosave = await spawnViewer(
+      home,
+      draftAutosaveSeedPath,
+      "draft",
+      null,
+      "draft-autosave"
+    );
+    started.push(draftAutosave.child);
 
     return {
       instances: {
         planUrl: plan.url,
         annotateUrl: annotate.url,
         noHeadingUrl: noHeading.url,
+        draftUrl: draft.url,
+        draftIterateUrl: draftIterate.url,
+        draftAutosaveUrl: draftAutosave.url,
         home,
         planDecisionFile,
         annotateDecisionFile,
+        draftDecisionFile,
       },
       stop: cleanup,
     };
@@ -19468,6 +20780,68 @@ Feature: Annotate mode — task checkbox feedback
     And the annotation sidebar shows a task entry "Mark as not done"
 </file>
 
+<file path="features/uc5-draft-plan/draft-approve.feature">
+@P1 @UC5
+Feature: Approve a draft plan
+  Approve ends the iteration loop: the final body is persisted as a version
+  and its path travels to the blocking CLI, which hands the agreed plan to the
+  coding agent to implement.
+
+  Scenario: Approve persists the final body and hands the plan to the agent
+    Given I open the draft viewer
+    When I approve the draft
+    Then an approve decision is recorded pointing at the persisted plan
+    And the submitted screen confirms the plan was approved
+</file>
+
+<file path="features/uc5-draft-plan/draft-author.feature">
+@P1 @UC5
+Feature: Author a draft plan
+  Draft mode is the edit-first inverse of plan review: the developer writes
+  plan markdown directly in the viewer and sends it to the coding agent as a
+  persisted revision.
+
+  Scenario: Draft mode presents an editable authoring surface
+    Given I open the draft viewer
+    Then the draft editor is visible
+    And the draft top bar offers Send to agent and Approve
+    And the annotation toolbar is not available
+
+  Scenario: Typing lands in the draft document
+    Given I open the draft viewer
+    When I type "BDD typed this." into the draft editor
+    Then the draft editor contains "BDD typed this."
+
+  Scenario: Typed draft text survives a reload via autosave
+    Given I open the draft autosave viewer
+    When I type "Autosaved sentence." into the draft editor
+    And the draft body autosave has flushed
+    And I reload the draft viewer page
+    Then the draft editor contains "Autosaved sentence."
+
+  Scenario: Send to agent persists the revision and resolves a draft decision
+    Given I open the draft viewer
+    When I send the draft to the agent
+    Then a draft decision is recorded pointing at a persisted revision
+    And the submitted screen confirms the draft was sent
+</file>
+
+<file path="features/uc5-draft-plan/draft-iterate.feature">
+@P1 @UC5
+Feature: Iterate on a draft revision
+  When the agent re-opens the viewer with a refined revision (same slug, so a
+  predecessor exists on disk), the session leads with the inline diff between
+  the previous version and the revision; Back to editing returns the author to
+  the editable surface.
+
+  Scenario: A reopened revision leads with the inline diff
+    Given I open the draft iterate viewer
+    Then the diff editor is visible
+    When I click the sidebar history tab
+    And I click the back to editing button
+    Then the draft editor is visible
+</file>
+
 <file path="features/opencode-harness.ts">
 /**
  * Bun-only harness that drives the in-process OpenCode plugin against a fixture so
@@ -19560,20 +20934,21 @@ features/
 ```
 
 Feature folders are keyed to the **story IDs in [`docs/01-product.md`](../docs/01-product.md)**
-(personas `P1`–`P3`, use cases `UC1`–`UC4`, non-functional requirements `NFR-1`..`NFR-9`),
+(personas `P1`–`P3`, use cases `UC1`–`UC5`, non-functional requirements `NFR-1`..`NFR-9`),
 not to UI surfaces. Each `.feature` lives in exactly one story folder — its primary
 journey — so per-persona coverage gaps are visible at the directory level.
 
-| Folder                    | Story                                                    |
-| ------------------------- | -------------------------------------------------------- |
-| `uc1-review-and-approve/` | UC1 — review, annotate, approve / request changes (P1)   |
-| `uc2-version-diff/`       | UC2 — inline diff between plan versions (P1)             |
-| `uc3-annotate-doc/`       | UC3 — annotate an arbitrary markdown document (P1)       |
-| `nfr-a11y/`               | NFR-5 — accessibility baseline                           |
-| `nfr-theming/`            | NFR-9 — theming integrity, no FOUC                       |
-| `nfr-markdown-fidelity/`  | NFR-4 — deterministic markdown rendering / round-trip    |
-| `nfr-upload-security/`    | NFR-3 — upload contract & zero-knowledge guarantees (P3) |
-| `diagnostics/`            | Cross-cutting dev diagnostics (no product-spec ID)       |
+| Folder                    | Story                                                      |
+| ------------------------- | ---------------------------------------------------------- |
+| `uc1-review-and-approve/` | UC1 — review, annotate, approve / request changes (P1)     |
+| `uc2-version-diff/`       | UC2 — inline diff between plan versions (P1)               |
+| `uc3-annotate-doc/`       | UC3 — annotate an arbitrary markdown document (P1)         |
+| `uc5-draft-plan/`         | UC5 — author a draft, iterate with the agent, approve (P1) |
+| `nfr-a11y/`               | NFR-5 — accessibility baseline                             |
+| `nfr-theming/`            | NFR-9 — theming integrity, no FOUC                         |
+| `nfr-markdown-fidelity/`  | NFR-4 — deterministic markdown rendering / round-trip      |
+| `nfr-upload-security/`    | NFR-3 — upload contract & zero-knowledge guarantees (P3)   |
+| `diagnostics/`            | Cross-cutting dev diagnostics (no product-spec ID)         |
 
 > **UC4 (share → import → respond, persona P2) has no folder yet** — there are no
 > scenarios for it. That gap is intentional and visible; filling it is tracked as a
@@ -19600,12 +20975,13 @@ quality bar this scenario exercises_. Filter a run by any tag with
 
 **`@UC<n>` — use case** (_which journey_ the scenario covers):
 
-| Tag    | Use case                                                                  |
-| ------ | ------------------------------------------------------------------------- |
-| `@UC1` | Plan emitted → developer reviews, annotates, approves / requests changes  |
-| `@UC2` | Plan revised → inline diff between version N-1 and N → review the delta   |
-| `@UC3` | Developer annotates an arbitrary markdown document in `annotate` mode     |
-| `@UC4` | Plan shared → teammate imports, annotates, shares back (no scenarios yet) |
+| Tag    | Use case                                                                     |
+| ------ | ---------------------------------------------------------------------------- |
+| `@UC1` | Plan emitted → developer reviews, annotates, approves / requests changes     |
+| `@UC2` | Plan revised → inline diff between version N-1 and N → review the delta      |
+| `@UC3` | Developer annotates an arbitrary markdown document in `annotate` mode        |
+| `@UC4` | Plan shared → teammate imports, annotates, shares back (no scenarios yet)    |
+| `@UC5` | Developer authors a draft in `draft` mode, iterates with the agent, approves |
 
 **`@NFR-<n>` — non-functional requirement** (_which quality bar_ the scenario locks in):
 
@@ -20201,6 +21577,31 @@ I've reviewed this plan and have 2 pieces of feedback:
 ---
 </file>
 
+<file path="fixtures/markdown/draft-autosave-seed.md">
+# Draft autosave seed
+
+Seed for the autosave-reload BDD scenario; this session is never resolved.
+</file>
+
+<file path="fixtures/markdown/draft-seed-revised.md">
+# Draft seed plan
+
+A human-authored starting point for the draft-mode BDD scenarios, refined by the agent.
+
+- First step
+- Second step
+- Third step
+</file>
+
+<file path="fixtures/markdown/draft-seed.md">
+# Draft seed plan
+
+A human-authored starting point for the draft-mode BDD scenarios.
+
+- First step
+- Second step
+</file>
+
 <file path="fixtures/markdown/elements-revised.md">
 # Example plan with every supported markdown element
 
@@ -20337,10 +21738,12 @@ the project context alone).
 
 Sample markdown documents used by the Playwright-BDD harness, the perf script, and for manual smoke tests of the viewer.
 
-| File                  | Purpose                                                                                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `elements.md`         | Default fixture — exercises every supported markdown element in one pass.                                                                                                      |
-| `elements-revised.md` | Same H1 (and therefore same on-disk slug) as `elements.md`, with intentional changes so the inline diff has insertions, a deletion, and an inline word replacement to surface. |
+| File                    | Purpose                                                                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `elements.md`           | Default fixture — exercises every supported markdown element in one pass.                                                                                                      |
+| `elements-revised.md`   | Same H1 (and therefore same on-disk slug) as `elements.md`, with intentional changes so the inline diff has insertions, a deletion, and an inline word replacement to surface. |
+| `draft-seed.md`         | Seed for the draft-mode (UC5) BDD viewer — boots the editable authoring surface on a fresh slug.                                                                               |
+| `draft-seed-revised.md` | Same H1 as `draft-seed.md`; booted after it by the draft-iterate BDD viewer so the revision lands with a predecessor and leads with the inline diff.                           |
 
 ## Manual diff smoke
 
@@ -21846,6 +23249,256 @@ export const emitDecision = async (decision: ReviewDecision): Promise<number> =>
 };
 </file>
 
+<file path="packages/symbiot-agent-runtime/src/draft.test.ts">
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import type { RunningServer, StartServerOptions } from "@symbiot/viewer";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  blankDraftSeed,
+  draftApprovedMarker,
+  draftCancelledMarker,
+  draftRevisionMarker,
+  runDraft,
+} from "./draft.ts";
+
+type ReviewDecision = Awaited<RunningServer["resolved"]>;
+
+interface StubState {
+  receivedOptions: StartServerOptions | null;
+}
+
+const stubStartServer =
+  (decision: ReviewDecision, state: StubState) =>
+  async (options: StartServerOptions): Promise<RunningServer> => {
+    state.receivedOptions = options;
+    return {
+      url: "http://127.0.0.1:0/",
+      meta: { project: "p", slug: "s", version: 1, displayName: "p" },
+      resolved: Promise.resolve(decision),
+      stop: async () => undefined,
+    };
+  };
+
+const run = async (
+  argv: string[],
+  decision: ReviewDecision
+): Promise<{ code: number; stdout: string; options: StartServerOptions | null }> => {
+  const state: StubState = { receivedOptions: null };
+  const lines: string[] = [];
+  vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+    lines.push(String(chunk));
+    return true;
+  });
+  vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+  const code = await runDraft({
+    argv,
+    binName: "symbiot",
+    agentId: "claude-code",
+    indexHtmlGz: "/tmp/index.html.gz",
+    startServer: stubStartServer(decision, state),
+  });
+  return { code, stdout: lines.join(""), options: state.receivedOptions };
+};
+
+const revisionPath = "/home/u/.symbiot/agents/claude-code/history/proj/my-plan/003.md";
+
+describe("runDraft", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("emits the revision marker with the persisted path and a --slug re-run hint", async () => {
+    const { code, stdout } = await run([], { kind: "draft", path: revisionPath, version: 3 });
+    expect(code).toBe(0);
+    expect(stdout.split("\n")[0]).toBe(`${draftRevisionMarker} ${revisionPath}`);
+    expect(stdout).toContain("--slug my-plan");
+  });
+
+  it("emits the approved marker with the final path on approve", async () => {
+    const { code, stdout } = await run([], { kind: "approve", path: revisionPath });
+    expect(code).toBe(0);
+    expect(stdout.split("\n")[0]).toBe(`${draftApprovedMarker} ${revisionPath}`);
+  });
+
+  it("emits the cancelled marker and exits 2 on a deny resolution", async () => {
+    const { code, stdout } = await run([], { kind: "deny", feedback: "" });
+    expect(code).toBe(2);
+    expect(stdout.split("\n")[0]).toBe(draftCancelledMarker);
+  });
+
+  it("exits 1 without a marker on an unexpected feedback resolution", async () => {
+    const { code, stdout } = await run([], { kind: "feedback", feedback: "note" });
+    expect(code).toBe(1);
+    expect(stdout).toBe("");
+  });
+
+  it("boots a blank session with the seed markdown, draft mode, and a minted unique slug", async () => {
+    const { options } = await run([], { kind: "approve", path: revisionPath });
+    expect(options?.plan).toBe(blankDraftSeed);
+    expect(options?.mode).toBe("draft");
+    expect(options?.slug).toMatch(/^draft-[0-9a-f]{8}$/);
+  });
+
+  it("reads the seed file and forwards an explicit --slug", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "symbiot-draft-test-"));
+    const file = join(dir, "seed.md");
+    await writeFile(file, "# Seeded\n");
+    const { options } = await run([file, "--slug", "pinned"], {
+      kind: "draft",
+      path: revisionPath,
+      version: 3,
+    });
+    expect(options?.plan).toBe("# Seeded\n");
+    expect(options?.slug).toBe("pinned");
+  });
+
+  it("defers to the viewer's H1-derived slug for a seeded file without --slug", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "symbiot-draft-test-"));
+    const file = join(dir, "seed.md");
+    await writeFile(file, "# Seeded\n");
+    const { options } = await run([file], { kind: "approve", path: revisionPath });
+    expect(options?.slug).toBeUndefined();
+  });
+
+  it("rejects when the seed file does not exist", async () => {
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    await expect(
+      runDraft({
+        argv: ["/nonexistent/seed.md"],
+        binName: "symbiot",
+        agentId: "claude-code",
+        indexHtmlGz: "/tmp/index.html.gz",
+        startServer: stubStartServer({ kind: "approve" }, { receivedOptions: null }),
+      })
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+</file>
+
+<file path="packages/symbiot-agent-runtime/src/draft.ts">
+/**
+ * Shared `draft [file.md] [--slug <slug>]` flow for every agent integration.
+ *
+ * `draft` boots the viewer in the edit-first draft mode — blank seed or seeded
+ * from a markdown file — blocks until the author acts, and reports the outcome
+ * to the invoking coding agent as a single machine-parseable marker line on
+ * stdout (the persisted `00N.md` file is the single source of truth; no
+ * markdown body travels over stdout). The iteration loop is agent-mediated:
+ * on a revision marker the agent refines the file and re-runs `draft` with the
+ * emitted `--slug`, which keeps every revision in one version history so the
+ * viewer can lead with the vN-1 → vN inline diff. The normative marker/exit
+ * contract lives in `docs/03-server-contract.md`.
+ *
+ * @example
+ * ```ts
+ * import { runDraft } from "@symbiot/agent-runtime/draft";
+ * import indexHtmlGz from "@symbiot/viewer/dist/embed/index.html.gz" with { type: "file" };
+ * const exitCode = await runDraft({ argv, binName: "symbiot", agentId: "claude-code", indexHtmlGz });
+ * ```
+ */
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { basename, dirname } from "node:path";
+
+import type { RunningServer } from "@symbiot/viewer";
+
+import { flagValue } from "./hook-input.ts";
+import { runPlanReview, type RunPlanReviewOptions } from "./runPlanReview.ts";
+
+type ReviewDecision = Awaited<RunningServer["resolved"]>;
+
+/** First token of the stdout line emitted when the author sends a revision to the agent. */
+export const draftRevisionMarker = "SYMBIOT_DRAFT_REVISION";
+/** First token of the stdout line emitted when the author approves the draft as the agreed plan. */
+export const draftApprovedMarker = "SYMBIOT_DRAFT_APPROVED";
+/** Stdout line emitted when the review resolves without a draft outcome (cancelled). */
+export const draftCancelledMarker = "SYMBIOT_DRAFT_CANCELLED";
+
+/** Seed markdown for a blank draft session (no file argument). */
+export const blankDraftSeed = "# Untitled draft\n";
+
+/** Options for {@link runDraft}. */
+export interface RunDraftOptions {
+  /** Argv tail after the `draft` subcommand: `[file.md] [--slug <slug>]`. */
+  argv: string[];
+  /** Bin name used in usage/stderr lines (e.g. `symbiot`). */
+  binName: string;
+  /** Storage namespace passed to the viewer (e.g. `claude-code`). */
+  agentId: string;
+  /** The embedded viewer bundle, imported by the app with `{ type: "file" }`. */
+  indexHtmlGz: string;
+  /** Injection seam for tests; defaults to the real `@symbiot/viewer` `startServer`. */
+  startServer?: RunPlanReviewOptions["startServer"];
+}
+
+const filePathFrom = (argv: string[]): string | undefined =>
+  argv.find((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--slug");
+
+/**
+ * Resolve the session slug: an explicit `--slug` wins; a blank session mints a
+ * unique slug so two untitled drafts never interleave in one history; a seeded
+ * file defers to the viewer's H1-derived default (first boot only — every
+ * marker echoes the resolved slug for the re-run).
+ */
+const slugFrom = (argv: string[], filePath: string | undefined): string | undefined => {
+  const explicit = flagValue(argv, "--slug");
+  if (explicit !== null) return explicit;
+  return filePath === undefined ? `draft-${randomUUID().slice(0, 8)}` : undefined;
+};
+
+const emitDraftOutcome = (decision: ReviewDecision, binName: string): number => {
+  if (decision.kind === "draft") {
+    const slug = basename(dirname(decision.path));
+    process.stdout.write(`${draftRevisionMarker} ${decision.path}\n`);
+    process.stdout.write(`re-run after refining: ${binName} draft <refined.md> --slug ${slug}\n`);
+    return 0;
+  }
+  if (decision.kind === "approve") {
+    process.stdout.write(
+      decision.path === undefined
+        ? `${draftApprovedMarker}\n`
+        : `${draftApprovedMarker} ${decision.path}\n`
+    );
+    return 0;
+  }
+  if (decision.kind === "deny") {
+    process.stdout.write(`${draftCancelledMarker}\n`);
+    return 2;
+  }
+  return 1;
+};
+
+/**
+ * Boot the viewer in draft mode. Exits 0 with a `SYMBIOT_DRAFT_REVISION` or
+ * `SYMBIOT_DRAFT_APPROVED` marker line, 2 with `SYMBIOT_DRAFT_CANCELLED` on a
+ * cancelled review, 1 on any other resolution.
+ */
+export const runDraft = async ({
+  argv,
+  binName,
+  agentId,
+  indexHtmlGz,
+  startServer,
+}: RunDraftOptions): Promise<number> => {
+  const filePath = filePathFrom(argv);
+  const slug = slugFrom(argv, filePath);
+  const plan = filePath === undefined ? blankDraftSeed : await readFile(filePath, "utf8");
+  return runPlanReview({
+    plan,
+    mode: "draft",
+    serverOptions: { indexHtmlGz, agentId, ...(slug === undefined ? {} : { slug }) },
+    startServer,
+    onStart: (url) =>
+      process.stderr.write(`${binName}: draft ${filePath ?? "(blank)"} at ${url}\n`),
+    onResolved: (decision) => emitDraftOutcome(decision, binName),
+  });
+};
+</file>
+
 <file path="packages/symbiot-agent-runtime/src/hook-command.test.ts">
 import { describe, expect, it } from "vitest";
 
@@ -22678,6 +24331,7 @@ export const runPlanReview = async ({
     ".": "./src/runPlanReview.ts",
     "./cli": "./src/cli.ts",
     "./annotate": "./src/annotate.ts",
+    "./draft": "./src/draft.ts",
     "./hook-input": "./src/hook-input.ts",
     "./decision": "./src/decision.ts",
     "./config-installer": "./src/config-installer.ts",
@@ -22762,15 +24416,16 @@ its return value (sync or async) becomes the resolved exit code.
 Beyond `runPlanReview`, this package owns the boilerplate that is identical across
 agent apps, each on its own subpath import (no barrel — import the actual path):
 
-| Import               | Exports                                                                             |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| `…/cli`              | `createCli` — dispatcher shell (usage/exit-64, error→exit-1)                        |
-| `…/annotate`         | `runAnnotate` — the shared `annotate <file.md>` flow                                |
-| `…/hook-input`       | `readHookInput`, `flagValue`, `parsePort`, `createStopPlanExtractor`                |
-| `…/decision`         | `emitBlockDecision`, `emitDecision` — the `{"decision":"block",…}` contract         |
-| `…/config-installer` | `createConfigHookInstaller` — merge a hook into a shared JSON settings file         |
-| `…/managed-file`     | `writeAtomic`, `readOwnership`, `removeIfOwned` — atomic write + ownership sentinel |
-| `…/marker-store`     | `createMarkerStore` — TTL re-entrancy markers under `~/.symbiot/hook-state/`        |
+| Import               | Exports                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `…/cli`              | `createCli` — dispatcher shell (usage/exit-64, error→exit-1)                                                                                                                         |
+| `…/annotate`         | `runAnnotate` — the shared `annotate <file.md>` flow                                                                                                                                 |
+| `…/draft`            | `runDraft` — the shared `draft [file.md] [--slug]` flow + `SYMBIOT_DRAFT_*` markers (contract: [`docs/03-server-contract.md`](../../docs/03-server-contract.md#draft-loop-contract)) |
+| `…/hook-input`       | `readHookInput`, `flagValue`, `parsePort`, `createStopPlanExtractor`                                                                                                                 |
+| `…/decision`         | `emitBlockDecision`, `emitDecision` — the `{"decision":"block",…}` contract                                                                                                          |
+| `…/config-installer` | `createConfigHookInstaller` — merge a hook into a shared JSON settings file                                                                                                          |
+| `…/managed-file`     | `writeAtomic`, `readOwnership`, `removeIfOwned` — atomic write + ownership sentinel                                                                                                  |
+| `…/marker-store`     | `createMarkerStore` — TTL re-entrancy markers under `~/.symbiot/hook-state/`                                                                                                         |
 
 An agent app supplies only its deltas (bin name, `agentId`, event/message field,
 install target/timeout, embedded `viewerHtmlGz`). See
@@ -26427,6 +28082,127 @@ export const DiffLeaf = (props: PlateLeafProps): React.ReactElement => {
     >
       {props.children}
     </PlateLeaf>
+  );
+};
+</file>
+
+<file path="packages/symbiot-editor/src/components/DraftEditor.test.tsx">
+// @vitest-environment happy-dom
+import { MarkdownPlugin } from "@platejs/markdown";
+import { render } from "@testing-library/react";
+import { createSlateEditor } from "platejs";
+import { describe, expect, it, vi } from "vitest";
+
+import { SymbiotDraftKit } from "../utils/kit.ts";
+
+import { DraftEditor, type DraftEditorHandle } from "./DraftEditor.tsx";
+
+const seed = "# Feature plan\n\nAdd the thing.\n";
+
+describe("draft value pipeline (headless)", () => {
+  it("editing the value changes what serializes back to markdown", () => {
+    const editor = createSlateEditor({ plugins: SymbiotDraftKit });
+    const md = editor.getApi(MarkdownPlugin).markdown;
+    editor.children = md.deserialize(seed);
+    editor.tf.insertText("Revised: ", { at: { path: [1, 0], offset: 0 } });
+    const serialized = md.serialize();
+    expect(serialized).toContain("Revised: Add the thing.");
+    expect(serialized).toContain("# Feature plan");
+  });
+});
+
+describe("DraftEditor component", () => {
+  it("renders an editable surface and exposes a markdown round-trip handle", () => {
+    let handle: DraftEditorHandle | null = null;
+    const onReady = vi.fn((h: DraftEditorHandle) => {
+      handle = h;
+    });
+    const { container } = render(<DraftEditor markdown={seed} onReady={onReady} />);
+
+    expect(container.querySelector('[data-testid="draft-editor-root"]')).not.toBeNull();
+    // Editable: PlateContent must NOT render contenteditable=false (draft mode types directly).
+    const editable = container.querySelector("[contenteditable]");
+    expect(editable?.getAttribute("contenteditable")).toBe("true");
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+    if (handle === null) throw new Error("onReady did not deliver a handle");
+    const roundTripped = (handle as DraftEditorHandle).getMarkdown();
+    expect(roundTripped).toContain("# Feature plan");
+    expect(roundTripped).toContain("Add the thing.");
+  });
+});
+</file>
+
+<file path="packages/symbiot-editor/src/components/DraftEditor.tsx">
+import { MarkdownPlugin } from "@platejs/markdown";
+import { useCallback, useEffect } from "react";
+import { Plate, PlateContent, usePlateEditor } from "platejs/react";
+
+import { SymbiotDraftKit } from "../utils/kit.ts";
+
+/**
+ * Imperative handle exposed by {@link DraftEditor} once Plate is constructed.
+ * The host pulls markdown lazily (autosave, Send to agent, Approve) instead of
+ * paying serialization on every keystroke.
+ */
+export interface DraftEditorHandle {
+  /** Serialize the current Plate value back to markdown. */
+  getMarkdown: () => string;
+}
+
+/** Props accepted by {@link DraftEditor}. */
+interface DraftEditorProps {
+  /** Markdown the draft session boots from (seed file or blank template). */
+  markdown: string;
+  /** Receives the imperative handle once Plate is constructed. */
+  onReady?: (handle: DraftEditorHandle) => void;
+  /** Fires on every Plate editor change; pull markdown via the handle when needed. */
+  onChange?: () => void;
+}
+
+/**
+ * Editable Plate editor for the `draft` viewer mode — the author writes plan
+ * markdown as free text. Unlike {@link ReviewEditor} there is no `readOnly`
+ * and no typing guard: the document body itself is the editing surface, and
+ * annotation marks never apply here ({@link SymbiotDraftKit} carries only the
+ * shared markdown surface). `getMarkdown()` runs the markdown round-trip in
+ * reverse (`editor.api.markdown.serialize`), pinned deterministic and lossless
+ * by `utils/markdownRoundTrip.test.ts` (NFR-4).
+ *
+ * @example
+ * ```tsx
+ * <DraftEditor
+ *   markdown={plan}
+ *   onReady={(handle) => { handleRef.current = handle; }}
+ *   onChange={scheduleAutosave}
+ * />
+ * ```
+ */
+export const DraftEditor = ({
+  markdown,
+  onReady,
+  onChange,
+}: DraftEditorProps): React.ReactElement => {
+  const editor = usePlateEditor({
+    plugins: SymbiotDraftKit,
+    value: (e): never => e.getApi(MarkdownPlugin).markdown.deserialize(markdown) as never,
+  });
+
+  useEffect(() => {
+    onReady?.({ getMarkdown: () => editor.getApi(MarkdownPlugin).markdown.serialize() });
+  }, [editor, onReady]);
+
+  const handleChange = useCallback(() => onChange?.(), [onChange]);
+
+  return (
+    <div
+      data-testid="draft-editor-root"
+      className="prose prose-neutral dark:prose-invert relative mx-auto max-w-3xl"
+    >
+      <Plate editor={editor} onChange={handleChange}>
+        <PlateContent className="outline-none" />
+      </Plate>
+    </div>
   );
 };
 </file>
@@ -30196,7 +31972,7 @@ import { MarkdownPlugin } from "@platejs/markdown";
 import { createSlateEditor } from "platejs";
 import { describe, expect, it } from "vitest";
 
-import { SymbiotEditorKit } from "./kit.ts";
+import { SymbiotDraftKit, SymbiotEditorKit } from "./kit.ts";
 
 describe("SymbiotEditorKit markdown deserialization", () => {
   it("turns `inline code` markdown into a leaf carrying the code mark", () => {
@@ -30206,6 +31982,17 @@ describe("SymbiotEditorKit markdown deserialization", () => {
     expect(flat).toContain('"code":true');
     expect(flat).toContain('"command"');
     expect(flat).not.toMatch(/`command`/);
+  });
+});
+
+describe("SymbiotDraftKit markdown deserialization", () => {
+  it("deserializes the markdown surface identically to the review kit", () => {
+    const markdown = "# Title\n\nA `command` here.\n\n- item one\n- item two\n";
+    const draftEditor = createSlateEditor({ plugins: SymbiotDraftKit });
+    const reviewEditor = createSlateEditor({ plugins: SymbiotEditorKit });
+    const draftValue = draftEditor.getApi(MarkdownPlugin).markdown.deserialize(markdown);
+    const reviewValue = reviewEditor.getApi(MarkdownPlugin).markdown.deserialize(markdown);
+    expect(draftValue).toEqual(reviewValue);
   });
 });
 </file>
@@ -30270,7 +32057,7 @@ const MarkdownWithGfm = MarkdownPlugin.configure({
  * read-write review editors render the same prose tokens (paragraphs, tables,
  * lists, code blocks, void elements), so the shared base lives once here and
  * the per-mode appendices are layered on top in {@link SymbiotEditorKit} /
- * {@link SymbiotDiffKit}.
+ * {@link SymbiotDiffKit} / {@link SymbiotDraftKit}.
  *
  * `HorizontalRulePlugin` ships with `render: { as: "hr" }`, which React 19
  * rejects because Slate-React always passes a zero-width text node as
@@ -30340,6 +32127,89 @@ export const SymbiotEditorKit = [
  * appended last so its leaf renderer wins on any leaf carrying `leaf.diff`.
  */
 export const SymbiotDiffKit = [...symbiotBaseKit, DiffPlugin];
+
+/**
+ * Plate plugin composition for the editable draft editor (`draft` viewer
+ * mode). The bare shared markdown surface: no annotation-authoring plugins
+ * (drafting is free-text typing, not review marks) and no `DiffPlugin`
+ * (revision diffs render in the separate read-only diff viewer).
+ */
+export const SymbiotDraftKit = [...symbiotBaseKit];
+</file>
+
+<file path="packages/symbiot-editor/src/utils/markdownRoundTrip.test.ts">
+/**
+ * NFR-4 gate for the draft mode's serialize-back path: markdown → Plate →
+ * markdown must be semantically lossless, deterministic, and invisible to the
+ * version diff.
+ *
+ * Canonical form: the first `serialize` pass MAY re-normalize byte-level
+ * syntax the parser treats as equivalent (emphasis markers, list bullets,
+ * fence style, wrapping). That normalized output is the canonical form — the
+ * idempotency assertion pins that a second pass is byte-stable, and the
+ * diff-cleanliness assertion pins that normalization can never surface as
+ * phantom changes in the revision diff (the diff compares deserialized Plate
+ * values, not markdown bytes).
+ */
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { MarkdownPlugin } from "@platejs/markdown";
+import { createSlateEditor } from "platejs";
+import { describe, expect, it } from "vitest";
+
+import { computeDiffValue, hasAnyDiff } from "./diffPlugin.ts";
+import { SymbiotDiffKit, SymbiotDraftKit } from "./kit.ts";
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
+
+/**
+ * Every element class the viewer supports (elements.md) plus the golden
+ * feedback bodies — tables, nested lists, task lists, code fences, quotes.
+ */
+const corpus = [
+  "fixtures/markdown/elements.md",
+  "fixtures/markdown/elements-revised.md",
+  "fixtures/markdown/no-heading.md",
+  "fixtures/golden/comment.md",
+  "fixtures/golden/global-comment.md",
+  "fixtures/golden/deletion.md",
+  "fixtures/golden/insertion.md",
+  "fixtures/golden/replacement.md",
+  "fixtures/golden/mixed.md",
+  "fixtures/golden/task.md",
+];
+
+const draftMd = createSlateEditor({ plugins: SymbiotDraftKit }).getApi(MarkdownPlugin).markdown;
+
+describe.each(corpus)("markdown round-trip: %s", (fixture) => {
+  const load = (): Promise<string> => readFile(join(repoRoot, fixture), "utf8");
+
+  it("is semantically lossless (deserialize ∘ serialize is identity on Plate values)", async () => {
+    const source = await load();
+    const value = draftMd.deserialize(source);
+    const serialized = draftMd.serialize({ value });
+    expect(draftMd.deserialize(serialized)).toEqual(value);
+  });
+
+  it("serialize is idempotent (second pass is byte-stable)", async () => {
+    const source = await load();
+    const canonical = draftMd.serialize({ value: draftMd.deserialize(source) });
+    const secondPass = draftMd.serialize({ value: draftMd.deserialize(canonical) });
+    expect(secondPass).toBe(canonical);
+  });
+
+  it("normalization never surfaces in the version diff (zero diff ops)", async () => {
+    const source = await load();
+    const diffEditor = createSlateEditor({ plugins: SymbiotDiffKit });
+    const md = diffEditor.getApi(MarkdownPlugin).markdown;
+    const original = md.deserialize(source);
+    const roundTripped = md.deserialize(draftMd.serialize({ value: original }));
+    const diff = computeDiffValue(original, roundTripped, diffEditor);
+    expect(hasAnyDiff(diff)).toBe(false);
+  });
+});
 </file>
 
 <file path="packages/symbiot-editor/src/utils/removeAnnotationMark.test.ts">
@@ -30963,6 +32833,15 @@ ReviewEditor                          DiffEditor
                                           a single visual language.
 ```
 
+`DraftEditor` (the viewer's `draft` mode, UC5) is the third surface:
+`SymbiotDraftKit` is the bare shared markdown surface (no annotation plugins,
+no `DiffPlugin`), its `<PlateContent>` is editable — no `readOnly`, no typing
+guard — and `DraftEditorHandle.getMarkdown()` serializes the value back to
+markdown via `editor.api.markdown.serialize()`. That serialize-back path is
+the package's only Plate→markdown direction; `src/utils/markdownRoundTrip.test.ts`
+pins it semantically lossless, byte-idempotent, and invisible to the version
+diff (NFR-4).
+
 ### Why a separate package
 
 Kept distinct from `@symbiot/ui` on purpose:
@@ -30979,7 +32858,7 @@ in [`../../docs/02-architecture.md`](../../docs/02-architecture.md):
 
 - `aboveNodes` render hooks return `children` for non-diff elements, not `undefined` — Plate drops the entire element otherwise.
 - The host re-keys `DiffEditor` on `mode` change so `usePlateEditor` builds a fresh editor with the right initial value. Mixing `usePlateEditor`'s `deps` array with conditional value computation produces stale renders.
-- The editor stays mounted as `<Plate readOnly>` for the entire session. Annotation transforms run via `editor.tf.*`, which bypass DOM `contenteditable=false` entirely. No transient readOnly toggling.
+- The review/diff editors stay mounted as `<Plate readOnly>` for the entire session. Annotation transforms run via `editor.tf.*`, which bypass DOM `contenteditable=false` entirely. No transient readOnly toggling. Only `DraftEditor` is editable — it carries no annotation plugins, so the two enforcement mechanisms never mix.
 
 ## Installation
 
@@ -35530,6 +37409,7 @@ const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) 
         <TopBar
           onApprove={props.onApprove ?? vi.fn()}
           onDeny={props.onDeny ?? vi.fn()}
+          onSend={props.onSend}
           projectName={props.projectName ?? "demo"}
           busy={props.busy}
           mode={props.mode}
@@ -35579,6 +37459,21 @@ describe("TopBar", () => {
     expect(screen.queryByTestId(otherTestId)).toBeNull();
   });
 
+  it("draft mode renders Approve and Send to agent side by side", () => {
+    renderTopBar({ mode: "draft" });
+    expect(screen.getByTestId("top-bar-approve").textContent).toContain("Approve");
+    expect(screen.getByTestId("send-to-agent").textContent).toContain("Send to agent");
+    expect(screen.queryByTestId("top-bar-deny")).toBeNull();
+  });
+
+  it("clicking Send to agent invokes onSend exactly once", async () => {
+    const user = userEvent.setup();
+    const onSend = vi.fn();
+    renderTopBar({ mode: "draft", onSend });
+    await user.click(screen.getByTestId("send-to-agent"));
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
   it("busy disables the action button", () => {
     renderTopBar({ busy: true, hasAnnotations: false });
     expect(screen.getByTestId<HTMLButtonElement>("top-bar-approve").disabled).toBe(true);
@@ -35612,11 +37507,13 @@ import { Kbd, formatHotkey } from "./Kbd.tsx";
 import { SendIcon } from "./SendIcon.tsx";
 import { SettingsMenu } from "./SettingsMenu.tsx";
 
-export type TopBarMode = "plan" | "annotate";
+export type TopBarMode = "plan" | "annotate" | "draft";
 
 interface TopBarProps {
   onApprove: () => void;
   onDeny: () => void;
+  /** Draft mode only: the "Send to agent" action rendered next to Approve. */
+  onSend?: () => void;
   /** Name of the project being reviewed; rendered as muted subtitle next to the wordmark. */
   projectName: string;
   busy?: boolean;
@@ -35631,6 +37528,7 @@ const denyLabel = (mode: TopBarMode): string =>
 interface ActionsProps {
   onApprove: () => void;
   onDeny: () => void;
+  onSend?: () => void;
   busy: boolean;
   mode: TopBarMode;
   hasAnnotations: boolean;
@@ -35639,10 +37537,31 @@ interface ActionsProps {
 const Actions = ({
   onApprove,
   onDeny,
+  onSend,
   busy,
   mode,
   hasAnnotations,
 }: ActionsProps): React.ReactElement => {
+  if (mode === "draft") {
+    return (
+      <>
+        <Button
+          data-testid="top-bar-approve"
+          variant="outline"
+          size="sm"
+          onClick={onApprove}
+          disabled={busy}
+        >
+          <CheckIcon />
+          Approve
+        </Button>
+        <Button data-testid="send-to-agent" size="sm" onClick={onSend} disabled={busy}>
+          <SendIcon />
+          Send to agent
+        </Button>
+      </>
+    );
+  }
   if (mode === "plan" && !hasAnnotations) {
     return (
       <Button
@@ -35670,6 +37589,7 @@ const Actions = ({
 export const TopBar = ({
   onApprove,
   onDeny,
+  onSend,
   projectName,
   busy = false,
   mode = "plan",
@@ -35692,6 +37612,7 @@ export const TopBar = ({
       <Actions
         onApprove={onApprove}
         onDeny={onDeny}
+        onSend={onSend}
         busy={busy}
         mode={mode}
         hasAnnotations={hasAnnotations}
@@ -39853,63 +41774,1145 @@ SOFTWARE.
 </file>
 
 <file path="LICENSES.md">
-<!-- generated by scripts/licenses-report.ts; do not edit -->
+# Licenses
 
-# Third-party licenses
+> Generated by the licenses-audit action (licenses-report.ts). Do not edit by hand.
 
-49 unique production dependencies across 11 workspaces. Regenerate with `bun run licenses:audit`.
+1083 packages across 17 licenses.
 
-| Package | License | Repository |
-| --- | --- | --- |
-| @eslint-react/eslint-plugin@5.8.1 | MIT | https://github.com/Rel1cx/eslint-react |
-| @eslint/compat@2.1.0 | Apache-2.0 | https://github.com/eslint/rewrite |
-| @eslint/js@10.0.1 | MIT | https://github.com/eslint/eslint |
-| @platejs/basic-nodes@53.0.0 | MIT | https://github.com/udecode/plate |
-| @platejs/code-block@53.0.0 | MIT | https://github.com/udecode/plate |
-| @platejs/comment@53.0.0 | MIT | https://github.com/udecode/plate |
-| @platejs/diff@53.0.0 | MIT* | https://github.com/udecode/plate |
-| @platejs/list@53.0.2 | MIT | https://github.com/udecode/plate |
-| @platejs/markdown@53.0.4 | MIT | https://github.com/udecode/plate |
-| @platejs/media@53.0.1 | MIT | https://github.com/udecode/plate |
-| @platejs/table@53.0.0 | MIT | https://github.com/udecode/plate |
-| @radix-ui/react-alert-dialog@1.1.15 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-dialog@1.1.15 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-dropdown-menu@2.1.16 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-popover@1.1.15 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-scroll-area@1.2.10 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-separator@1.1.8 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-slot@1.2.4 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-tabs@1.1.13 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-toggle-group@1.1.11 | MIT | https://github.com/radix-ui/primitives |
-| @radix-ui/react-tooltip@1.2.8 | MIT | https://github.com/radix-ui/primitives |
-| class-variance-authority@0.7.1 | Apache-2.0 | https://github.com/joe-bell/cva |
-| clsx@2.1.1 | MIT | https://github.com/lukeed/clsx |
-| eslint-config-prettier@10.1.8 | MIT | https://github.com/prettier/eslint-config-prettier |
-| eslint-plugin-depend@1.5.0 | MIT | https://github.com/es-tooling/eslint-plugin-depend |
-| eslint-plugin-import-x@4.16.2 | MIT | https://github.com/un-ts/eslint-plugin-import-x |
-| eslint-plugin-jsdoc@62.9.0 | BSD-3-Clause | https://github.com/gajus/eslint-plugin-jsdoc |
-| eslint-plugin-jsx-a11y@6.10.2 | MIT | https://github.com/jsx-eslint/eslint-plugin-jsx-a11y |
-| eslint-plugin-n@18.0.1 | MIT | https://github.com/eslint-community/eslint-plugin-n |
-| eslint-plugin-react-hooks@7.1.1 | MIT | https://github.com/facebook/react |
-| eslint-plugin-unicorn@64.0.0 | MIT | https://github.com/sindresorhus/eslint-plugin-unicorn |
-| eslint@10.4.0 | MIT | https://github.com/eslint/eslint |
-| globals@17.6.0 | MIT | https://github.com/sindresorhus/globals |
-| lucide-react@1.16.0 | ISC | https://github.com/lucide-icons/lucide |
-| platejs@53.0.3 | MIT | https://github.com/udecode/plate |
-| prettier-plugin-tailwindcss@0.8.0 | MIT | https://github.com/tailwindlabs/prettier-plugin-tailwindcss |
-| prettier@3.8.3 | MIT | https://github.com/prettier/prettier |
-| react-dom@19.2.0 | MIT | https://github.com/facebook/react |
-| react-hotkeys-hook@5.3.2 | MIT | https://github.com/JohannesKlauss/react-keymap-hook |
-| react@19.2.0 | MIT | https://github.com/facebook/react |
-| remark-gfm@4.0.1 | MIT | https://github.com/remarkjs/remark-gfm |
-| remark-parse@11.0.0 | MIT | https://github.com/remarkjs/remark.git#main |
-| shiki@1.29.2 | MIT | https://github.com/shikijs/shiki |
-| tailwind-merge@3.3.1 | MIT | https://github.com/dcastil/tailwind-merge |
-| tailwindcss@4.3.0 | MIT | https://github.com/tailwindlabs/tailwindcss |
-| tw-animate-css@1.4.0 | MIT | https://github.com/Wombosvideo/tw-animate-css |
-| typescript-eslint@8.59.4 | MIT | https://github.com/typescript-eslint/typescript-eslint |
-| unified@11.0.5 | MIT | https://github.com/unifiedjs/unified |
-| zod@4.4.3 | MIT | https://github.com/colinhacks/zod |
+## (MIT AND CC-BY-3.0)
+
+- spdx-ranges@2.1.1
+
+## (MIT OR Apache-2.0)
+
+- birecord@0.1.1
+
+## (MIT OR CC0-1.0)
+
+- type-fest@4.41.0
+- type-fest@5.6.0
+
+## 0BSD
+
+- tslib@2.8.1
+
+## Apache-2.0
+
+- @eslint/compat@2.1.0
+- @eslint/config-array@0.23.5
+- @eslint/config-helpers@0.6.0
+- @eslint/core@1.2.1
+- @eslint/object-schema@3.0.5
+- @eslint/plugin-kit@0.7.1
+- @humanfs/core@0.19.2
+- @humanfs/node@0.16.8
+- @humanfs/types@0.15.0
+- @humanwhocodes/module-importer@1.0.1
+- @humanwhocodes/retry@0.4.3
+- @juggle/resize-observer@3.4.0
+- @opentelemetry/api-logs@0.57.2
+- @opentelemetry/api@1.9.1
+- @opentelemetry/context-async-hooks@1.30.1
+- @opentelemetry/core@1.30.1
+- @opentelemetry/instrumentation-amqplib@0.46.1
+- @opentelemetry/instrumentation-connect@0.43.1
+- @opentelemetry/instrumentation-dataloader@0.16.1
+- @opentelemetry/instrumentation-express@0.47.1
+- @opentelemetry/instrumentation-fs@0.19.1
+- @opentelemetry/instrumentation-generic-pool@0.43.1
+- @opentelemetry/instrumentation-graphql@0.47.1
+- @opentelemetry/instrumentation-hapi@0.45.2
+- @opentelemetry/instrumentation-http@0.57.2
+- @opentelemetry/instrumentation-ioredis@0.47.1
+- @opentelemetry/instrumentation-kafkajs@0.7.1
+- @opentelemetry/instrumentation-knex@0.44.1
+- @opentelemetry/instrumentation-koa@0.47.1
+- @opentelemetry/instrumentation-lru-memoizer@0.44.1
+- @opentelemetry/instrumentation-mongodb@0.52.0
+- @opentelemetry/instrumentation-mongoose@0.46.1
+- @opentelemetry/instrumentation-mysql2@0.45.2
+- @opentelemetry/instrumentation-mysql@0.45.1
+- @opentelemetry/instrumentation-pg@0.51.1
+- @opentelemetry/instrumentation-redis-4@0.46.1
+- @opentelemetry/instrumentation-tedious@0.18.1
+- @opentelemetry/instrumentation-undici@0.10.1
+- @opentelemetry/instrumentation@0.57.2
+- @opentelemetry/redis-common@0.36.2
+- @opentelemetry/resources@1.30.1
+- @opentelemetry/sdk-trace-base@1.30.1
+- @opentelemetry/semantic-conventions@1.28.0
+- @opentelemetry/semantic-conventions@1.41.1
+- @opentelemetry/sql-common@0.40.1
+- @playwright/test@1.60.0
+- @prisma/instrumentation@6.11.1
+- @puppeteer/browsers@2.13.2
+- aria-query@5.3.0
+- aria-query@5.3.2
+- axobject-query@4.1.0
+- b4a@1.8.1
+- bare-events@2.8.3
+- bare-fs@4.7.1
+- bare-os@3.9.1
+- bare-path@3.0.0
+- bare-stream@2.13.1
+- bare-url@2.4.3
+- baseline-browser-mapping@2.10.31
+- chrome-launcher@1.2.1
+- chromium-bidi@14.0.0
+- class-variance-authority@0.7.1
+- csp_evaluator@1.1.5
+- detect-libc@2.1.2
+- eslint-visitor-keys@3.4.3
+- eslint-visitor-keys@5.0.1
+- events-universal@1.0.1
+- expect-type@1.3.0
+- import-in-the-middle@1.15.0
+- kubernetes-types@1.30.0
+- legacy-javascript@0.0.1
+- lighthouse-logger@2.0.2
+- lighthouse-stack-packs@1.12.3
+- lighthouse@13.3.0
+- marky@1.3.0
+- playwright-core@1.60.0
+- playwright@1.60.0
+- puppeteer-core@24.43.1
+- reflect-metadata@0.2.2
+- regexp-match-indices@1.0.2
+- spdx-correct@3.2.0
+- text-decoder@1.2.7
+- typescript@6.0.3
+- validate-npm-package-license@3.0.4
+- web-features@3.29.0
+- webdriver-bidi-protocol@0.4.1
+- xml-name-validator@5.0.0
+
+## BSD-2-Clause
+
+- configstore@7.1.0
+- damerau-levenshtein@1.0.8
+- entities@7.0.1
+- entities@8.0.0
+- escodegen@2.1.0
+- eslint-scope@9.1.2
+- espree@11.2.0
+- esprima@4.0.1
+- esrecurse@4.3.0
+- estraverse@5.3.0
+- esutils@2.0.3
+- extract-zip@2.0.1
+- normalize-package-data@5.0.0
+- regjsparser@0.13.1
+- shimmer@1.2.1
+- uri-js@4.4.1
+- webidl-conversions@8.0.1
+
+## BSD-3-Clause
+
+- @paulirish/trace_engine@0.0.64
+- devtools-protocol@0.0.1608973
+- devtools-protocol@0.0.1625959
+- eslint-plugin-jsdoc@62.9.0
+- esquery@1.7.0
+- fast-uri@3.1.2
+- intl-messageformat@10.7.18
+- istanbul-lib-coverage@3.2.2
+- istanbul-lib-report@3.0.1
+- istanbul-reports@3.2.0
+- jpeg-js@0.4.4
+- license-checker-rseidelsohn@4.4.2
+- source-map-js@1.2.1
+- source-map@0.6.1
+- source-map@0.7.6
+- tough-cookie@6.0.1
+
+## BlueOak-1.0.0
+
+- foreground-child@4.0.3
+- jackspeak@3.4.3
+- lru-cache@11.5.0
+- minimatch@10.2.5
+- minipass@7.1.3
+- package-json-from-dist@1.0.1
+- path-scurry@1.11.1
+
+## CC-BY-3.0
+
+- spdx-exceptions@2.5.0
+
+## CC-BY-4.0
+
+- caniuse-lite@1.0.30001793
+
+## CC0-1.0
+
+- language-subtag-registry@0.3.23
+- mdn-data@2.27.1
+- spdx-license-ids@3.0.23
+
+## ISC
+
+- @isaacs/cliui@8.0.2
+- @npmcli/fs@3.1.1
+- @ungap/structured-clone@1.3.1
+- abbrev@2.0.0
+- cli-width@4.1.0
+- cliui@8.0.1
+- cliui@9.0.1
+- conventional-changelog-angular@8.3.1
+- conventional-changelog-conventionalcommits@9.3.1
+- electron-to-chromium@1.5.357
+- fastq@1.20.1
+- flatted@3.4.2
+- foreground-child@3.3.1
+- get-caller-file@2.0.5
+- glob-parent@5.1.2
+- glob-parent@6.0.2
+- glob@10.5.0
+- graceful-fs@4.2.11
+- hosted-git-info@6.1.3
+- ini@6.0.0
+- isexe@2.0.0
+- lru-cache@10.4.3
+- lru-cache@5.1.1
+- lru-cache@7.18.3
+- lucide-react@1.16.0
+- minimatch@3.1.5
+- minimatch@9.0.9
+- mute-stream@3.0.0
+- nopt@7.2.1
+- npm-normalize-package-bin@3.0.1
+- once@1.4.0
+- pg-int8@1.0.1
+- picocolors@1.1.1
+- read-installed-packages@2.0.1
+- read-package-json@6.0.4
+- saxes@6.0.0
+- semver@6.3.1
+- semver@7.8.0
+- siginfo@2.0.0
+- signal-exit@4.1.0
+- slide@1.1.6
+- which@2.0.2
+- wrappy@1.0.2
+- y18n@5.0.8
+- yallist@3.1.1
+- yaml@2.9.0
+- yargs-parser@21.1.1
+- yargs-parser@22.0.0
+
+## MIT
+
+- @asamuzakjp/css-color@5.1.11
+- @asamuzakjp/dom-selector@7.1.1
+- @asamuzakjp/generational-cache@1.0.1
+- @asamuzakjp/nwsapi@2.3.9
+- @babel/code-frame@7.29.0
+- @babel/compat-data@7.29.3
+- @babel/core@7.29.0
+- @babel/generator@7.29.1
+- @babel/helper-compilation-targets@7.28.6
+- @babel/helper-globals@7.28.0
+- @babel/helper-module-imports@7.28.6
+- @babel/helper-module-transforms@7.28.6
+- @babel/helper-string-parser@7.27.1
+- @babel/helper-validator-identifier@7.28.5
+- @babel/helper-validator-option@7.27.1
+- @babel/helpers@7.29.2
+- @babel/parser@7.29.3
+- @babel/runtime@7.29.7
+- @babel/template@7.28.6
+- @babel/traverse@7.29.0
+- @babel/types@7.29.0
+- @bcoe/v8-coverage@1.0.2
+- @bramus/specificity@2.4.2
+- @colors/colors@1.5.0
+- @commitlint/cli@21.0.1
+- @commitlint/config-conventional@21.0.1
+- @commitlint/config-validator@21.0.1
+- @commitlint/ensure@21.0.1
+- @commitlint/execute-rule@21.0.1
+- @commitlint/format@21.0.1
+- @commitlint/is-ignored@21.0.1
+- @commitlint/lint@21.0.1
+- @commitlint/load@21.0.1
+- @commitlint/message@21.0.1
+- @commitlint/parse@21.0.1
+- @commitlint/read@21.0.1
+- @commitlint/resolve-extends@21.0.1
+- @commitlint/rules@21.0.1
+- @commitlint/to-lines@21.0.1
+- @commitlint/top-level@21.0.1
+- @commitlint/types@21.0.1
+- @conventional-changelog/git-client@2.7.0
+- @csstools/css-calc@3.2.1
+- @csstools/css-color-parser@4.1.1
+- @csstools/css-parser-algorithms@4.0.0
+- @csstools/css-tokenizer@4.0.0
+- @cucumber/cucumber-expressions@18.0.1
+- @cucumber/gherkin-utils@9.2.0
+- @cucumber/gherkin@31.0.0
+- @cucumber/gherkin@32.2.0
+- @cucumber/html-formatter@21.15.1
+- @cucumber/junit-xml-formatter@0.7.1
+- @cucumber/messages@26.0.1
+- @cucumber/messages@27.2.0
+- @cucumber/query@13.6.0
+- @cucumber/tag-expressions@6.2.0
+- @es-joy/jsdoccomment@0.86.0
+- @es-joy/resolve.exports@1.2.0
+- @eslint-community/eslint-utils@4.9.1
+- @eslint-community/regexpp@4.12.2
+- @eslint-react/ast@5.8.1
+- @eslint-react/core@5.8.1
+- @eslint-react/eslint-plugin@5.8.1
+- @eslint-react/eslint@5.8.1
+- @eslint-react/jsx@5.8.1
+- @eslint-react/shared@5.8.1
+- @eslint-react/var@5.8.1
+- @eslint/js@10.0.1
+- @exodus/bytes@1.15.1
+- @floating-ui/core@1.7.5
+- @floating-ui/dom@1.7.6
+- @floating-ui/react-dom@2.1.8
+- @floating-ui/utils@0.2.11
+- @formatjs/ecma402-abstract@2.3.6
+- @formatjs/fast-memoize@2.2.7
+- @formatjs/icu-messageformat-parser@2.11.4
+- @formatjs/icu-skeleton-parser@1.8.16
+- @formatjs/intl-localematcher@0.6.2
+- @inquirer/ansi@2.0.5
+- @inquirer/confirm@6.0.13
+- @inquirer/core@11.1.10
+- @inquirer/figures@2.0.5
+- @inquirer/type@4.0.5
+- @jridgewell/gen-mapping@0.3.13
+- @jridgewell/remapping@2.3.5
+- @jridgewell/resolve-uri@3.1.2
+- @jridgewell/sourcemap-codec@1.5.5
+- @jridgewell/trace-mapping@0.3.31
+- @msgpackr-extract/msgpackr-extract-linux-x64@3.0.4
+- @mswjs/interceptors@0.41.9
+- @nodelib/fs.scandir@2.1.5
+- @nodelib/fs.stat@2.0.5
+- @nodelib/fs.walk@1.2.8
+- @open-draft/deferred-promise@2.2.0
+- @open-draft/deferred-promise@3.0.0
+- @open-draft/logger@0.3.0
+- @open-draft/until@2.1.0
+- @opencode-ai/plugin@1.15.13
+- @opencode-ai/sdk@1.15.13
+- @oxc-project/types@0.130.0
+- @package-json/types@0.0.12
+- @pkgjs/parseargs@0.11.0
+- @platejs/basic-nodes@53.0.0
+- @platejs/code-block@53.0.0
+- @platejs/comment@53.0.0
+- @platejs/core@53.0.0
+- @platejs/date@53.0.0
+- @platejs/indent@53.0.0
+- @platejs/list@53.0.2
+- @platejs/markdown@53.0.4
+- @platejs/media@53.0.1
+- @platejs/resizable@53.0.0
+- @platejs/slate@53.0.0
+- @platejs/table@53.0.0
+- @platejs/utils@53.0.3
+- @radix-ui/number@1.1.1
+- @radix-ui/primitive@1.1.3
+- @radix-ui/react-alert-dialog@1.1.15
+- @radix-ui/react-arrow@1.1.7
+- @radix-ui/react-collection@1.1.7
+- @radix-ui/react-compose-refs@1.1.2
+- @radix-ui/react-context@1.1.2
+- @radix-ui/react-dialog@1.1.15
+- @radix-ui/react-direction@1.1.1
+- @radix-ui/react-dismissable-layer@1.1.11
+- @radix-ui/react-dropdown-menu@2.1.16
+- @radix-ui/react-focus-guards@1.1.3
+- @radix-ui/react-focus-scope@1.1.7
+- @radix-ui/react-id@1.1.1
+- @radix-ui/react-menu@2.1.16
+- @radix-ui/react-popover@1.1.15
+- @radix-ui/react-popper@1.2.8
+- @radix-ui/react-portal@1.1.9
+- @radix-ui/react-presence@1.1.5
+- @radix-ui/react-primitive@2.1.3
+- @radix-ui/react-primitive@2.1.4
+- @radix-ui/react-roving-focus@1.1.11
+- @radix-ui/react-scroll-area@1.2.10
+- @radix-ui/react-separator@1.1.8
+- @radix-ui/react-slot@1.2.3
+- @radix-ui/react-slot@1.2.4
+- @radix-ui/react-tabs@1.1.13
+- @radix-ui/react-toggle-group@1.1.11
+- @radix-ui/react-toggle@1.1.10
+- @radix-ui/react-tooltip@1.2.8
+- @radix-ui/react-use-callback-ref@1.1.1
+- @radix-ui/react-use-controllable-state@1.2.2
+- @radix-ui/react-use-effect-event@0.0.2
+- @radix-ui/react-use-escape-keydown@1.1.1
+- @radix-ui/react-use-layout-effect@1.1.1
+- @radix-ui/react-use-rect@1.1.1
+- @radix-ui/react-use-size@1.1.1
+- @radix-ui/react-visually-hidden@1.2.3
+- @radix-ui/rect@1.1.1
+- @rolldown/binding-linux-x64-gnu@1.0.1
+- @rolldown/binding-linux-x64-musl@1.0.1
+- @rolldown/pluginutils@1.0.1
+- @sentry/core@9.47.1
+- @sentry/node-core@9.47.1
+- @sentry/node@9.47.1
+- @sentry/opentelemetry@9.47.1
+- @shikijs/core@1.29.2
+- @shikijs/engine-javascript@1.29.2
+- @shikijs/engine-oniguruma@1.29.2
+- @shikijs/langs@1.29.2
+- @shikijs/themes@1.29.2
+- @shikijs/types@1.29.2
+- @shikijs/vscode-textmate@10.0.2
+- @simple-libs/child-process-utils@1.0.2
+- @simple-libs/stream-utils@1.2.0
+- @sindresorhus/base62@1.0.0
+- @standard-schema/spec@1.1.0
+- @tailwindcss/node@4.3.0
+- @tailwindcss/oxide-linux-x64-gnu@4.3.0
+- @tailwindcss/oxide-linux-x64-musl@4.3.0
+- @tailwindcss/oxide@4.3.0
+- @tailwindcss/typography@0.5.19
+- @tailwindcss/vite@4.3.0
+- @teppeis/multimaps@3.0.0
+- @testing-library/dom@10.4.1
+- @testing-library/react@16.3.2
+- @testing-library/user-event@14.6.1
+- @tootallnate/quickjs-emscripten@0.23.0
+- @turbo/linux-64@2.9.14
+- @types/aria-query@5.0.4
+- @types/bun@1.3.14
+- @types/chai@5.2.3
+- @types/connect@3.4.38
+- @types/debug@4.1.13
+- @types/deep-eql@4.0.2
+- @types/esrecurse@4.3.1
+- @types/estree-jsx@1.0.5
+- @types/estree@1.0.9
+- @types/hast@3.0.4
+- @types/jsdom@28.0.3
+- @types/json-schema@7.0.15
+- @types/mdast@4.0.4
+- @types/ms@2.1.0
+- @types/mysql@2.15.26
+- @types/node@25.9.0
+- @types/pg-pool@2.0.6
+- @types/pg@8.6.1
+- @types/react-dom@19.2.3
+- @types/react@19.2.14
+- @types/set-cookie-parser@2.4.10
+- @types/shimmer@1.2.0
+- @types/statuses@2.0.6
+- @types/tedious@4.0.14
+- @types/tough-cookie@4.0.5
+- @types/unist@2.0.11
+- @types/unist@3.0.3
+- @types/uuid@10.0.0
+- @types/whatwg-mimetype@3.0.2
+- @types/ws@8.18.1
+- @types/yauzl@2.10.3
+- @typescript-eslint/eslint-plugin@8.59.4
+- @typescript-eslint/parser@8.59.4
+- @typescript-eslint/project-service@8.59.4
+- @typescript-eslint/scope-manager@8.59.4
+- @typescript-eslint/tsconfig-utils@8.59.4
+- @typescript-eslint/type-utils@8.59.4
+- @typescript-eslint/types@8.59.4
+- @typescript-eslint/typescript-estree@8.59.4
+- @typescript-eslint/utils@8.59.4
+- @typescript-eslint/visitor-keys@8.59.4
+- @udecode/react-hotkeys@52.0.11
+- @udecode/react-utils@52.3.4
+- @udecode/utils@52.3.4
+- @unrs/resolver-binding-linux-x64-gnu@1.12.0
+- @unrs/resolver-binding-linux-x64-musl@1.12.0
+- @vitejs/plugin-react@6.0.2
+- @vitest/coverage-v8@4.1.6
+- @vitest/expect@4.1.6
+- @vitest/mocker@4.1.6
+- @vitest/pretty-format@4.1.6
+- @vitest/runner@4.1.6
+- @vitest/snapshot@4.1.6
+- @vitest/spy@4.1.6
+- @vitest/utils@4.1.6
+- acorn-import-attributes@1.9.5
+- acorn-jsx@5.3.2
+- acorn-loose@8.5.2
+- acorn-walk@8.3.5
+- acorn@8.16.0
+- agent-base@7.1.4
+- ajv@6.15.0
+- ajv@8.20.0
+- ansi-colors@4.1.3
+- ansi-escapes@7.3.0
+- ansi-regex@5.0.1
+- ansi-regex@6.2.2
+- ansi-styles@4.3.0
+- ansi-styles@5.2.0
+- ansi-styles@6.2.3
+- are-docs-informative@0.0.2
+- aria-hidden@1.2.6
+- array-buffer-byte-length@1.0.2
+- array-find-index@1.0.2
+- array-ify@1.0.0
+- array-includes@3.1.9
+- array.prototype.flat@1.3.3
+- array.prototype.flatmap@1.3.3
+- arraybuffer.prototype.slice@1.0.4
+- assertion-error@2.0.1
+- ast-types-flow@0.0.8
+- ast-types@0.13.4
+- ast-v8-to-istanbul@1.0.2
+- async-function@1.0.0
+- atomically@2.1.1
+- available-typed-arrays@1.0.7
+- bail@2.0.2
+- balanced-match@1.0.2
+- balanced-match@4.0.4
+- basic-ftp@5.3.1
+- bidi-js@1.0.3
+- brace-expansion@1.1.14
+- brace-expansion@2.1.0
+- brace-expansion@5.0.6
+- braces@3.0.3
+- browserslist@4.28.2
+- buffer-crc32@0.2.13
+- buffer-from@1.1.2
+- builtin-modules@5.2.0
+- bun-types@1.3.14
+- bundle-name@4.1.0
+- call-bind-apply-helpers@1.0.2
+- call-bind@1.0.9
+- call-bound@1.0.4
+- callsites@3.1.0
+- ccount@2.0.1
+- chai@6.2.2
+- chalk@4.1.2
+- change-case@5.4.4
+- character-entities-html4@2.1.0
+- character-entities-legacy@3.0.0
+- character-entities@2.0.2
+- character-reference-invalid@2.0.1
+- ci-info@4.4.0
+- cjs-module-lexer@1.4.3
+- class-transformer@0.5.1
+- clean-regexp@1.0.0
+- cli-cursor@5.0.0
+- cli-table3@0.6.5
+- cli-truncate@5.2.0
+- clsx@2.1.1
+- color-convert@2.0.1
+- color-name@1.1.4
+- comma-separated-tokens@2.0.3
+- commander@13.1.0
+- commander@14.0.3
+- comment-parser@1.4.6
+- compare-func@2.0.0
+- compare-versions@6.1.1
+- compute-scroll-into-view@3.1.1
+- concat-map@0.0.1
+- console-grid@2.2.4
+- conventional-commits-parser@6.4.0
+- convert-source-map@2.0.0
+- cookie@1.1.1
+- core-js-compat@3.49.0
+- cosmiconfig-typescript-loader@6.3.0
+- cosmiconfig@9.0.1
+- cross-spawn@7.0.6
+- css-tree@3.2.1
+- cssesc@3.0.0
+- csstype@3.2.3
+- data-uri-to-buffer@6.0.2
+- data-urls@7.0.0
+- data-view-buffer@1.0.2
+- data-view-byte-length@1.0.2
+- data-view-byte-offset@1.0.1
+- debug@4.4.3
+- decimal.js@10.6.0
+- decode-named-character-reference@1.3.0
+- deep-is@0.1.4
+- default-browser-id@5.0.1
+- default-browser@5.5.0
+- define-data-property@1.1.4
+- define-lazy-prop@2.0.0
+- define-lazy-prop@3.0.0
+- define-properties@1.2.1
+- degenerator@5.0.1
+- dequal@2.0.3
+- detect-node-es@1.1.0
+- devlop@1.1.0
+- diff-match-patch-ts@0.6.0
+- direction@1.0.4
+- dom-accessibility-api@0.5.16
+- dot-prop@5.3.0
+- dot-prop@9.0.0
+- dunder-proto@1.0.1
+- eastasianwidth@0.2.0
+- effect@4.0.0-beta.66
+- eight-colors@1.3.3
+- emoji-regex-xs@1.0.0
+- emoji-regex@10.6.0
+- emoji-regex@8.0.0
+- emoji-regex@9.2.2
+- empathic@2.0.1
+- end-of-stream@1.4.5
+- enhanced-resolve@5.21.4
+- enquirer@2.4.1
+- env-paths@2.2.1
+- environment@1.1.0
+- error-ex@1.3.4
+- es-abstract@1.24.2
+- es-define-property@1.0.1
+- es-errors@1.3.0
+- es-module-lexer@2.1.0
+- es-object-atoms@1.1.1
+- es-set-tostringtag@2.1.0
+- es-shim-unscopables@1.1.0
+- es-to-primitive@1.3.0
+- es-toolkit@1.46.1
+- escalade@3.2.0
+- escape-string-regexp@1.0.5
+- escape-string-regexp@4.0.0
+- escape-string-regexp@5.0.0
+- eslint-compat-utils@0.5.1
+- eslint-config-prettier@10.1.8
+- eslint-import-context@0.1.9
+- eslint-plugin-depend@1.5.0
+- eslint-plugin-es-x@7.8.0
+- eslint-plugin-import-x@4.16.2
+- eslint-plugin-jsx-a11y@6.10.2
+- eslint-plugin-n@18.0.1
+- eslint-plugin-playwright@2.10.4
+- eslint-plugin-react-dom@5.8.1
+- eslint-plugin-react-hooks@7.1.1
+- eslint-plugin-react-jsx@5.8.1
+- eslint-plugin-react-naming-convention@5.8.1
+- eslint-plugin-react-rsc@5.8.1
+- eslint-plugin-react-web-api@5.8.1
+- eslint-plugin-react-x@5.8.1
+- eslint-plugin-unicorn@64.0.0
+- eslint@10.4.0
+- estree-util-is-identifier-name@3.0.0
+- estree-util-visit@2.0.0
+- estree-walker@3.0.3
+- eventemitter3@5.0.4
+- extend@3.0.2
+- fast-check@4.8.0
+- fast-deep-equal@3.1.3
+- fast-fifo@1.3.2
+- fast-glob@3.3.3
+- fast-json-stable-stringify@2.1.0
+- fast-levenshtein@2.0.6
+- fast-string-truncated-width@3.0.3
+- fast-string-width@3.0.2
+- fast-wrap-ansi@0.2.2
+- fd-slicer@1.1.0
+- fdir@6.5.0
+- file-entry-cache@8.0.0
+- fill-range@7.1.1
+- find-my-way-ts@0.1.6
+- find-up-simple@1.0.1
+- find-up@5.0.0
+- flat-cache@4.0.1
+- for-each@0.3.5
+- forwarded-parse@2.1.2
+- function-bind@1.1.2
+- function.prototype.name@1.1.8
+- functions-have-names@1.2.3
+- generator-function@2.0.1
+- gensync@1.0.0-beta.2
+- get-east-asian-width@1.6.0
+- get-intrinsic@1.3.0
+- get-nonce@1.0.1
+- get-proto@1.0.1
+- get-stream@5.2.0
+- get-symbol-description@1.1.0
+- get-tsconfig@4.14.0
+- get-uri@6.0.5
+- git-raw-commits@5.0.1
+- global-directory@5.0.0
+- globals@15.15.0
+- globals@17.6.0
+- globalthis@1.0.4
+- globrex@0.1.2
+- gopd@1.2.0
+- graphql@16.14.0
+- happy-dom@20.9.0
+- has-bigints@1.1.0
+- has-flag@4.0.0
+- has-property-descriptors@1.0.2
+- has-proto@1.2.0
+- has-symbols@1.1.0
+- has-tostringtag@1.0.2
+- hasown@2.0.3
+- hast-util-to-html@9.0.5
+- hast-util-whitespace@3.0.0
+- headers-polyfill@5.0.1
+- hermes-estree@0.25.1
+- hermes-parser@0.25.1
+- html-encoding-sniffer@6.0.0
+- html-entities@2.6.0
+- html-escaper@2.0.2
+- html-void-elements@3.0.0
+- http-link-header@1.1.3
+- http-proxy-agent@7.0.2
+- https-proxy-agent@7.0.6
+- husky@9.1.7
+- ignore@5.3.2
+- ignore@7.0.5
+- image-ssim@0.2.0
+- immer@10.2.0
+- import-fresh@3.3.1
+- imurmurhash@0.1.4
+- indent-string@5.0.0
+- internal-slot@1.1.0
+- ip-address@10.2.0
+- is-alphabetical@2.0.1
+- is-alphanumerical@2.0.1
+- is-array-buffer@3.0.5
+- is-arrayish@0.2.1
+- is-async-function@2.1.1
+- is-bigint@1.1.0
+- is-boolean-object@1.2.2
+- is-builtin-module@5.0.0
+- is-callable@1.2.7
+- is-core-module@2.16.2
+- is-data-view@1.0.2
+- is-date-object@1.1.0
+- is-decimal@2.0.1
+- is-docker@2.2.1
+- is-docker@3.0.0
+- is-extglob@2.1.1
+- is-finalizationregistry@1.1.1
+- is-fullwidth-code-point@3.0.0
+- is-fullwidth-code-point@5.1.0
+- is-generator-function@1.1.2
+- is-glob@4.0.3
+- is-hexadecimal@2.0.1
+- is-hotkey@0.2.0
+- is-in-ssh@1.0.0
+- is-inside-container@1.0.0
+- is-map@2.0.3
+- is-negative-zero@2.0.3
+- is-node-process@1.2.0
+- is-number-object@1.1.1
+- is-number@7.0.0
+- is-obj@2.0.0
+- is-plain-obj@4.1.0
+- is-plain-object@5.0.0
+- is-potential-custom-element-name@1.0.1
+- is-regex@1.2.1
+- is-set@2.0.3
+- is-shared-array-buffer@1.0.4
+- is-string@1.1.1
+- is-symbol@1.1.1
+- is-typed-array@1.1.15
+- is-weakmap@2.0.2
+- is-weakref@1.1.1
+- is-weakset@2.0.4
+- is-wsl@2.2.0
+- is-wsl@3.1.1
+- isarray@2.0.5
+- jiti@2.6.1
+- jiti@2.7.0
+- jotai-optics@0.4.0
+- jotai-x@2.3.3
+- jotai@2.8.4
+- js-library-detector@6.7.0
+- js-tokens@10.0.0
+- js-tokens@4.0.0
+- js-yaml@4.1.1
+- jsdoc-type-pratt-parser@7.2.0
+- jsdom@29.1.1
+- jsesc@3.1.0
+- json-buffer@3.0.1
+- json-parse-even-better-errors@2.3.1
+- json-parse-even-better-errors@3.0.2
+- json-schema-traverse@0.4.1
+- json-schema-traverse@1.0.0
+- json-stable-stringify-without-jsonify@1.0.1
+- json5@2.2.3
+- jsx-ast-utils@3.3.5
+- keyv@4.5.4
+- language-tags@1.0.9
+- levn@0.4.1
+- lines-and-columns@1.2.4
+- lint-staged@17.0.5
+- listr2@10.2.1
+- locate-path@6.0.0
+- lodash-es@4.18.1
+- lodash.clonedeep@4.5.0
+- lodash.mapvalues@4.6.0
+- lodash.sortby@4.7.0
+- lodash@4.18.1
+- log-update@6.1.0
+- longest-streak@3.1.0
+- lookup-closest-locale@6.2.0
+- luxon@3.7.2
+- lz-string@1.5.0
+- lz-utils@2.1.1
+- magic-string@0.30.21
+- magicast@0.5.3
+- make-dir@4.0.0
+- markdown-table@3.0.4
+- marked@15.0.12
+- math-intrinsics@1.1.0
+- mdast-util-find-and-replace@3.0.2
+- mdast-util-from-markdown@2.0.3
+- mdast-util-gfm-autolink-literal@2.0.1
+- mdast-util-gfm-footnote@2.1.0
+- mdast-util-gfm-strikethrough@2.0.0
+- mdast-util-gfm-table@2.0.0
+- mdast-util-gfm-task-list-item@2.0.0
+- mdast-util-gfm@3.1.0
+- mdast-util-math@3.0.0
+- mdast-util-mdx-expression@2.0.1
+- mdast-util-mdx-jsx@3.2.0
+- mdast-util-mdx@3.0.0
+- mdast-util-mdxjs-esm@2.0.1
+- mdast-util-phrasing@4.1.0
+- mdast-util-to-hast@13.2.1
+- mdast-util-to-markdown@2.1.2
+- mdast-util-to-string@4.0.0
+- meow@13.2.0
+- merge2@1.4.1
+- micromark-core-commonmark@2.0.3
+- micromark-extension-gfm-autolink-literal@2.1.0
+- micromark-extension-gfm-footnote@2.1.0
+- micromark-extension-gfm-strikethrough@2.1.0
+- micromark-extension-gfm-table@2.1.1
+- micromark-extension-gfm-tagfilter@2.0.0
+- micromark-extension-gfm-task-list-item@2.1.0
+- micromark-extension-gfm@3.0.0
+- micromark-extension-mdx-expression@3.0.1
+- micromark-extension-mdx-jsx@3.0.2
+- micromark-extension-mdx-md@2.0.0
+- micromark-extension-mdxjs-esm@3.0.0
+- micromark-extension-mdxjs@3.0.0
+- micromark-factory-destination@2.0.1
+- micromark-factory-label@2.0.1
+- micromark-factory-mdx-expression@2.0.3
+- micromark-factory-space@2.0.1
+- micromark-factory-title@2.0.1
+- micromark-factory-whitespace@2.0.1
+- micromark-util-character@2.1.1
+- micromark-util-chunked@2.0.1
+- micromark-util-classify-character@2.0.1
+- micromark-util-combine-extensions@2.0.1
+- micromark-util-decode-numeric-character-reference@2.0.2
+- micromark-util-decode-string@2.0.1
+- micromark-util-encode@2.0.1
+- micromark-util-events-to-acorn@2.0.3
+- micromark-util-html-tag-name@2.0.1
+- micromark-util-normalize-identifier@2.0.1
+- micromark-util-resolve-all@2.0.1
+- micromark-util-sanitize-uri@2.0.1
+- micromark-util-subtokenize@2.1.0
+- micromark-util-symbol@2.0.1
+- micromark-util-types@2.0.2
+- micromark@4.0.2
+- micromatch@4.0.8
+- mime-db@1.54.0
+- mime-types@3.0.2
+- mimic-function@5.0.1
+- mitt@3.0.1
+- mkdirp@1.0.4
+- module-details-from-path@1.0.4
+- module-replacements@2.11.0
+- monocart-coverage-reports@2.12.11
+- monocart-locator@1.0.3
+- ms@2.1.3
+- msgpackr-extract@3.0.4
+- msgpackr@1.11.12
+- msw@2.14.6
+- multipasta@0.2.7
+- mutative@1.1.0
+- nanoid@3.3.12
+- nanoid@5.1.11
+- napi-postinstall@0.3.4
+- natural-compare@1.4.0
+- netmask@2.1.1
+- node-gyp-build-optional-packages@5.2.2
+- node-releases@2.0.44
+- object-deep-merge@2.0.0
+- object-inspect@1.13.4
+- object-keys@1.1.1
+- object.assign@4.1.7
+- object.fromentries@2.0.8
+- object.values@1.2.1
+- obug@2.1.1
+- onetime@7.0.0
+- oniguruma-to-es@2.3.0
+- open@11.0.0
+- open@8.4.2
+- optics-ts@2.4.1
+- optionator@0.9.4
+- outvariant@1.4.3
+- own-keys@1.0.1
+- p-limit@3.1.0
+- p-locate@5.0.0
+- pac-proxy-agent@7.2.0
+- pac-resolver@7.0.1
+- parent-module@1.0.1
+- parse-entities@4.0.2
+- parse-imports-exports@0.2.4
+- parse-json@5.2.0
+- parse-statements@1.0.11
+- parse5@8.0.1
+- path-exists@4.0.0
+- path-key@3.1.1
+- path-parse@1.0.7
+- path-to-regexp@6.3.0
+- pathe@2.0.3
+- pend@1.2.0
+- pg-protocol@1.14.0
+- pg-types@2.2.0
+- picomatch@2.3.2
+- picomatch@4.0.4
+- platejs@53.0.3
+- playwright-bdd@8.5.1
+- pluralize@8.0.0
+- possible-typed-array-names@1.1.0
+- postcss-selector-parser@6.0.10
+- postcss@8.5.14
+- postgres-array@2.0.0
+- postgres-bytea@1.0.1
+- postgres-date@1.0.7
+- postgres-interval@1.2.0
+- powershell-utils@0.1.0
+- prelude-ls@1.2.1
+- prettier-plugin-tailwindcss@0.8.0
+- prettier@3.8.3
+- pretty-format@27.5.1
+- progress@2.0.3
+- property-information@7.1.0
+- proxy-agent@6.5.0
+- proxy-compare@2.6.0
+- proxy-from-env@1.1.0
+- pump@3.0.4
+- punycode@2.3.1
+- pure-rand@8.4.0
+- queue-microtask@1.2.3
+- react-compiler-runtime@1.0.0
+- react-dom@19.2.0
+- react-hotkeys-hook@5.3.2
+- react-is@17.0.2
+- react-remove-scroll-bar@2.3.8
+- react-remove-scroll@2.7.2
+- react-style-singleton@2.2.3
+- react-tracked@1.7.14
+- react@19.2.0
+- reflect.getprototypeof@1.0.10
+- regex-recursion@5.1.1
+- regex-utilities@2.3.0
+- regex@5.1.1
+- regexp-tree@0.1.27
+- regexp.prototype.flags@1.5.4
+- remark-gfm@4.0.1
+- remark-mdx@3.1.1
+- remark-parse@11.0.0
+- remark-stringify@11.0.0
+- require-directory@2.1.1
+- require-from-string@2.0.2
+- require-in-the-middle@7.5.2
+- reserved-identifiers@1.2.0
+- resolve-from@4.0.0
+- resolve-from@5.0.0
+- resolve-pkg-maps@1.0.0
+- resolve@1.22.12
+- restore-cursor@5.1.0
+- rettime@0.11.11
+- reusify@1.1.0
+- rfdc@1.4.1
+- robots-parser@3.0.1
+- rolldown@1.0.1
+- rollup-plugin-visualizer@7.0.1
+- run-applescript@7.1.0
+- run-parallel@1.2.0
+- safe-array-concat@1.1.4
+- safe-push-apply@1.0.0
+- safe-regex-test@1.1.0
+- scheduler@0.27.0
+- scroll-into-view-if-needed@3.1.0
+- set-cookie-parser@3.1.0
+- set-function-length@1.2.2
+- set-function-name@2.0.2
+- set-proto@1.0.0
+- shebang-command@2.0.0
+- shebang-regex@3.0.0
+- shiki@1.29.2
+- side-channel-list@1.0.1
+- side-channel-map@1.0.1
+- side-channel-weakmap@1.0.2
+- side-channel@1.1.0
+- slate-dom@0.124.1
+- slate-hyperscript@0.100.0
+- slate-react@0.124.0
+- slate@0.124.1
+- slice-ansi@7.1.2
+- slice-ansi@8.0.0
+- smart-buffer@4.2.0
+- socks-proxy-agent@8.0.5
+- socks@2.8.9
+- source-map-support@0.5.21
+- space-separated-tokens@2.0.2
+- spdx-compare@1.0.0
+- spdx-expression-parse@3.0.1
+- spdx-expression-parse@4.0.0
+- spdx-satisfies@5.0.1
+- speedline-core@1.4.3
+- stable-hash-x@0.2.0
+- stackback@0.0.2
+- statuses@2.0.2
+- std-env@4.1.0
+- stop-iteration-iterator@1.1.0
+- streamx@2.25.0
+- strict-event-emitter@0.5.1
+- string-argv@0.3.2
+- string-ts@2.3.1
+- string-width@4.2.3
+- string-width@5.1.2
+- string-width@7.2.0
+- string-width@8.2.1
+- string.prototype.includes@2.0.1
+- string.prototype.trim@1.2.10
+- string.prototype.trimend@1.0.9
+- string.prototype.trimstart@1.0.8
+- stringify-entities@4.0.4
+- strip-ansi@6.0.1
+- strip-ansi@7.2.0
+- strip-indent@4.1.1
+- stubborn-fs@2.0.0
+- stubborn-utils@1.0.2
+- supports-color@7.2.0
+- supports-preserve-symlinks-flag@1.0.0
+- symbol-tree@3.2.4
+- tagged-tag@1.0.0
+- tailwind-merge@3.3.1
+- tailwindcss@4.3.0
+- tapable@2.3.3
+- tar-fs@3.1.2
+- tar-stream@3.2.0
+- teex@1.0.1
+- third-party-web@0.29.2
+- tiny-invariant@1.3.1
+- tinybench@2.9.0
+- tinyexec@1.1.2
+- tinyglobby@0.2.16
+- tinyrainbow@3.1.0
+- tldts-core@7.0.30
+- tldts-core@7.0.32
+- tldts-icann@7.0.32
+- tldts@7.0.30
+- to-regex-range@5.0.1
+- to-valid-identifier@1.0.0
+- toml@4.1.1
+- tr46@6.0.0
+- treeify@1.1.0
+- trim-lines@3.0.1
+- trough@2.2.0
+- ts-api-utils@2.5.0
+- ts-essentials@10.1.0
+- ts-pattern@5.9.0
+- turbo@2.9.14
+- tw-animate-css@1.4.0
+- type-check@0.4.0
+- typed-array-buffer@1.0.3
+- typed-array-byte-length@1.0.3
+- typed-array-byte-offset@1.0.4
+- typed-array-length@1.0.7
+- typed-query-selector@2.12.2
+- typescript-eslint@8.59.4
+- unbox-primitive@1.1.0
+- undici-types@7.24.6
+- undici@7.25.0
+- unified@11.0.5
+- unist-util-is@6.0.1
+- unist-util-position-from-estree@2.0.0
+- unist-util-position@5.0.0
+- unist-util-remove-position@5.0.0
+- unist-util-stringify-position@4.0.0
+- unist-util-visit-parents@6.0.2
+- unist-util-visit@5.0.0
+- unrs-resolver@1.12.0
+- until-async@3.0.2
+- update-browserslist-db@1.2.3
+- use-callback-ref@1.3.3
+- use-context-selector@1.4.4
+- use-deep-compare@1.3.0
+- use-sidecar@1.1.3
+- use-sync-external-store@1.4.0
+- util-deprecate@1.0.2
+- uuid@10.0.0
+- uuid@11.0.5
+- uuid@13.0.2
+- vfile-message@4.0.3
+- vfile@6.0.3
+- vite-plugin-singlefile@2.3.3
+- vite@8.0.13
+- vitest@4.1.6
+- w3c-xmlserializer@5.0.0
+- whatwg-mimetype@3.0.0
+- whatwg-mimetype@5.0.0
+- whatwg-url@16.0.1
+- when-exit@2.1.5
+- which-boxed-primitive@1.1.1
+- which-builtin-type@1.2.1
+- which-collection@1.0.2
+- which-typed-array@1.1.20
+- why-is-node-running@2.3.0
+- word-wrap@1.2.5
+- wrap-ansi@10.0.0
+- wrap-ansi@7.0.0
+- wrap-ansi@8.1.0
+- wrap-ansi@9.0.2
+- ws@7.5.11
+- ws@8.21.0
+- wsl-utils@0.3.1
+- xdg-basedir@5.1.0
+- xmlbuilder@15.1.1
+- xmlchars@2.2.0
+- xtend@4.0.2
+- yargs@17.7.2
+- yargs@18.0.0
+- yauzl@2.10.0
+- yocto-queue@0.1.0
+- zod-validation-error@4.0.2
+- zod@3.25.76
+- zod@4.1.8
+- zod@4.4.3
+- zustand-x@6.2.1
+- zustand@5.0.13
+- zwitch@2.0.4
+
+## MIT-0
+
+- @csstools/color-helpers@6.0.2
+- @csstools/css-syntax-patches-for-csstree@1.1.4
+
+## MPL-2.0
+
+- @axe-core/playwright@4.10.2
+- axe-core@4.10.3
+- axe-core@4.11.4
+- lightningcss-linux-x64-gnu@1.32.0
+- lightningcss-linux-x64-musl@1.32.0
+- lightningcss@1.32.0
+
+## Python-2.0
+
+- argparse@2.0.1
+
+## UNKNOWN
+
+- @platejs/diff@53.0.0
 </file>
 
 <file path="lint-staged.config.ts">
