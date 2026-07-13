@@ -1,0 +1,81 @@
+run /autopilot:pr-monitor
+
+---
+
+rebase and fix conflicts
+
+---
+
+<task-notification>
+<task-id>b7hwtgw9d</task-id>
+<summary>Monitor event: "PR #251 monitor: CI checks + review decision"</summary>
+<event>PR #251 CI FAILED: ai-review</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+check
+
+---
+
+<task-notification>
+<task-id>b0hf5xzx7</task-id>
+<summary>Monitor event: "confirmation flake-probe on rebased head 6d5a260"</summary>
+<event>flake-probe (29212853684, confirmation on rebased head 6d5a260) completed: conclusion=failure</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b06b50mpu</task-id>
+<summary>Monitor event: "PR #251 monitor (post-rerun): checks + review decision"</summary>
+<event>PR #251 all 6 checks green; decision=none — still awaiting approval</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b06b50mpu</task-id>
+<summary>Monitor event: "PR #251 monitor (post-rerun): checks + review decision"</summary>
+<event>PR #251 all 6 checks green; decision=none — still awaiting approval</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b06b50mpu</task-id>
+<summary>Monitor event: "PR #251 monitor (post-rerun): checks + review decision"</summary>
+<event>PR #251 all 6 checks green; decision=none — still awaiting approval</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b06b50mpu</task-id>
+<summary>Monitor event: "PR #251 monitor (post-rerun): checks + review decision"</summary>
+<event>PR #251 all 6 checks green; decision=none — still awaiting approval</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbe63b3j1</task-id>
+<summary>Monitor event: "flake-probe re-run for a green Probe check on the PR head"</summary>
+<event>flake-probe (29214412160, re-run for clean Probe check on 6d5a260) completed: conclusion=success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>buxmmdhbo</task-id>
+<summary>Monitor event: "PR #251: ai-review verdict / posted review / decision"</summary>
+<event>PR #251 REVIEW POSTED: 1 review(s), decision=APPROVED</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
