@@ -25,7 +25,7 @@
     "@platejs/diff": "53.0.0",
     "@platejs/list": "53.0.2",
     "@platejs/markdown": "53.0.4",
-    "@platejs/media": "53.0.1",
+    "@platejs/media": "53.1.4",
     "@platejs/table": "53.0.0",
     "@symbiot/annotations": "workspace:*",
     "@symbiot/ui": "workspace:*",
